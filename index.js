@@ -551,6 +551,3 @@ process.on('unhandledRejection', (err) => {
 });
 
 module.exports = { store };
-// 🌐 Render Free Tier Port Bind (Server ko zinda rakhne ke liye)
-const http = require('http');
-http.createServer((req, res) => res.end('Kosem Bot is Live and Running!')).listen(process.env.PORT || 8080);
