@@ -22,7 +22,7 @@ function sendLog(msg) {
     clients.forEach(c => c.write(`data: ${msg}\n\n`)); 
 }
 
-// 🌐 KOSEM PREMIUM FRONTEND + PANEL
+// 👑 KOSEM PREMIUM FRONTEND + PANEL
 app.get('/', (req, res) => {
     res.send(`
         <!DOCTYPE html>
@@ -234,8 +234,11 @@ app.get('/logs', (req, res) => {
     });
 });
 
+// 🚀 GLOBAL BOT PROCESS (To prevent duplicates)
+let activeBotProcess = null;
+
 // ==========================================
-// 🚀 API: DEPLOY BOT (FIXED PURANA KACHRA DELETION)
+// 🚀 API: DEPLOY BOT
 // ==========================================
 app.post('/deploy-bot', async (req, res) => {
     const { sessionId } = req.body;
@@ -246,13 +249,20 @@ app.post('/deploy-bot', async (req, res) => {
 
     try {
         sendLog("📥 Processing Session ID...");
+
+        // 🛡️ ANTI-DUPLICATE SYSTEM: Agar purana bot chal raha hai, usay kill karo!
+        if (activeBotProcess) {
+            sendLog("⚠️ Stopping previous bot instance to prevent conflict...");
+            try { activeBotProcess.kill(); } catch (e) {}
+            activeBotProcess = null;
+        }
+
         const b64data = sessionId.split('!')[1].replace('...', '');
         const compressedData = Buffer.from(b64data, 'base64');
         const decompressedData = zlib.gunzipSync(compressedData);
 
         const sessionFolder = path.join(__dirname, 'session');
         
-        // 🚀 THE MAGIC FIX: Purani tamaam hidden files delete karo taake naya session clash na kare!
         if (fs.existsSync(sessionFolder)) {
             sendLog("🧹 Clearing old session cache...");
             fs.rmSync(sessionFolder, { recursive: true, force: true });
@@ -262,15 +272,20 @@ app.post('/deploy-bot', async (req, res) => {
         fs.writeFileSync(path.join(sessionFolder, 'creds.json'), decompressedData, 'utf8');
 
         sendLog("⚙️ Starting Bot Process in Background...");
-        const botProcess = spawn('node', ['index.js'], { 
-            detached: true, 
+        
+        // Spawn naya process aur save karna global variable mein
+        activeBotProcess = spawn('node', ['index.js'], { 
             env: { ...process.env }
         });
         
-        botProcess.stdout.on('data', data => sendLog(`[BOT] ${data.toString().trim()}`));
-        botProcess.stderr.on('data', data => sendLog(`[ERROR] ${data.toString().trim()}`));
+        activeBotProcess.stdout.on('data', data => sendLog(`[BOT] ${data.toString().trim()}`));
+        activeBotProcess.stderr.on('data', data => sendLog(`[ERROR] ${data.toString().trim()}`));
         
-        botProcess.unref();
+        activeBotProcess.on('close', (code) => {
+            sendLog(`[SYSTEM] Bot Process Exited (Code: ${code})`);
+            activeBotProcess = null;
+        });
+
         res.json({ success: true, message: "Bot Successfully Started!" });
     } catch (e) {
         sendLog(`❌ Deploy Error: ${e.message}`);
