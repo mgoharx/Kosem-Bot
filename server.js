@@ -49,8 +49,7 @@ app.get('/', (req, res) => {
 
                 input { width: 100%; padding: 16px; margin-bottom: 20px; background: rgba(0, 0, 0, 0.3); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 12px; color: white; text-align: center; outline: none; box-sizing: border-box; transition: all 0.3s ease; }
                 input:focus { background: rgba(0, 0, 0, 0.5); border-color: rgba(255, 255, 255, 0.3); box-shadow: 0 0 15px rgba(255, 255, 255, 0.05); }
-                input::-webkit-outer-spin-button,
-                input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+                input::-webkit-outer-spin-button, input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
                 input[type=number] { -moz-appearance: textfield; }
                 
                 .action-btn { width: 100%; padding: 16px; background: #ffffff; color: #000000; border: none; border-radius: 12px; font-size: 16px; font-weight: 600; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.15); transition: all 0.3s ease; }
@@ -209,7 +208,6 @@ app.get('/', (req, res) => {
                     } catch(e) { animateHTMLChange(container, '<span class="error">Server error. Try again.</span>'); }
                 }
 
-                // Live Logs Stream
                 const es = new EventSource('/logs');
                 es.onmessage = e => { 
                     const logBox = document.getElementById('live-logs'); 
@@ -237,7 +235,7 @@ app.get('/logs', (req, res) => {
 });
 
 // ==========================================
-// 🚀 API: DEPLOY BOT
+// 🚀 API: DEPLOY BOT (FIXED PURANA KACHRA DELETION)
 // ==========================================
 app.post('/deploy-bot', async (req, res) => {
     const { sessionId } = req.body;
@@ -253,9 +251,14 @@ app.post('/deploy-bot', async (req, res) => {
         const decompressedData = zlib.gunzipSync(compressedData);
 
         const sessionFolder = path.join(__dirname, 'session');
-        if (!fs.existsSync(sessionFolder)) {
-            fs.mkdirSync(sessionFolder, { recursive: true });
+        
+        // 🚀 THE MAGIC FIX: Purani tamaam hidden files delete karo taake naya session clash na kare!
+        if (fs.existsSync(sessionFolder)) {
+            sendLog("🧹 Clearing old session cache...");
+            fs.rmSync(sessionFolder, { recursive: true, force: true });
         }
+        
+        fs.mkdirSync(sessionFolder, { recursive: true });
         fs.writeFileSync(path.join(sessionFolder, 'creds.json'), decompressedData, 'utf8');
 
         sendLog("⚙️ Starting Bot Process in Background...");
@@ -324,7 +327,6 @@ app.get('/code', async (req, res) => {
                     const base64Session = compressed.toString('base64');
                     const finalSessionId = `Kosem!${base64Session}`;
                     
-                    // 🚀 THE FIX: Sending to the exact clean number without device ID
                     const myCleanNumber = sock.user.id.split(':')[0] + '@s.whatsapp.net';
                     await sock.sendMessage(myCleanNumber, { text: finalSessionId });
 
@@ -335,7 +337,6 @@ app.get('/code', async (req, res) => {
                 } catch (e) { console.error(e); }
             } else if (connection === 'close') {
                 const reason = lastDisconnect?.error?.output?.statusCode;
-                
                 if (reason === DisconnectReason.restartRequired || reason === 515 || reason === 408 || reason === 503) {
                     startKosem(); 
                 } else {
@@ -389,7 +390,6 @@ app.get('/api/qr', async (req, res) => {
                     const base64Session = compressed.toString('base64');
                     const finalSessionId = `Kosem!${base64Session}`;
                     
-                    // 🚀 THE FIX: Sending to the exact clean number without device ID
                     const myCleanNumber = sock.user.id.split(':')[0] + '@s.whatsapp.net';
                     await sock.sendMessage(myCleanNumber, { text: finalSessionId });
 
@@ -400,7 +400,6 @@ app.get('/api/qr', async (req, res) => {
                 } catch (e) { console.error(e); }
             } else if (connection === 'close') {
                 const reason = lastDisconnect?.error?.output?.statusCode;
-                
                 if (reason === DisconnectReason.restartRequired || reason === 515 || reason === 408 || reason === 503) {
                     startKosemQR(); 
                 } else {
