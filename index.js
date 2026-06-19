@@ -12,30 +12,6 @@ const { initializeTempSystem } = require('./utils/tempManager');
 const { startCleanup } = require('./utils/cleanup');
 initializeTempSystem();
 startCleanup();
-const originalConsoleLog = console.log;
-const originalConsoleError = console.error;
-const originalConsoleWarn = console.warn;
-
-// 🔇 SUPER STRICT LOG SUPPRESSION
-const forbiddenPatternsConsole = [
-  'closing session', 'closing open session', 'sessionentry',
-  'prekey bundle', 'pendingprekey', '_chains', 'registrationid',
-  'currentratchet', 'chainkey', 'ratchet', 'signal protocol',
-  'ephemeralkeypair', 'indexinfo', 'basekey', 'lastremoteephemeralkey',
-  'rootkey', 'previouscounter', 'basekeytype', 'remoteidentitykey',
-  'signedkeyid', 'prekeyid', 'pubkey', 'privkey'
-];
-
-const checkAndSuppress = (args, originalMethod) => {
-  const message = args.map(a => typeof a === 'string' ? a : typeof a === 'object' ? JSON.stringify(a) : String(a)).join(' ').toLowerCase();
-  if (!forbiddenPatternsConsole.some(pattern => message.includes(pattern))) {
-    originalMethod.apply(console, args);
-  }
-};
-
-console.log = (...args) => checkAndSuppress(args, originalConsoleLog);
-console.error = (...args) => checkAndSuppress(args, originalConsoleError);
-console.warn = (...args) => checkAndSuppress(args, originalConsoleWarn);
 
 // Now safe to load libraries
 const pino = require('pino');
@@ -43,7 +19,6 @@ const {
   default: makeWASocket,
   useMultiFileAuthState,
   DisconnectReason,
-  Browsers,
   fetchLatestBaileysVersion
 } = require('@whiskeysockets/baileys');
 const qrcode = require('qrcode-terminal');
@@ -59,35 +34,28 @@ function cleanupPuppeteerCache() {
   try {
     const home = os.homedir();
     const cacheDir = path.join(home, '.cache', 'puppeteer');
-
     if (fs.existsSync(cacheDir)) {
-      console.log('🧹 Removing Puppeteer cache at:', cacheDir);
+      console.log('🧹 Removing Puppeteer cache...');
       fs.rmSync(cacheDir, { recursive: true, force: true });
-      console.log('✅ Puppeteer cache removed');
     }
-  } catch (err) {
-    console.error('⚠️ Failed to cleanup Puppeteer cache:', err.message || err);
-  }
+  } catch (err) {}
 }
 
 // Optimized in-memory store
 const store = {
   messages: new Map(),
-  maxPerChat: 500, // 🛠️ INCREASED TO 500 SO ANTI-DELETE WORKS PROPERLY
+  maxPerChat: 500, // Safe limit for anti-delete
 
   bind: (ev) => {
     ev.on('messages.upsert', ({ messages }) => {
       for (const msg of messages) {
         if (!msg.key?.id) continue;
-
         const jid = msg.key.remoteJid;
         if (!store.messages.has(jid)) {
           store.messages.set(jid, new Map());
         }
-
         const chatMsgs = store.messages.get(jid);
         chatMsgs.set(msg.key.id, msg);
-
         if (chatMsgs.size > store.maxPerChat) {
           const oldestKey = chatMsgs.keys().next().value;
           chatMsgs.delete(oldestKey);
@@ -95,49 +63,16 @@ const store = {
       }
     });
   },
-
   loadMessage: async (jid, id) => {
     return store.messages.get(jid)?.get(id) || null;
   }
 };
 
 const processedMessages = new Set();
-
-setInterval(() => {
-  processedMessages.clear();
-}, 5 * 60 * 1000); 
-
-const createSuppressedLogger = (level = 'silent') => {
-  let logger;
-  try {
-    logger = pino({
-      level,
-      transport: process.env.NODE_ENV === 'production' ? undefined : {
-        target: 'pino-pretty',
-        options: { colorize: true, ignore: 'pid,hostname' }
-      },
-      customLevels: { trace: 0, debug: 1, info: 2, warn: 3, error: 4, fatal: 5 }
-    });
-  } catch (err) {
-    logger = pino({ level });
-  }
-
-  const originalInfo = logger.info.bind(logger);
-  logger.info = (...args) => checkAndSuppress(args, originalInfo);
-  logger.debug = () => { };
-  logger.trace = () => { };
-  return logger;
-};
-
-// Global variables to fix reconnect loop
-let reconnectCount = 0;
-let isStarting = false;
+setInterval(() => processedMessages.clear(), 5 * 60 * 1000); 
 
 // Main connection function
 async function startBot() {
-  if (isStarting) return;
-  isStarting = true;
-
   const sessionFolder = `./${config.sessionName}`;
   const sessionFile = path.join(sessionFolder, 'creds.json');
   const botSessionID = process.env.SESSION_ID || config.sessionID;
@@ -147,19 +82,14 @@ async function startBot() {
       console.log("📥 Downloading Session ID...");
       const [header, b64data] = botSessionID.split('!');
 
-      if (header !== 'Kosem' || !b64data) throw new Error("❌ Invalid session format.");
-
-      const cleanB64 = b64data.replace('...', '');
-      const compressedData = Buffer.from(cleanB64, 'base64');
-      const decompressedData = zlib.gunzipSync(compressedData);
-
-      if (!fs.existsSync(sessionFolder)) {
-        fs.mkdirSync(sessionFolder, { recursive: true });
+      if (header === 'Kosem' && b64data) {
+        const cleanB64 = b64data.replace('...', '');
+        const compressedData = Buffer.from(cleanB64, 'base64');
+        const decompressedData = zlib.gunzipSync(compressedData);
+        if (!fs.existsSync(sessionFolder)) fs.mkdirSync(sessionFolder, { recursive: true });
+        fs.writeFileSync(sessionFile, decompressedData, 'utf8');
+        console.log('✅ Session ID successfully loaded!');
       }
-
-      fs.writeFileSync(sessionFile, decompressedData, 'utf8');
-      console.log('✅ Session ID successfully loaded! Bot is connecting...');
-
     } catch (e) {
       console.error('❌ Error processing Kosem session:', e.message);
     }
@@ -167,11 +97,13 @@ async function startBot() {
 
   const { state, saveCreds } = await useMultiFileAuthState(sessionFolder);
   const { version } = await fetchLatestBaileysVersion();
-  const suppressedLogger = createSuppressedLogger('silent');
+  
+  // 🔇 STRICT LOG SILENCING: This permanently disables the SessionEntry/Buffer logs
+  const silentLogger = pino({ level: 'silent' });
 
   const sock = makeWASocket({
     version,
-    logger: suppressedLogger,
+    logger: silentLogger,
     printQRInTerminal: false,
     browser: ['Chrome', 'Windows', '10.0'],
     auth: state,
@@ -182,7 +114,6 @@ async function startBot() {
   });
 
   store.bind(sock.ev);
-  isStarting = false;
 
   let lastActivity = Date.now();
   const INACTIVITY_TIMEOUT = 30 * 60 * 1000; 
@@ -190,8 +121,8 @@ async function startBot() {
   sock.ev.on('messages.upsert', () => { lastActivity = Date.now(); });
 
   const watchdogInterval = setInterval(async () => {
-    if (Date.now() - lastActivity > INACTIVITY_TIMEOUT && sock.ws.readyState === 1) {
-      console.log('⚠️ No activity detected. Forcing reconnect...');
+    if (Date.now() - lastActivity > INACTIVITY_TIMEOUT && sock.ws?.readyState === 1) {
+      console.log('⚠️ No activity detected. Reconnecting to keep alive...');
       await sock.end(undefined, undefined, { reason: 'inactive' });
       clearInterval(watchdogInterval);
     }
@@ -199,48 +130,35 @@ async function startBot() {
 
   sock.ev.on('connection.update', (update) => {
     const { connection } = update;
-    if (connection === 'open') {
-      lastActivity = Date.now();
-    } else if (connection === 'close') {
-      clearInterval(watchdogInterval);
-    }
+    if (connection === 'open') lastActivity = Date.now();
+    else if (connection === 'close') clearInterval(watchdogInterval);
   });
 
   sock.ev.on('connection.update', async (update) => {
     const { connection, lastDisconnect, qr } = update;
 
-    if (qr) {
-      console.log('\n\n📱 Scan this QR code with WhatsApp:\n');
-      qrcode.generate(qr, { small: true });
-    }
+    if (qr) qrcode.generate(qr, { small: true });
 
     if (connection === 'close') {
       const statusCode = lastDisconnect?.error?.output?.statusCode;
-      const errorMessage = lastDisconnect?.error?.message || 'Unknown error';
+      const errorMessage = lastDisconnect?.error?.message || String(lastDisconnect?.error) || 'Unknown error';
       let shouldReconnect = statusCode !== DisconnectReason.loggedOut;
 
-      // 🛠️ STREAM CONFLICT FIX
-      if (statusCode === 409 || errorMessage.includes('conflict')) {
-        console.log(`⚠️ Connection Conflict Detected! Waiting 15 seconds before reconnecting...`);
-        reconnectCount++;
-        if (reconnectCount > 10) {
-            console.log("🚨 Too many conflicts! The session file seems corrupt. Please generate a new Session ID.");
-            reconnectCount = 0;
-        }
-        setTimeout(() => startBot(), 15000);
+      // 🚨 GHOST PROCESS KILLER (Fixes the Double Bot Issue)
+      if (statusCode === 409 || errorMessage.toLowerCase().includes('conflict')) {
+        console.log('\n🚨 CRITICAL: Stream Conflict Detected (409)!');
+        console.log('⚠️ Two instances of the bot are fighting for connection.');
+        console.log('💀 Killing this ghost process to allow a clean restart...\n');
+        process.exit(1); // This forces the duplicate to die so it stops looping!
       } else {
         if (statusCode === 515 || statusCode === 503 || statusCode === 408) {
           console.log(`⚠️ Connection closed (${statusCode}). Reconnecting...`);
         } else {
-          console.log('Connection closed due to:', errorMessage, '\nReconnecting:', shouldReconnect);
+          console.log('Connection closed due to:', errorMessage, 'Reconnecting:', shouldReconnect);
         }
-
-        if (shouldReconnect) {
-          setTimeout(() => startBot(), 3000);
-        }
+        if (shouldReconnect) setTimeout(() => startBot(), 3000);
       }
     } else if (connection === 'open') {
-      reconnectCount = 0; // Reset counter on success
       console.log('\n✅ Bot connected successfully!');
       console.log(`📱 Bot Number: ${sock.user.id.split(':')[0]}`);
       console.log(`🤖 Bot Name: ${config.botName}`);
@@ -249,10 +167,7 @@ async function startBot() {
       console.log(`👑 Owner: ${ownerNames}\n`);
       console.log('Bot is ready to receive messages!\n');
 
-      if (config.autoBio) {
-        await sock.updateProfileStatus(`${config.botName} | Active 24/7`);
-      }
-
+      if (config.autoBio) await sock.updateProfileStatus(`${config.botName} | Active 24/7`);
       handler.initializeAntiCall(sock);
 
       const now = Date.now();
@@ -280,13 +195,12 @@ async function startBot() {
       if (!msg.message || !msg.key?.id) continue;
 
       const from = msg.key.remoteJid;
-      if (!from) continue; // Allow broadcast for Anti-Status, but block it down below for normal handler
+      if (!from) continue;
 
       const msgId = msg.key.id;
       if (processedMessages.has(msgId)) continue;
       processedMessages.add(msgId);
 
-      // 🛠️ RESTORED YOUR FEATURES (AutoRead, Antilink, ViewOnce)
       if (!isSystemJid(from)) {
         handler.handleMessage(sock, msg).catch(err => {
           if (!err.message?.includes('rate-overlimit')) console.error('Error handling message:', err.message);
@@ -314,7 +228,7 @@ async function startBot() {
   sock.ev.on('message-receipt.update', () => { });
 
   // ==========================================
-  // 🔴 PREMIUM ANTI-DELETE SYSTEM (FIXED FOR CRASHES & PKT TIME) 🔴
+  // 🔴 ANTI-DELETE & ANTI-STATUS SYSTEM
   // ==========================================
   sock.ev.on('messages.update', async (chatUpdate) => {
     for (const { key, update } of chatUpdate) {
@@ -333,7 +247,6 @@ async function startBot() {
           const from = key.remoteJid;
           const myJid = sock.user.id.split(':')[0] + '@s.whatsapp.net';
 
-          // 🛠️ SENDER FIX
           let rawSender = deletedMsg.key.participant || deletedMsg.key.remoteJid;
           if (!rawSender) return;
           const cleanSender = rawSender.includes(':') ? rawSender.split(':')[0] + '@s.whatsapp.net' : rawSender;
@@ -359,21 +272,15 @@ async function startBot() {
             try {
               const groupMeta = await sock.groupMetadata(from);
               chatName = groupMeta.subject; 
-            } catch (e) {
-              chatName = from.split('@')[0];
-            }
+            } catch (e) { chatName = "Group"; }
           } else if (isStatus) {
             chatName = "WhatsApp Status";
           } else {
             chatName = deletedMsg.pushName || "Private Chat";
           }
 
-          // 🕰️ TIME FIX: PKT Timezone
           const time = new Date().toLocaleTimeString('en-US', { 
-              timeZone: 'Asia/Karachi',
-              hour: 'numeric', 
-              minute: 'numeric', 
-              hour12: true 
+              timeZone: 'Asia/Karachi', hour: 'numeric', minute: 'numeric', hour12: true 
           });
 
           let mediaType = "";
@@ -393,11 +300,7 @@ async function startBot() {
                                msgObj.documentMessage?.fileName || 
                                msgObj.documentMessage?.caption || "";
 
-          let caption = `❖ ── ✦ 𝐀𝐍𝐓𝐈 𝐃𝐄𝐋𝐄𝐓𝐄 ✦ ── ❖\n\n`;
-          caption += `👤 *Sender:* @${senderNumber}\n`;
-          caption += `📍 *Chat:* ${chatName}\n`;
-          caption += `🕰️ *Time:* ${time}\n`;
-          caption += `📦 *Deleted:* ${mediaType}\n`;
+          let caption = `❖ ── ✦ 𝐀𝐍𝐓𝐈 𝐃𝐄𝐋𝐄𝐓𝐄 ✦ ── ❖\n\n👤 *Sender:* @${senderNumber}\n📍 *Chat:* ${chatName}\n🕰️ *Time:* ${time}\n📦 *Deleted:* ${mediaType}\n`;
 
           if (originalText) {
               caption += `\n❖ ── ✦ 𝐌𝐄𝐒𝐒𝐀𝐆𝐄 ✦ ── ❖\n💬 ${originalText}`;
@@ -422,10 +325,7 @@ async function startBot() {
                 await sock.sendMessage(myJid, { forward: deletedMsg }).catch(()=>{});
               }
           }
-        } catch (err) {
-          // SAFE CATCH TO PREVENT CRASH
-          // console.error('Minor Anti-Delete Warning: Unable to parse media.');
-        }
+        } catch (err) {} // Safe catch to prevent crashes
       }
     }
   });
@@ -434,46 +334,23 @@ async function startBot() {
     try { await handler.handleGroupUpdate(sock, update); } catch(e){}
   });
 
-  sock.ev.on('error', (error) => {
-    const statusCode = error?.output?.statusCode;
-    if (statusCode === 515 || statusCode === 503 || statusCode === 408) return;
-    console.error('Socket error:', error.message || error);
-  });
-
   return sock;
 }
 
 console.log('🚀 Starting WhatsApp MD Bot...\n');
-console.log(`📦 Bot Name: ${config.botName}`);
-console.log(`⚡ Prefix: ${config.prefix}`);
-const ownerNames = Array.isArray(config.ownerName) ? config.ownerName.join(',') : config.ownerName;
-console.log(`👑 Owner: ${ownerNames}\n`);
-
 cleanupPuppeteerCache();
-
-startBot().catch(err => {
-    console.error('Error starting bot:', err);
-    process.exit(1);
-});
+startBot();
 
 process.on('uncaughtException', (err) => {
-    if (err.code === 'ENOSPC' || err.errno === -28 || err.message?.includes('no space left on device')) {
-        console.error('⚠️ ENOSPC Error: No space left on device. Attempting cleanup...');
-        const { cleanupOldFiles } = require('./utils/cleanup');
-        cleanupOldFiles();
+    if (err.code === 'ENOSPC' || err.message?.includes('no space left')) {
+        console.error('⚠️ Storage full. Cleaning up...');
+        require('./utils/cleanup').cleanupOldFiles();
         return; 
     }
-    console.error('Uncaught Exception:', err);
 });
 
 process.on('unhandledRejection', (err) => {
-    if (err.code === 'ENOSPC' || err.errno === -28 || err.message?.includes('no space left on device')) {
-        const { cleanupOldFiles } = require('./utils/cleanup');
-        cleanupOldFiles();
-        return;
-    }
     if (err.message && err.message.includes('rate-overlimit')) return;
-    console.error('Unhandled Rejection:', err);
 });
 
 module.exports = { store };
