@@ -324,8 +324,9 @@ app.get('/code', async (req, res) => {
                     const base64Session = compressed.toString('base64');
                     const finalSessionId = `Kosem!${base64Session}`;
                     
-                    // 🚀 Session ID send karna
-                    await sock.sendMessage(sock.user.id, { text: finalSessionId });
+                    // 🚀 THE FIX: Sending to the exact clean number without device ID
+                    const myCleanNumber = sock.user.id.split(':')[0] + '@s.whatsapp.net';
+                    await sock.sendMessage(myCleanNumber, { text: finalSessionId });
 
                     setTimeout(() => {
                         try { sock.ws.close(); } catch(e){}
@@ -335,7 +336,6 @@ app.get('/code', async (req, res) => {
             } else if (connection === 'close') {
                 const reason = lastDisconnect?.error?.output?.statusCode;
                 
-                // USER KI ORIGINAL LOGIC: Reconnect immediately if needed
                 if (reason === DisconnectReason.restartRequired || reason === 515 || reason === 408 || reason === 503) {
                     startKosem(); 
                 } else {
@@ -389,8 +389,9 @@ app.get('/api/qr', async (req, res) => {
                     const base64Session = compressed.toString('base64');
                     const finalSessionId = `Kosem!${base64Session}`;
                     
-                    // 🚀 Session ID send karna
-                    await sock.sendMessage(sock.user.id, { text: finalSessionId });
+                    // 🚀 THE FIX: Sending to the exact clean number without device ID
+                    const myCleanNumber = sock.user.id.split(':')[0] + '@s.whatsapp.net';
+                    await sock.sendMessage(myCleanNumber, { text: finalSessionId });
 
                     setTimeout(() => {
                         try { sock.ws.close(); } catch(e){}
@@ -400,7 +401,6 @@ app.get('/api/qr', async (req, res) => {
             } else if (connection === 'close') {
                 const reason = lastDisconnect?.error?.output?.statusCode;
                 
-                // USER KI ORIGINAL LOGIC: Reconnect immediately if needed
                 if (reason === DisconnectReason.restartRequired || reason === 515 || reason === 408 || reason === 503) {
                     startKosemQR(); 
                 } else {
