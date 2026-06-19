@@ -4,4 +4,4 @@ services:
     env: node
     plan: free
     buildCommand: npm install
-    startCommand: node server.js  <-- Yahan index.js ki jagah server.js aayega
+    startCommand: node server.js
