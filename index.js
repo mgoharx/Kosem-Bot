@@ -6,9 +6,6 @@ process.env.PUPPETEER_SKIP_DOWNLOAD = 'true';
 process.env.PUPPETEER_SKIP_CHROMIUM_DOWNLOAD = 'true';
 process.env.PUPPETEER_CACHE_DIR = process.env.PUPPETEER_CACHE_DIR || '/tmp/puppeteer_cache_disabled';
 
-// ⏱️ BOT UPTIME TRACKER (For Anti-Spam Fix)
-const BOT_START_TIME = Date.now();
-
 const { initializeTempSystem } = require('./utils/tempManager');
 const { startCleanup } = require('./utils/cleanup');
 initializeTempSystem();
@@ -72,7 +69,6 @@ const path = require('path');
 const zlib = require('zlib');
 const os = require('os');
 
-// Remove Puppeteer cache
 function cleanupPuppeteerCache() {
   try {
     const home = os.homedir();
@@ -88,10 +84,10 @@ function cleanupPuppeteerCache() {
   }
 }
 
-// Optimized in-memory store
+// 🛠️ FIX 1: Increased memory limit from 20 to 1000 so bot remembers old messages
 const store = {
   messages: new Map(),
-  maxPerChat: 20,
+  maxPerChat: 1000, 
 
   bind: (ev) => {
     ev.on('messages.upsert', ({ messages }) => {
@@ -160,7 +156,6 @@ const createSuppressedLogger = (level = 'silent') => {
   return logger;
 };
 
-// Main connection function
 async function startBot() {
   const sessionFolder = `./${config.sessionName}`;
   const sessionFile = path.join(sessionFolder, 'creds.json');
@@ -327,13 +322,21 @@ async function startBot() {
   // ==========================================
   sock.ev.on('messages.update', async (chatUpdate) => {
     for (const { key, update } of chatUpdate) {
-      if (update.message === null || update.message?.protocolMessage) {
+      
+      // 🛠️ FIX 2: Better & stricter detection for deleted messages
+      let isDeletedMessage = false;
+      if (update.message === null) {
+          isDeletedMessage = true;
+      } else if (update.message?.protocolMessage && update.message.protocolMessage.type === 0) {
+          isDeletedMessage = true;
+      } else if (update.message?.protocolMessage && update.message.protocolMessage.type === 'REVOKE') {
+          isDeletedMessage = true;
+      }
+
+      if (isDeletedMessage) {
         try {
           const deletedMsg = await store.loadMessage(key.remoteJid, key.id);
-          if (!deletedMsg) return; 
-
-          // 🛡️ OFFLINE SPAM FIX: Purane delete notifications ignore karega
-          if ((deletedMsg.messageTimestamp * 1000) < BOT_START_TIME) return;
+          if (!deletedMsg) return; // Msg limit se bahar tha ya bot band tha jab aya
 
           const from = key.remoteJid;
           const myJid = sock.user.id.split(':')[0] + '@s.whatsapp.net';
