@@ -1,14 +1,6 @@
 /**
  * WhatsApp MD Bot - Main Entry Point
  */
-const http = require('http');
-
-// 🌐 DUMMY WEB SERVER (RENDER FIX)
-const PORT = process.env.PORT || 10000;
-http.createServer((req, res) => {
-    res.write('Kosem Bot is running successfully!');
-    res.end();
-}).listen(PORT, () => console.log(`🌐 Dummy Web Server running on port ${PORT}`));
 
 process.env.PUPPETEER_SKIP_DOWNLOAD = 'true';
 process.env.PUPPETEER_SKIP_CHROMIUM_DOWNLOAD = 'true';
@@ -222,12 +214,10 @@ async function startBot() {
   sock.ev.on('messages.upsert', () => { lastActivity = Date.now(); });
 
   const watchdogInterval = setInterval(async () => {
-    if (Date.now() - lastActivity > INACTIVITY_TIMEOUT && sock.ws.readyState === 1) {
-      console.log('⚠️ No activity detected. Forcing reconnect...');
+    if (Date.now() - lastActivity > INACTIVITY_TIMEOUT && sock.ws?.readyState === 1) {
+      console.log('⚠️ No activity detected. Forcing reconnect to keep alive...');
       await sock.end(undefined, undefined, { reason: 'inactive' });
       clearInterval(watchdogInterval);
-      // 🛠️ FIX: Removed 'setTimeout(() => startBot(), 5000);' here to stop double bot creation.
-      // Reconnection will automatically be handled by 'connection.update'.
     }
   }, 5 * 60 * 1000);
 
@@ -346,8 +336,12 @@ async function startBot() {
           if ((deletedMsg.messageTimestamp * 1000) < BOT_START_TIME) return;
 
           const from = key.remoteJid;
-          const sender = deletedMsg.key.participant || deletedMsg.key.remoteJid;
           const myJid = sock.user.id.split(':')[0] + '@s.whatsapp.net';
+
+          // 🛠️ SENDER FIX: Remove port numbers like ':2' so tags work perfectly
+          let rawSender = deletedMsg.key.participant || deletedMsg.key.remoteJid;
+          const cleanSender = rawSender.includes(':') ? rawSender.split(':')[0] + '@s.whatsapp.net' : rawSender;
+          const senderNumber = cleanSender.split('@')[0];
 
           let msgObj = deletedMsg.message;
           if (!msgObj) return;
@@ -378,8 +372,12 @@ async function startBot() {
             chatName = deletedMsg.pushName || "Private Chat";
           }
 
+          // 🕰️ TIME FIX: Force Pakistani Time Zone (PKT)
           const time = new Date().toLocaleTimeString('en-US', { 
-              hour: 'numeric', minute: 'numeric', hour12: true 
+              timeZone: 'Asia/Karachi',
+              hour: 'numeric', 
+              minute: 'numeric', 
+              hour12: true 
           });
 
           // 🔍 DYNAMIC MEDIA TYPE DETECTION
@@ -403,40 +401,35 @@ async function startBot() {
 
           // ✨ PREMIUM AESTHETIC THEME ✨
           let caption = `❖ ── ✦ 𝐀𝐍𝐓𝐈 𝐃𝐄𝐋𝐄𝐓𝐄 ✦ ── ❖\n\n`;
-          caption += `👤 *Sender:* @${sender.split('@')[0]}\n`;
+          caption += `👤 *Sender:* @${senderNumber}\n`;
           caption += `📍 *Chat:* ${chatName}\n`;
           caption += `🕰️ *Time:* ${time}\n`;
-          caption += `📦 *Deleted:* ${mediaType}\n\n`;
-          caption += `❖ ── ✦ 𝐌𝐄𝐒𝐒𝐀𝐆𝐄 ✦ ── ❖\n`;
+          caption += `📦 *Deleted:* ${mediaType}\n`;
 
+          // 📝 EMPTY TEXT FIX: Only add "MESSAGE" banner if there is actual text
           if (originalText) {
-              caption += `💬 ${originalText}`;
+              caption += `\n❖ ── ✦ 𝐌𝐄𝐒𝐒𝐀𝐆𝐄 ✦ ── ❖\n💬 ${originalText}`;
           } else if (mediaType === "Text Message" || mediaType === "Text Status") {
-              caption += `💬 [Message deleted]`;
+              caption += `\n❖ ── ✦ 𝐌𝐄𝐒𝐒𝐀𝐆𝐄 ✦ ── ❖\n💬 [Message deleted]`;
           }
 
           // 🚀 ATTACHMENT & FORWARD LOGIC
           if (msgObj.imageMessage || msgObj.videoMessage) {
-              // Photo aur Video ke caption mein saari details daal do aur mentions fix karo
               if (msgObj.imageMessage) {
                   msgObj.imageMessage.caption = caption;
-                  msgObj.imageMessage.contextInfo = { mentionedJid: [sender] };
+                  msgObj.imageMessage.contextInfo = { mentionedJid: [cleanSender] };
               }
               if (msgObj.videoMessage) {
                   msgObj.videoMessage.caption = caption;
-                  msgObj.videoMessage.contextInfo = { mentionedJid: [sender] };
+                  msgObj.videoMessage.contextInfo = { mentionedJid: [cleanSender] };
               }
-              
-              // Ek hi message mein photo/video + caption chala jayega!
               await sock.sendMessage(myJid, { forward: deletedMsg });
           } else {
-              // Text, Voice, Sticker, Document ke liye pehle detail bhejo
               await sock.sendMessage(myJid, { 
                 text: caption, 
-                mentions: [sender] 
+                mentions: [cleanSender] 
               });
 
-              // Phir uske neechay original media bhej do
               const hasMedia = msgObj.audioMessage || 
                                msgObj.stickerMessage || 
                                msgObj.documentMessage ||
