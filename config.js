@@ -4,15 +4,20 @@
 
 module.exports = {
     // Bot Owner Configuration
-    ownerNumber: ['923002002796'], // Add your number without + or spaces (e.g., 919876543210)
-    ownerName: ['Gohar'], // Owner names corresponding to ownerNumber array
+    ownerNumber: ['923002002796'],
+    ownerName: ['Gohar'], 
     
     // Bot Configuration
     botName: 'Kosem Bot',
     prefix: '.',
     sessionName: 'session',
-    sessionID: process.env.SESSION_ID || 'Kosem!H4sIAAAAAAAAA5VUyZKjOBD9F13L0TbgssERFTE2UIBtwBtemOiDDALLbLIkzNJR/95BLV19mOmpuUkp5cuXmS/zB8gLzNACNWDyAxCK75Cj7sgbgsAEzMooQhT0QAg5BBOwnq2PSSuUzNMOdTxUJUNIjqswPwjOdq7YqmRH6dppHGMQP4GXHiDlOcXBHwB1PUc7rDzkiYKOuzafbo/HVgr32WnbzjejM2Oa50cDPdtXT+ClQ4SY4jzWyQVliMJ0gZoVxPRr9LfzdJVLYukl8/mupmgI+ytz4ZhaFTh2pY3WDr2Q1TEwhPXX6LNi/ry2HSEkR8EzVhd8z5C9DzNH9gZeUnM1rGmaDonwPHijz3Cco9AKUc4xb75c98xZL++Xuo+uykNda6YhF96WyZtqbLk6JTO1vdZCKBwfpenXiI+t8zK9ByfThRsN6Xt4cDeSJ2o7cX8NJIP75LavTN/kuPqd+Ip+aCX5P3UvzfTk7MdaGRhtZNj1NAqqU2QPNXkRuE3DrXulNMfqdE+9r9G/ndWRzBszIPsFTa22aMdZUJbtMtoMUT4aD+0BbBazvnM4fdKHvKR/YrkwtpREOL9Sq+YCPYcz5SLfUvPBxgIWraGY0FFUsVCtpMr0R0NbOx3MZh6H5HHeKPaz7AYIwv5G1g8ikUXd8V2ixU+vGSWosUIwEV56gKIYM04hx0Xe2URh1AMwvG9RQBF/LS9IdCNhVTMIBehfbjudS56/scdKur8QXuf+NbOOdnphuug9gR4gtAgQYyg0MeMFbWzEGIwRA5O/v/dAjmr+1rgunCT0QIQp415ekrSA4UdXPx5hEBRlzrdNHqjdAVEwGXyaEec4j1lXxzKHNLjgO1IvkDMwiWDK0K8MEUXhu+2Xd+cVIg5xysAEqCtJuhPb0J3b/qbohjGz46kaT8FntI+2vZWl75rn6jpewaZ1Z7nrWvxARoX2kLsLPq5lxMps5rpFwPTk6R9AwAREFrtaqbk86Jq3LlITr5PDxY+NuN/35dOVkrKK+2y+ej4rfiZUgnZW5/2tTqKRK7hXYj/3s6Fu3fS7V7GF59S+CPfT6qmLFqI7DtDvwRbZkLTFcqicVDFi+WYs1Yo4a1Xfe7TQ/FGb7aR+PjDsGxFlwbwIazHra9lY2tvHeNQmW6tQc0M267V+Xib6rHTtW6BVb4LKXpWMQzABiihJA1mQZUF6nIjiX+xb1fUDEvItRxz0QA6732AD7ygHH8OQvi8h/CqTDqq7Rhi9zvS7y39CvyXdSWfw0vsN431L/MukzaL2IsrWQysy1sZ+e8XL/Q3dpn3SYorkyKRLEu+uN3M5m4OXl+89QFLIo4Jm3c7NzhD0AC3KTohWHhV/iKROY0uPY6dLO4WMTz/FvcMZYhxmBEyEsSwIsiINpZefgZQVLhIHAAA=', // Newsletter JID for menu forwarding
-    updateZipUrl: 'https://github.com/mruniquehacker/KnightBot-Mini/archive/refs/heads/main.zip', // URL to latest code zip for .update command
+    
+    // 🚀 THE FIX: Yahan se wo purani "Kosem!..." wali ID hata di hai
+    sessionID: process.env.SESSION_ID || '', 
+    
+    updateZipUrl: 'https://github.com/mruniquehacker/KnightBot-Mini/archive/refs/heads/main.zip', 
+    
+    // ... [Baaqi saara code wahi purana same rakhein] ...
     
     // Sticker Configuration
     packname: 'Kosem Bot',
