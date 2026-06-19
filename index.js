@@ -1,10 +1,12 @@
 /**
  * WhatsApp MD Bot - Main Entry Point
  */
-
 process.env.PUPPETEER_SKIP_DOWNLOAD = 'true';
 process.env.PUPPETEER_SKIP_CHROMIUM_DOWNLOAD = 'true';
 process.env.PUPPETEER_CACHE_DIR = process.env.PUPPETEER_CACHE_DIR || '/tmp/puppeteer_cache_disabled';
+
+// ⏱️ BOT UPTIME TRACKER (For Anti-Spam Fix)
+const BOT_START_TIME = Date.now();
 
 const { initializeTempSystem } = require('./utils/tempManager');
 const { startCleanup } = require('./utils/cleanup');
@@ -14,43 +16,26 @@ const originalConsoleLog = console.log;
 const originalConsoleError = console.error;
 const originalConsoleWarn = console.warn;
 
+// 🔇 SUPER STRICT LOG SUPPRESSION
 const forbiddenPatternsConsole = [
-  'closing session',
-  'closing open session',
-  'sessionentry',
-  'prekey bundle',
-  'pendingprekey',
-  '_chains',
-  'registrationid',
-  'currentratchet',
-  'chainkey',
-  'ratchet',
-  'signal protocol',
-  'ephemeralkeypair',
-  'indexinfo',
-  'basekey'
+  'closing session', 'closing open session', 'sessionentry',
+  'prekey bundle', 'pendingprekey', '_chains', 'registrationid',
+  'currentratchet', 'chainkey', 'ratchet', 'signal protocol',
+  'ephemeralkeypair', 'indexinfo', 'basekey', 'lastremoteephemeralkey',
+  'rootkey', 'previouscounter', 'basekeytype', 'remoteidentitykey',
+  'signedkeyid', 'prekeyid', 'pubkey', 'privkey'
 ];
 
-console.log = (...args) => {
+const checkAndSuppress = (args, originalMethod) => {
   const message = args.map(a => typeof a === 'string' ? a : typeof a === 'object' ? JSON.stringify(a) : String(a)).join(' ').toLowerCase();
   if (!forbiddenPatternsConsole.some(pattern => message.includes(pattern))) {
-    originalConsoleLog.apply(console, args);
+    originalMethod.apply(console, args);
   }
 };
 
-console.error = (...args) => {
-  const message = args.map(a => typeof a === 'string' ? a : typeof a === 'object' ? JSON.stringify(a) : String(a)).join(' ').toLowerCase();
-  if (!forbiddenPatternsConsole.some(pattern => message.includes(pattern))) {
-    originalConsoleError.apply(console, args);
-  }
-};
-
-console.warn = (...args) => {
-  const message = args.map(a => typeof a === 'string' ? a : typeof a === 'object' ? JSON.stringify(a) : String(a)).join(' ').toLowerCase();
-  if (!forbiddenPatternsConsole.some(pattern => message.includes(pattern))) {
-    originalConsoleWarn.apply(console, args);
-  }
-};
+console.log = (...args) => checkAndSuppress(args, originalConsoleLog);
+console.error = (...args) => checkAndSuppress(args, originalConsoleError);
+console.warn = (...args) => checkAndSuppress(args, originalConsoleWarn);
 
 // Now safe to load libraries
 const pino = require('pino');
@@ -69,6 +54,7 @@ const path = require('path');
 const zlib = require('zlib');
 const os = require('os');
 
+// Remove Puppeteer cache
 function cleanupPuppeteerCache() {
   try {
     const home = os.homedir();
@@ -84,10 +70,10 @@ function cleanupPuppeteerCache() {
   }
 }
 
-// 🛠️ FIX 1: Increased memory limit from 20 to 1000 so bot remembers old messages
+// Optimized in-memory store
 const store = {
   messages: new Map(),
-  maxPerChat: 1000, 
+  maxPerChat: 500, // 🛠️ INCREASED TO 500 SO ANTI-DELETE WORKS PROPERLY
 
   bind: (ev) => {
     ev.on('messages.upsert', ({ messages }) => {
@@ -122,13 +108,6 @@ setInterval(() => {
 }, 5 * 60 * 1000); 
 
 const createSuppressedLogger = (level = 'silent') => {
-  const forbiddenPatterns = [
-    'closing session', 'closing open session', 'sessionentry',
-    'prekey bundle', 'pendingprekey', '_chains', 'registrationid',
-    'currentratchet', 'chainkey', 'ratchet', 'signal protocol',
-    'ephemeralkeypair', 'indexinfo', 'basekey', 'ratchetkey'
-  ];
-
   let logger;
   try {
     logger = pino({
@@ -137,32 +116,33 @@ const createSuppressedLogger = (level = 'silent') => {
         target: 'pino-pretty',
         options: { colorize: true, ignore: 'pid,hostname' }
       },
-      customLevels: { trace: 0, debug: 1, info: 2, warn: 3, error: 4, fatal: 5 },
-      redact: ['registrationId', 'ephemeralKeyPair', 'rootKey', 'chainKey', 'baseKey']
+      customLevels: { trace: 0, debug: 1, info: 2, warn: 3, error: 4, fatal: 5 }
     });
   } catch (err) {
     logger = pino({ level });
   }
 
   const originalInfo = logger.info.bind(logger);
-  logger.info = (...args) => {
-    const msg = args.map(a => typeof a === 'string' ? a : JSON.stringify(a)).join(' ').toLowerCase();
-    if (!forbiddenPatterns.some(pattern => msg.includes(pattern))) {
-      originalInfo(...args);
-    }
-  };
+  logger.info = (...args) => checkAndSuppress(args, originalInfo);
   logger.debug = () => { };
   logger.trace = () => { };
   return logger;
 };
 
+// Global variables to fix reconnect loop
+let reconnectCount = 0;
+let isStarting = false;
+
+// Main connection function
 async function startBot() {
+  if (isStarting) return;
+  isStarting = true;
+
   const sessionFolder = `./${config.sessionName}`;
   const sessionFile = path.join(sessionFolder, 'creds.json');
-
   const botSessionID = process.env.SESSION_ID || config.sessionID;
 
-  if (botSessionID && botSessionID.startsWith('Kosem!')) {
+  if (botSessionID && botSessionID.startsWith('Kosem!') && !fs.existsSync(sessionFile)) {
     try {
       console.log("📥 Downloading Session ID...");
       const [header, b64data] = botSessionID.split('!');
@@ -202,6 +182,7 @@ async function startBot() {
   });
 
   store.bind(sock.ev);
+  isStarting = false;
 
   let lastActivity = Date.now();
   const INACTIVITY_TIMEOUT = 30 * 60 * 1000; 
@@ -209,8 +190,8 @@ async function startBot() {
   sock.ev.on('messages.upsert', () => { lastActivity = Date.now(); });
 
   const watchdogInterval = setInterval(async () => {
-    if (Date.now() - lastActivity > INACTIVITY_TIMEOUT && sock.ws?.readyState === 1) {
-      console.log('⚠️ No activity detected. Forcing reconnect to keep alive...');
+    if (Date.now() - lastActivity > INACTIVITY_TIMEOUT && sock.ws.readyState === 1) {
+      console.log('⚠️ No activity detected. Forcing reconnect...');
       await sock.end(undefined, undefined, { reason: 'inactive' });
       clearInterval(watchdogInterval);
     }
@@ -234,20 +215,32 @@ async function startBot() {
     }
 
     if (connection === 'close') {
-      const shouldReconnect = lastDisconnect?.error?.output?.statusCode !== DisconnectReason.loggedOut;
       const statusCode = lastDisconnect?.error?.output?.statusCode;
       const errorMessage = lastDisconnect?.error?.message || 'Unknown error';
+      let shouldReconnect = statusCode !== DisconnectReason.loggedOut;
 
-      if (statusCode === 515 || statusCode === 503 || statusCode === 408) {
-        console.log(`⚠️ Connection closed (${statusCode}). Reconnecting...`);
+      // 🛠️ STREAM CONFLICT FIX
+      if (statusCode === 409 || errorMessage.includes('conflict')) {
+        console.log(`⚠️ Connection Conflict Detected! Waiting 15 seconds before reconnecting...`);
+        reconnectCount++;
+        if (reconnectCount > 10) {
+            console.log("🚨 Too many conflicts! The session file seems corrupt. Please generate a new Session ID.");
+            reconnectCount = 0;
+        }
+        setTimeout(() => startBot(), 15000);
       } else {
-        console.log('Connection closed due to:', errorMessage, '\nReconnecting:', shouldReconnect);
-      }
+        if (statusCode === 515 || statusCode === 503 || statusCode === 408) {
+          console.log(`⚠️ Connection closed (${statusCode}). Reconnecting...`);
+        } else {
+          console.log('Connection closed due to:', errorMessage, '\nReconnecting:', shouldReconnect);
+        }
 
-      if (shouldReconnect) {
-        setTimeout(() => startBot(), 3000);
+        if (shouldReconnect) {
+          setTimeout(() => startBot(), 3000);
+        }
       }
     } else if (connection === 'open') {
+      reconnectCount = 0; // Reset counter on success
       console.log('\n✅ Bot connected successfully!');
       console.log(`📱 Bot Number: ${sock.user.id.split(':')[0]}`);
       console.log(`🤖 Bot Name: ${config.botName}`);
@@ -287,62 +280,62 @@ async function startBot() {
       if (!msg.message || !msg.key?.id) continue;
 
       const from = msg.key.remoteJid;
-      if (!from || isSystemJid(from)) continue;
+      if (!from) continue; // Allow broadcast for Anti-Status, but block it down below for normal handler
 
       const msgId = msg.key.id;
       if (processedMessages.has(msgId)) continue;
       processedMessages.add(msgId);
 
-      handler.handleMessage(sock, msg).catch(err => {
-        if (!err.message?.includes('rate-overlimit')) console.error('Error handling message:', err.message);
-      });
+      // 🛠️ RESTORED YOUR FEATURES (AutoRead, Antilink, ViewOnce)
+      if (!isSystemJid(from)) {
+        handler.handleMessage(sock, msg).catch(err => {
+          if (!err.message?.includes('rate-overlimit')) console.error('Error handling message:', err.message);
+        });
 
-      setImmediate(async () => {
-        if (config.autoRead && from.endsWith('@g.us')) {
-          try { await sock.readMessages([msg.key]); } catch (e) { }
-        }
-        try {
-          if (handler.autoSniffViewOnce) await handler.autoSniffViewOnce(sock, msg);
-        } catch (err) { }
-
-        if (from.endsWith('@g.us')) {
+        setImmediate(async () => {
+          if (config.autoRead && from.endsWith('@g.us')) {
+            try { await sock.readMessages([msg.key]); } catch (e) { }
+          }
           try {
-            const groupMetadata = await handler.getGroupMetadata(sock, from);
-            if (groupMetadata) await handler.handleAntilink(sock, msg, groupMetadata);
-          } catch (error) { }
-        }
-      });
+            if (handler.autoSniffViewOnce) await handler.autoSniffViewOnce(sock, msg);
+          } catch (err) { }
+
+          if (from.endsWith('@g.us')) {
+            try {
+              const groupMetadata = await handler.getGroupMetadata(sock, from);
+              if (groupMetadata) await handler.handleAntilink(sock, msg, groupMetadata);
+            } catch (error) { }
+          }
+        });
+      }
     }
   });
 
   sock.ev.on('message-receipt.update', () => { });
 
   // ==========================================
-  // 🔴 PREMIUM ANTI-DELETE SYSTEM (FIXED & UPGRADED) 🔴
+  // 🔴 PREMIUM ANTI-DELETE SYSTEM (FIXED FOR CRASHES & PKT TIME) 🔴
   // ==========================================
   sock.ev.on('messages.update', async (chatUpdate) => {
     for (const { key, update } of chatUpdate) {
       
-      // 🛠️ FIX 2: Better & stricter detection for deleted messages
       let isDeletedMessage = false;
-      if (update.message === null) {
-          isDeletedMessage = true;
-      } else if (update.message?.protocolMessage && update.message.protocolMessage.type === 0) {
-          isDeletedMessage = true;
-      } else if (update.message?.protocolMessage && update.message.protocolMessage.type === 'REVOKE') {
+      if (update.message === null) isDeletedMessage = true;
+      else if (update.message?.protocolMessage && (update.message.protocolMessage.type === 0 || update.message.protocolMessage.type === 'REVOKE')) {
           isDeletedMessage = true;
       }
 
       if (isDeletedMessage) {
         try {
           const deletedMsg = await store.loadMessage(key.remoteJid, key.id);
-          if (!deletedMsg) return; // Msg limit se bahar tha ya bot band tha jab aya
+          if (!deletedMsg || (deletedMsg.messageTimestamp * 1000) < BOT_START_TIME) return;
 
           const from = key.remoteJid;
           const myJid = sock.user.id.split(':')[0] + '@s.whatsapp.net';
 
-          // 🛠️ SENDER FIX: Remove port numbers like ':2' so tags work perfectly
+          // 🛠️ SENDER FIX
           let rawSender = deletedMsg.key.participant || deletedMsg.key.remoteJid;
+          if (!rawSender) return;
           const cleanSender = rawSender.includes(':') ? rawSender.split(':')[0] + '@s.whatsapp.net' : rawSender;
           const senderNumber = cleanSender.split('@')[0];
 
@@ -375,7 +368,7 @@ async function startBot() {
             chatName = deletedMsg.pushName || "Private Chat";
           }
 
-          // 🕰️ TIME FIX: Force Pakistani Time Zone (PKT)
+          // 🕰️ TIME FIX: PKT Timezone
           const time = new Date().toLocaleTimeString('en-US', { 
               timeZone: 'Asia/Karachi',
               hour: 'numeric', 
@@ -383,7 +376,6 @@ async function startBot() {
               hour12: true 
           });
 
-          // 🔍 DYNAMIC MEDIA TYPE DETECTION
           let mediaType = "";
           if (msgObj.imageMessage) mediaType = isStatus ? "Status Photo" : "Photo";
           else if (msgObj.videoMessage || msgObj.ptvMessage) mediaType = isStatus ? "Status Video" : "Video";
@@ -394,7 +386,6 @@ async function startBot() {
           else if (msgObj.locationMessage || msgObj.liveLocationMessage) mediaType = "Location";
           else mediaType = isStatus ? "Text Status" : "Text Message";
 
-          // 📝 ORIGINAL TEXT EXTRACTION
           const originalText = msgObj.conversation || 
                                msgObj.extendedTextMessage?.text || 
                                msgObj.imageMessage?.caption || 
@@ -402,21 +393,18 @@ async function startBot() {
                                msgObj.documentMessage?.fileName || 
                                msgObj.documentMessage?.caption || "";
 
-          // ✨ PREMIUM AESTHETIC THEME ✨
           let caption = `❖ ── ✦ 𝐀𝐍𝐓𝐈 𝐃𝐄𝐋𝐄𝐓𝐄 ✦ ── ❖\n\n`;
           caption += `👤 *Sender:* @${senderNumber}\n`;
           caption += `📍 *Chat:* ${chatName}\n`;
           caption += `🕰️ *Time:* ${time}\n`;
           caption += `📦 *Deleted:* ${mediaType}\n`;
 
-          // 📝 EMPTY TEXT FIX: Only add "MESSAGE" banner if there is actual text
           if (originalText) {
               caption += `\n❖ ── ✦ 𝐌𝐄𝐒𝐒𝐀𝐆𝐄 ✦ ── ❖\n💬 ${originalText}`;
           } else if (mediaType === "Text Message" || mediaType === "Text Status") {
               caption += `\n❖ ── ✦ 𝐌𝐄𝐒𝐒𝐀𝐆𝐄 ✦ ── ❖\n💬 [Message deleted]`;
           }
 
-          // 🚀 ATTACHMENT & FORWARD LOGIC
           if (msgObj.imageMessage || msgObj.videoMessage) {
               if (msgObj.imageMessage) {
                   msgObj.imageMessage.caption = caption;
@@ -426,32 +414,24 @@ async function startBot() {
                   msgObj.videoMessage.caption = caption;
                   msgObj.videoMessage.contextInfo = { mentionedJid: [cleanSender] };
               }
-              await sock.sendMessage(myJid, { forward: deletedMsg });
+              await sock.sendMessage(myJid, { forward: deletedMsg }).catch(()=>{});
           } else {
-              await sock.sendMessage(myJid, { 
-                text: caption, 
-                mentions: [cleanSender] 
-              });
-
-              const hasMedia = msgObj.audioMessage || 
-                               msgObj.stickerMessage || 
-                               msgObj.documentMessage ||
-                               msgObj.contactMessage ||
-                               msgObj.locationMessage;
-
+              await sock.sendMessage(myJid, { text: caption, mentions: [cleanSender] }).catch(()=>{});
+              const hasMedia = msgObj.audioMessage || msgObj.stickerMessage || msgObj.documentMessage || msgObj.contactMessage || msgObj.locationMessage;
               if (hasMedia) {
-                await sock.sendMessage(myJid, { forward: deletedMsg });
+                await sock.sendMessage(myJid, { forward: deletedMsg }).catch(()=>{});
               }
           }
         } catch (err) {
-          console.error('Error in Anti-Delete:', err.message);
+          // SAFE CATCH TO PREVENT CRASH
+          // console.error('Minor Anti-Delete Warning: Unable to parse media.');
         }
       }
     }
   });
 
   sock.ev.on('group-participants.update', async (update) => {
-    await handler.handleGroupUpdate(sock, update);
+    try { await handler.handleGroupUpdate(sock, update); } catch(e){}
   });
 
   sock.ev.on('error', (error) => {
