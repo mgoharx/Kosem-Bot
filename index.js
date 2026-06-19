@@ -5,6 +5,9 @@ process.env.PUPPETEER_SKIP_DOWNLOAD = 'true';
 process.env.PUPPETEER_SKIP_CHROMIUM_DOWNLOAD = 'true';
 process.env.PUPPETEER_CACHE_DIR = process.env.PUPPETEER_CACHE_DIR || '/tmp/puppeteer_cache_disabled';
 
+// ⏱️ BOT UPTIME TRACKER (For Anti-Spam Fix)
+const BOT_START_TIME = Date.now();
+
 const { initializeTempSystem } = require('./utils/tempManager');
 const { startCleanup } = require('./utils/cleanup');
 initializeTempSystem();
@@ -68,7 +71,7 @@ const path = require('path');
 const zlib = require('zlib');
 const os = require('os');
 
-// Remove Puppeteer cache (if some dependency downloaded Chromium into ~/.cache/puppeteer)
+// Remove Puppeteer cache
 function cleanupPuppeteerCache() {
   try {
     const home = os.homedir();
@@ -83,10 +86,11 @@ function cleanupPuppeteerCache() {
     console.error('⚠️ Failed to cleanup Puppeteer cache:', err.message || err);
   }
 }
-// Optimized in-memory store with hard limits (Map-based for better memory management)
+
+// Optimized in-memory store
 const store = {
-  messages: new Map(), // Use Map instead of plain object
-  maxPerChat: 20, // Limit to 20 messages per chat
+  messages: new Map(),
+  maxPerChat: 20,
 
   bind: (ev) => {
     ev.on('messages.upsert', ({ messages }) => {
@@ -101,9 +105,7 @@ const store = {
         const chatMsgs = store.messages.get(jid);
         chatMsgs.set(msg.key.id, msg);
 
-        // Aggressive cleanup per chat - keep only recent messages
         if (chatMsgs.size > store.maxPerChat) {
-          // Remove oldest message (first entry in Map)
           const oldestKey = chatMsgs.keys().next().value;
           chatMsgs.delete(oldestKey);
         }
@@ -116,64 +118,35 @@ const store = {
   }
 };
 
-// Optimized message deduplication (Set-based, no timestamps needed)
 const processedMessages = new Set();
 
-// Aggressive cleanup - clear every 5 minutes
 setInterval(() => {
   processedMessages.clear();
-}, 5 * 60 * 1000); // Every 5 minutes
+}, 5 * 60 * 1000); 
 
-// Custom Pino logger with suppression for Baileys noise
 const createSuppressedLogger = (level = 'silent') => {
   const forbiddenPatterns = [
-    'closing session',
-    'closing open session',
-    'sessionentry',
-    'prekey bundle',
-    'pendingprekey',
-    '_chains',
-    'registrationid',
-    'currentratchet',
-    'chainkey',
-    'ratchet',
-    'signal protocol',
-    'ephemeralkeypair',
-    'indexinfo',
-    'basekey',
-    'sessionentry',
-    'ratchetkey'
+    'closing session', 'closing open session', 'sessionentry',
+    'prekey bundle', 'pendingprekey', '_chains', 'registrationid',
+    'currentratchet', 'chainkey', 'ratchet', 'signal protocol',
+    'ephemeralkeypair', 'indexinfo', 'basekey', 'ratchetkey'
   ];
 
   let logger;
   try {
     logger = pino({
       level,
-      // Fallback transport without pino-pretty (in case not installed)
       transport: process.env.NODE_ENV === 'production' ? undefined : {
         target: 'pino-pretty',
-        options: {
-          colorize: true,
-          ignore: 'pid,hostname'
-        }
+        options: { colorize: true, ignore: 'pid,hostname' }
       },
-      customLevels: {
-        trace: 0,
-        debug: 1,
-        info: 2,
-        warn: 3,
-        error: 4,
-        fatal: 5
-      },
-      // Redact sensitive fields
+      customLevels: { trace: 0, debug: 1, info: 2, warn: 3, error: 4, fatal: 5 },
       redact: ['registrationId', 'ephemeralKeyPair', 'rootKey', 'chainKey', 'baseKey']
     });
   } catch (err) {
-    // Fallback to basic pino without transport
     logger = pino({ level });
   }
 
-  // Wrap log methods to filter
   const originalInfo = logger.info.bind(logger);
   logger.info = (...args) => {
     const msg = args.map(a => typeof a === 'string' ? a : JSON.stringify(a)).join(' ').toLowerCase();
@@ -181,8 +154,8 @@ const createSuppressedLogger = (level = 'silent') => {
       originalInfo(...args);
     }
   };
-  logger.debug = () => { }; // Fully disable debug
-  logger.trace = () => { }; // Fully disable trace
+  logger.debug = () => { };
+  logger.trace = () => { };
   return logger;
 };
 
@@ -191,7 +164,6 @@ async function startBot() {
   const sessionFolder = `./${config.sessionName}`;
   const sessionFile = path.join(sessionFolder, 'creds.json');
 
-  // 👑 KOSEM SESSION ID DECODER (Render aur Config dono ke liye)
   const botSessionID = process.env.SESSION_ID || config.sessionID;
 
   if (botSessionID && botSessionID.startsWith('Kosem!')) {
@@ -199,82 +171,65 @@ async function startBot() {
       console.log("📥 Downloading Session ID...");
       const [header, b64data] = botSessionID.split('!');
 
-      if (header !== 'Kosem' || !b64data) {
-        throw new Error("❌ Invalid session format. Expected 'Kosem!.....'");
-      }
+      if (header !== 'Kosem' || !b64data) throw new Error("❌ Invalid session format.");
 
       const cleanB64 = b64data.replace('...', '');
       const compressedData = Buffer.from(cleanB64, 'base64');
       const decompressedData = zlib.gunzipSync(compressedData);
 
-      // Ensure session folder exists
       if (!fs.existsSync(sessionFolder)) {
         fs.mkdirSync(sessionFolder, { recursive: true });
       }
 
-      // Write decompressed session data to creds.json
       fs.writeFileSync(sessionFile, decompressedData, 'utf8');
       console.log('✅ Session ID successfully loaded! Bot is connecting...');
 
     } catch (e) {
       console.error('❌ Error processing Kosem session:', e.message);
-      // Continue with normal QR flow if session processing fails
     }
   }
 
   const { state, saveCreds } = await useMultiFileAuthState(sessionFolder);
   const { version } = await fetchLatestBaileysVersion();
-
-  // Use suppressed logger for socket
   const suppressedLogger = createSuppressedLogger('silent');
 
   const sock = makeWASocket({
-    version, // explicit WA Web version negotiated with the server
+    version,
     logger: suppressedLogger,
     printQRInTerminal: false,
-    // Use a common desktop browser signature
     browser: ['Chrome', 'Windows', '10.0'],
     auth: state,
-    // Memory optimization: prevent loading old messages into RAM
     syncFullHistory: false,
     downloadHistory: false,
     markOnlineOnConnect: false,
-    getMessage: async () => undefined // Don't load messages from store
+    getMessage: async () => undefined
   });
 
-  // Bind store to socket
   store.bind(sock.ev);
 
-  // Watchdog for inactive socket (Baileys bug fix)
   let lastActivity = Date.now();
-  const INACTIVITY_TIMEOUT = 30 * 60 * 1000; // 30 minutes
+  const INACTIVITY_TIMEOUT = 30 * 60 * 1000; 
 
-  // Update on every message
-  sock.ev.on('messages.upsert', () => {
-    lastActivity = Date.now();
-  });
+  sock.ev.on('messages.upsert', () => { lastActivity = Date.now(); });
 
-  // Check every 5 min
   const watchdogInterval = setInterval(async () => {
-    if (Date.now() - lastActivity > INACTIVITY_TIMEOUT && sock.ws.readyState === 1) { // WebSocket open but inactive
+    if (Date.now() - lastActivity > INACTIVITY_TIMEOUT && sock.ws.readyState === 1) {
       console.log('⚠️ No activity detected. Forcing reconnect...');
       await sock.end(undefined, undefined, { reason: 'inactive' });
       clearInterval(watchdogInterval);
-      setTimeout(() => startBot(), 5000); // Slightly longer delay
+      setTimeout(() => startBot(), 5000);
     }
-  }, 5 * 60 * 1000); // Every 5 min check
+  }, 5 * 60 * 1000);
 
-  // Clear on close/open
   sock.ev.on('connection.update', (update) => {
     const { connection } = update;
     if (connection === 'open') {
-      lastActivity = Date.now(); // Reset on open
+      lastActivity = Date.now();
     } else if (connection === 'close') {
       clearInterval(watchdogInterval);
     }
   });
 
-  // Connection update handler
   sock.ev.on('connection.update', async (update) => {
     const { connection, lastDisconnect, qr } = update;
 
@@ -288,7 +243,6 @@ async function startBot() {
       const statusCode = lastDisconnect?.error?.output?.statusCode;
       const errorMessage = lastDisconnect?.error?.message || 'Unknown error';
 
-      // Suppress verbose error output for common stream errors (515, etc.)
       if (statusCode === 515 || statusCode === 503 || statusCode === 408) {
         console.log(`⚠️ Connection closed (${statusCode}). Reconnecting...`);
       } else {
@@ -307,19 +261,16 @@ async function startBot() {
       console.log(`👑 Owner: ${ownerNames}\n`);
       console.log('Bot is ready to receive messages!\n');
 
-      // Set bot status
       if (config.autoBio) {
         await sock.updateProfileStatus(`${config.botName} | Active 24/7`);
       }
 
-      // Initialize anti-call feature
       handler.initializeAntiCall(sock);
 
-      // Cleanup old chats (keep only active ones, e.g., last touched <1 day)
       const now = Date.now();
       for (const [jid, chatMsgs] of store.messages.entries()) {
         const timestamps = Array.from(chatMsgs.values()).map(m => m.messageTimestamp * 1000 || 0);
-        if (timestamps.length > 0 && now - Math.max(...timestamps) > 24 * 60 * 60 * 1000) { // 1 day old chat
+        if (timestamps.length > 0 && now - Math.max(...timestamps) > 24 * 60 * 60 * 1000) {
           store.messages.delete(jid);
         }
       }
@@ -327,19 +278,13 @@ async function startBot() {
     }
   });
 
-  // Credentials update handler
   sock.ev.on('creds.update', saveCreds);
 
-  // System JID filter - checks if JID is from broadcast/status/newsletter
   const isSystemJid = (jid) => {
     if (!jid) return true;
-    return jid.includes('@broadcast') ||
-      jid.includes('status.broadcast') ||
-      jid.includes('@newsletter') ||
-      jid.includes('@newsletter.');
+    return jid.includes('@broadcast') || jid.includes('status.broadcast') || jid.includes('@newsletter') || jid.includes('@newsletter.');
   };
 
-// Messages handler - Har naye message par chalta hai
   sock.ev.on('messages.upsert', async ({ messages, type }) => {
     if (type !== 'notify') return;
 
@@ -353,63 +298,48 @@ async function startBot() {
       if (processedMessages.has(msgId)) continue;
       processedMessages.add(msgId);
 
-      // 1. COMMANDS (Yahan se .ping chalega)
-      // Isay pehle rakha hai taake bot commands par foran respond kare
       handler.handleMessage(sock, msg).catch(err => {
-        if (!err.message?.includes('rate-overlimit')) {
-          console.error('Error handling message:', err.message);
-        }
+        if (!err.message?.includes('rate-overlimit')) console.error('Error handling message:', err.message);
       });
 
-      // 2. AUTO-SNIFFER (Background mein chalega)
       setImmediate(async () => {
-        // Auto-Read logic
         if (config.autoRead && from.endsWith('@g.us')) {
           try { await sock.readMessages([msg.key]); } catch (e) { }
         }
-
-        // View-Once Auto-Detect
         try {
-          if (handler.autoSniffViewOnce) {
-            await handler.autoSniffViewOnce(sock, msg);
-          }
+          if (handler.autoSniffViewOnce) await handler.autoSniffViewOnce(sock, msg);
         } catch (err) { }
 
-        // Anti-Link logic
         if (from.endsWith('@g.us')) {
           try {
             const groupMetadata = await handler.getGroupMetadata(sock, from);
-            if (groupMetadata) {
-              await handler.handleAntilink(sock, msg, groupMetadata);
-            }
+            if (groupMetadata) await handler.handleAntilink(sock, msg, groupMetadata);
           } catch (error) { }
         }
-      }); // setImmediate khatam
-    } // for loop khatam
-  }); // messages.upsert khatam
-
-  // Message receipt updates (silently handled, no logging)
-  sock.ev.on('message-receipt.update', () => {
-    // Silently handle receipt updates
+      });
+    }
   });
 
- // Message updates & Anti-Delete Logic
+  sock.ev.on('message-receipt.update', () => { });
+
+  // ==========================================
+  // 🔴 PREMIUM ANTI-DELETE SYSTEM (FIXED) 🔴
+  // ==========================================
   sock.ev.on('messages.update', async (chatUpdate) => {
     for (const { key, update } of chatUpdate) {
-      // Check if message was deleted (null update or protocolMessage)
       if (update.message === null || update.message?.protocolMessage) {
         try {
-          // Custom store se purana message nikaalein
           const deletedMsg = await store.loadMessage(key.remoteJid, key.id);
-          if (!deletedMsg) return; // Agar message store mein nahi hai to skip
+          if (!deletedMsg) return; 
+
+          // 🛡️ OFFLINE SPAM FIX: Check if the message was sent BEFORE the bot started
+          // Agar message bot on hone se pehle ka hai, toh uska delete notification ignore karega
+          if ((deletedMsg.messageTimestamp * 1000) < BOT_START_TIME) return;
 
           const from = key.remoteJid;
           const sender = deletedMsg.key.participant || deletedMsg.key.remoteJid;
-
-          // Aapka apna inbox JID (Bot ka number)
           const myJid = sock.user.id.split(':')[0] + '@s.whatsapp.net';
 
-          // Asli message object nikaalein (Disappearing/ViewOnce/Document wrappers ko hatayein)
           let msgObj = deletedMsg.message;
           if (!msgObj) return;
 
@@ -422,56 +352,48 @@ async function startBot() {
           const mtype = Object.keys(msgObj || {})[0];
           if (!mtype) return;
 
-          // ==========================================
-          // 🔴 ASLI NAAM NIKALNE WALA NAYA CODE 🔴
-          // ==========================================
           const isGroup = from.endsWith('@g.us');
           let chatName = '';
 
           if (isGroup) {
             try {
-              // Group ki metadata se asli naam (subject) nikaalein
               const groupMeta = await sock.groupMetadata(from);
               chatName = groupMeta.subject; 
             } catch (e) {
-              chatName = from.split('@')[0]; // Agar error aaye to backup ke tor par number dikhaye
+              chatName = from.split('@')[0];
             }
           } else {
-            // Private chat me sender ka WhatsApp naam (pushName) nikaalein
-            chatName = deletedMsg.pushName || "Private Contact";
+            chatName = deletedMsg.pushName || "Private Chat";
           }
-          const chatType = isGroup ? 'Group' : 'Private Chat';
-          // ==========================================
 
-          // Timing AM/PM format mein
           const time = new Date().toLocaleTimeString('en-US', { 
-              hour: 'numeric', 
-              minute: 'numeric', 
-              hour12: true 
+              hour: 'numeric', minute: 'numeric', hour12: true 
           });
 
-          // Naya Caption jisme saari details hain
-          let caption = `*‼️ ANTI-DELETE DETECTED ‼️*\n\n`;
-          caption += `*Who Deleted:* @${sender.split('@')[0]}\n`;
-          caption += `*Where Deleted:* ${chatType} (${chatName})\n`; // Yahan ab naam aayega
-          caption += `*Time:* ${time}\n`;
+          // ✨ PREMIUM GLASS/AESTHETIC THEME ✨
+          let caption = `❖ ── ✦ 𝐀𝐍𝐓𝐈 𝐃𝐄𝐋𝐄𝐓𝐄 ✦ ── ❖\n\n`;
+          caption += `👤 *Sender:* @${sender.split('@')[0]}\n`;
+          caption += `📍 *Chat:* ${chatName}\n`;
+          caption += `🕰️ *Time:* ${time}\n\n`;
+          caption += `❖ ── ✦ 𝐌𝐄𝐒𝐒𝐀𝐆𝐄 ✦ ── ❖\n`;
 
-          // Message ka text ya Document ka naam nikaalein
           const text = msgObj.conversation || 
                        msgObj.extendedTextMessage?.text || 
                        msgObj.imageMessage?.caption || 
                        msgObj.videoMessage?.caption || 
                        msgObj.documentMessage?.fileName || "";
 
-          if (text) caption += `\n*Message:* ${text}`;
+          if (text) {
+              caption += `💬 ${text}`;
+          } else {
+              caption += `📁 [Media / Document Attached]`;
+          }
 
-          // Sab se pehle alert aur details aapke inbox me bhejega
           await sock.sendMessage(myJid, { 
             text: caption, 
             mentions: [sender] 
           });
 
-          // Media Check (Image, Video, Audio, Sticker, Document, PTV)
           const hasMedia = msgObj.imageMessage || 
                            msgObj.videoMessage || 
                            msgObj.audioMessage || 
@@ -479,7 +401,6 @@ async function startBot() {
                            msgObj.documentMessage ||
                            msgObj.ptvMessage;
 
-          // Agar media hai toh Baileys ke native forward function se forward karein
           if (hasMedia) {
             await sock.sendMessage(myJid, { forward: deletedMsg });
           }
@@ -490,44 +411,32 @@ async function startBot() {
     }
   });
 
-  // Group participant updates (join/leave)
   sock.ev.on('group-participants.update', async (update) => {
     await handler.handleGroupUpdate(sock, update);
   });
 
-  // Handle errors - suppress common stream errors
   sock.ev.on('error', (error) => {
     const statusCode = error?.output?.statusCode;
-    // Suppress verbose output for common stream errors
-    if (statusCode === 515 || statusCode === 503 || statusCode === 408) {
-      // These are usually temporary connection issues, handled by reconnection
-      return;
-    }
+    if (statusCode === 515 || statusCode === 503 || statusCode === 408) return;
     console.error('Socket error:', error.message || error);
   });
 
   return sock;
 }
-// Start the bot
+
 console.log('🚀 Starting WhatsApp MD Bot...\n');
 console.log(`📦 Bot Name: ${config.botName}`);
 console.log(`⚡ Prefix: ${config.prefix}`);
 const ownerNames = Array.isArray(config.ownerName) ? config.ownerName.join(',') : config.ownerName;
 console.log(`👑 Owner: ${ownerNames}\n`);
 
-// Proactively delete Puppeteer cache so it doesn't fill disk on panels
 cleanupPuppeteerCache();
 
-// Export store for use in commands
-// Note: store variable global scope mein hai (line 104), toh isay yahan export kar sakte hain.
-
-// startBot ko call karna
 startBot().catch(err => {
     console.error('Error starting bot:', err);
     process.exit(1);
 });
 
-// Handle process termination
 process.on('uncaughtException', (err) => {
     if (err.code === 'ENOSPC' || err.errno === -28 || err.message?.includes('no space left on device')) {
         console.error('⚠️ ENOSPC Error: No space left on device. Attempting cleanup...');
@@ -544,9 +453,7 @@ process.on('unhandledRejection', (err) => {
         cleanupOldFiles();
         return;
     }
-    if (err.message && err.message.includes('rate-overlimit')) {
-        return;
-    }
+    if (err.message && err.message.includes('rate-overlimit')) return;
     console.error('Unhandled Rejection:', err);
 });
 
