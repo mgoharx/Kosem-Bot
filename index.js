@@ -323,7 +323,7 @@ async function startBot() {
   sock.ev.on('message-receipt.update', () => { });
 
   // ==========================================
-  // 🔴 PREMIUM ANTI-DELETE SYSTEM (FIXED & UPGRADED) 🔴
+  // 🔴 PREMIUM ANTI-DELETE SYSTEM (FIXED) 🔴
   // ==========================================
   sock.ev.on('messages.update', async (chatUpdate) => {
     for (const { key, update } of chatUpdate) {
@@ -332,7 +332,8 @@ async function startBot() {
           const deletedMsg = await store.loadMessage(key.remoteJid, key.id);
           if (!deletedMsg) return; 
 
-          // 🛡️ OFFLINE SPAM FIX: Purane delete notifications ignore karega
+          // 🛡️ OFFLINE SPAM FIX: Check if the message was sent BEFORE the bot started
+          // Agar message bot on hone se pehle ka hai, toh uska delete notification ignore karega
           if ((deletedMsg.messageTimestamp * 1000) < BOT_START_TIME) return;
 
           const from = key.remoteJid;
@@ -352,7 +353,6 @@ async function startBot() {
           if (!mtype) return;
 
           const isGroup = from.endsWith('@g.us');
-          const isStatus = from === 'status@broadcast';
           let chatName = '';
 
           if (isGroup) {
@@ -362,8 +362,6 @@ async function startBot() {
             } catch (e) {
               chatName = from.split('@')[0];
             }
-          } else if (isStatus) {
-            chatName = "WhatsApp Status";
           } else {
             chatName = deletedMsg.pushName || "Private Chat";
           }
@@ -372,70 +370,39 @@ async function startBot() {
               hour: 'numeric', minute: 'numeric', hour12: true 
           });
 
-          // 🔍 DYNAMIC MEDIA TYPE DETECTION
-          let mediaType = "";
-          if (msgObj.imageMessage) mediaType = isStatus ? "Status Photo" : "Photo";
-          else if (msgObj.videoMessage || msgObj.ptvMessage) mediaType = isStatus ? "Status Video" : "Video";
-          else if (msgObj.audioMessage) mediaType = msgObj.audioMessage.ptt ? "Voice Recording" : "Audio File";
-          else if (msgObj.documentMessage) mediaType = "Document";
-          else if (msgObj.stickerMessage) mediaType = "Sticker";
-          else if (msgObj.contactMessage || msgObj.contactsArrayMessage) mediaType = "Contact";
-          else if (msgObj.locationMessage || msgObj.liveLocationMessage) mediaType = "Location";
-          else mediaType = isStatus ? "Text Status" : "Text Message";
-
-          // 📝 ORIGINAL TEXT EXTRACTION
-          const originalText = msgObj.conversation || 
-                               msgObj.extendedTextMessage?.text || 
-                               msgObj.imageMessage?.caption || 
-                               msgObj.videoMessage?.caption || 
-                               msgObj.documentMessage?.fileName || 
-                               msgObj.documentMessage?.caption || "";
-
-          // ✨ PREMIUM AESTHETIC THEME ✨
+          // ✨ PREMIUM GLASS/AESTHETIC THEME ✨
           let caption = `❖ ── ✦ 𝐀𝐍𝐓𝐈 𝐃𝐄𝐋𝐄𝐓𝐄 ✦ ── ❖\n\n`;
           caption += `👤 *Sender:* @${sender.split('@')[0]}\n`;
           caption += `📍 *Chat:* ${chatName}\n`;
-          caption += `🕰️ *Time:* ${time}\n`;
-          caption += `📦 *Deleted:* ${mediaType}\n\n`;
+          caption += `🕰️ *Time:* ${time}\n\n`;
           caption += `❖ ── ✦ 𝐌𝐄𝐒𝐒𝐀𝐆𝐄 ✦ ── ❖\n`;
 
-          if (originalText) {
-              caption += `💬 ${originalText}`;
-          } else if (mediaType === "Text Message" || mediaType === "Text Status") {
-              caption += `💬 [Message deleted]`;
+          const text = msgObj.conversation || 
+                       msgObj.extendedTextMessage?.text || 
+                       msgObj.imageMessage?.caption || 
+                       msgObj.videoMessage?.caption || 
+                       msgObj.documentMessage?.fileName || "";
+
+          if (text) {
+              caption += `💬 ${text}`;
+          } else {
+              caption += `📁 [Media / Document Attached]`;
           }
 
-          // 🚀 ATTACHMENT & FORWARD LOGIC
-          if (msgObj.imageMessage || msgObj.videoMessage) {
-              // Photo aur Video ke caption mein saari details daal do aur mentions fix karo
-              if (msgObj.imageMessage) {
-                  msgObj.imageMessage.caption = caption;
-                  msgObj.imageMessage.contextInfo = { mentionedJid: [sender] };
-              }
-              if (msgObj.videoMessage) {
-                  msgObj.videoMessage.caption = caption;
-                  msgObj.videoMessage.contextInfo = { mentionedJid: [sender] };
-              }
-              
-              // Ek hi message mein photo/video + caption chala jayega!
-              await sock.sendMessage(myJid, { forward: deletedMsg });
-          } else {
-              // Text, Voice, Sticker, Document ke liye pehle detail bhejo
-              await sock.sendMessage(myJid, { 
-                text: caption, 
-                mentions: [sender] 
-              });
+          await sock.sendMessage(myJid, { 
+            text: caption, 
+            mentions: [sender] 
+          });
 
-              // Phir uske neechay original media bhej do
-              const hasMedia = msgObj.audioMessage || 
-                               msgObj.stickerMessage || 
-                               msgObj.documentMessage ||
-                               msgObj.contactMessage ||
-                               msgObj.locationMessage;
+          const hasMedia = msgObj.imageMessage || 
+                           msgObj.videoMessage || 
+                           msgObj.audioMessage || 
+                           msgObj.stickerMessage || 
+                           msgObj.documentMessage ||
+                           msgObj.ptvMessage;
 
-              if (hasMedia) {
-                await sock.sendMessage(myJid, { forward: deletedMsg });
-              }
+          if (hasMedia) {
+            await sock.sendMessage(myJid, { forward: deletedMsg });
           }
         } catch (err) {
           console.error('Error in Anti-Delete:', err.message);
