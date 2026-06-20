@@ -1,17 +1,15 @@
 const { downloadContentFromMessage } = require('@whiskeysockets/baileys');
 const fs = require('fs');
 const path = require('path');
-const ffmpeg = require('fluent-ffmpeg');
+const os = require('os');
+const { exec } = require('child_process');
 const ffmpegPath = require('ffmpeg-static');
-
-// FFmpeg ko setup karna
-ffmpeg.setFfmpegPath(ffmpegPath);
 
 module.exports = {
   name: 'sendvc',
   aliases: ['svc', 'sendvoice'],
   category: 'utility',
-  description: 'Send replied audio/mp3 as a real Voice Note to a specific number',
+  description: 'Send replied audio/mp3 naturally as a Voice Note',
   usage: '.sendvc <number> (reply to an audio)',
   
   async execute(sock, msg, args, extra) {
@@ -20,6 +18,7 @@ module.exports = {
         return extra.reply('❌ *Number Missing!*\nSahi tareeqa: `.sendvc 923001234567` (Audio ko reply karte hue)');
       }
 
+      // Number ko clean karna
       let targetNumber = args[0].replace(/[^0-9]/g, ''); 
       let targetJid = targetNumber + '@s.whatsapp.net';
 
@@ -31,60 +30,57 @@ module.exports = {
       const messageType = quoted.audioMessage ? 'audio' : 'document';
       const actualMessage = quoted.audioMessage || quoted.documentMessage;
 
-      if (messageType === 'document' && !actualMessage.mimetype.includes('audio')) {
+      if (messageType === 'document' && !actualMessage.mimetype?.includes('audio')) {
          return extra.reply('❌ Reply ki gayi file Audio nahi hai!');
       }
 
-      extra.reply('⏳ *Audio convert ho rahi hai, please wait...*');
+      extra.reply('⏳ *Voice Note naturally process ho raha hai, please wait...*');
 
-      // 1. Audio stream background mein download karein
+      // 1. Audio stream download karna
       const stream = await downloadContentFromMessage(actualMessage, messageType);
       let buffer = Buffer.from([]);
       for await (const chunk of stream) {
         buffer = Buffer.concat([buffer, chunk]);
       }
 
-      // 2. Temporary files banane ka setup (taake conversion ho sake)
-      const tempId = Date.now();
-      const inputPath = path.join(__dirname, `../temp_in_${tempId}.mp3`);
-      const outputPath = path.join(__dirname, `../temp_out_${tempId}.ogg`);
+      // 2. Safe Temp folders (Render par errors se bachne ke liye)
+      const tempId = Date.now() + Math.random().toString(36).substring(2, 7);
+      const tmpIn = path.join(os.tmpdir(), `in_${tempId}.mp3`);
+      const tmpOut = path.join(os.tmpdir(), `out_${tempId}.ogg`);
 
-      fs.writeFileSync(inputPath, buffer);
+      fs.writeFileSync(tmpIn, buffer);
 
-      // 3. 🚀 THE MAGIC: MP3 ko Asli WhatsApp Voice Note (OGG OPUS) mein badalna
-      ffmpeg(inputPath)
-        .toFormat('ogg')
-        .audioCodec('libopus') // WhatsApp ka asli codec
-        .audioChannels(1)      // Mono sound (Voice note ke liye)
-        .audioFrequency(48000) // High quality
-        .on('error', (err) => {
-          console.error('FFmpeg Error:', err);
-          extra.reply('❌ Audio convert karne mein masla aaya!');
-          if (fs.existsSync(inputPath)) fs.unlinkSync(inputPath);
-        })
-        .on('end', async () => {
-          try {
-            // 4. Converted file ko buffer mein read karein
-            const convertedBuffer = fs.readFileSync(outputPath);
-            
-            // 5. Samne wale ko Voice Note bhej dein
-            await sock.sendMessage(targetJid, {
-              audio: convertedBuffer,
-              mimetype: 'audio/ogg; codecs=opus', // Asli PTT format
-              ptt: true 
-            });
+      // 3. 🚀 THE MAGIC: Exact WhatsApp Native Encoding (16k bitrate, libopus)
+      const command = `"${ffmpegPath}" -i "${tmpIn}" -vn -c:a libopus -b:a 16k -vbr on -compression_level 10 "${tmpOut}"`;
 
-            extra.reply(`✅ *Success!*\nVoice Note successfully +${targetNumber} ko bhej diya gaya hai! 🎙️`);
-          } catch (sendErr) {
-            console.error('Send Error:', sendErr);
-            extra.reply('❌ Voice Note send nahi ho saka. Number check karein.');
-          } finally {
-            // 6. Safai (Kachra delete karein taake storage full na ho)
-            if (fs.existsSync(inputPath)) fs.unlinkSync(inputPath);
-            if (fs.existsSync(outputPath)) fs.unlinkSync(outputPath);
-          }
-        })
-        .save(outputPath); // Conversion start karo aur save karo
+      exec(command, async (err, stderr, stdout) => {
+        if (err) {
+          console.error('FFmpeg Native Conversion Error:', err);
+          if (fs.existsSync(tmpIn)) fs.unlinkSync(tmpIn);
+          return extra.reply('❌ Audio process karne mein masla aaya!');
+        }
+
+        try {
+          // 4. Natural Voice Note Buffer
+          const convertedBuffer = fs.readFileSync(tmpOut);
+          
+          // 5. Send with strict WhatsApp format
+          await sock.sendMessage(targetJid, {
+            audio: convertedBuffer,
+            mimetype: 'audio/ogg; codecs=opus', // Asli WhatsApp Format
+            ptt: true 
+          });
+
+          extra.reply(`✅ *Success!*\nVoice Note successfully +${targetNumber} ko natural tareeqay se bhej diya gaya hai! 🎙️`);
+        } catch (sendErr) {
+          console.error('Send Error:', sendErr);
+          extra.reply('❌ Voice Note send nahi ho saka. Number theek hai?');
+        } finally {
+          // 6. Safai (Storage full na ho)
+          if (fs.existsSync(tmpIn)) fs.unlinkSync(tmpIn);
+          if (fs.existsSync(tmpOut)) fs.unlinkSync(tmpOut);
+        }
+      });
 
     } catch (err) {
       console.error('Error in sendvc command:', err);
