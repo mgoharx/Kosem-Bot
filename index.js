@@ -300,7 +300,9 @@ async function startBot() {
                                msgObj.documentMessage?.fileName || 
                                msgObj.documentMessage?.caption || "";
 
-          let caption = `❖ ── ✦ 𝐀𝐍𝐓𝐈 𝐃𝐄𝐋𝐄𝐓𝐄 ✦ ── ❖\n\n👤 *Sender:* @${senderNumber}\n📍 *Chat:* ${chatName}\n🕰️ *Time:* ${time}\n📦 *Deleted:* ${mediaType}\n`;
+          // 🚀 THE FIX: Yahan deletedMsg.pushName extract kar ke add kar diya gaya hai!
+          const pushName = deletedMsg.pushName || "Unknown User";
+          let caption = `❖ ── ✦ 𝐀𝐍𝐓𝐈 𝐃𝐄𝐋𝐄𝐓𝐄 ✦ ── ❖\n\n👤 *Sender:* ${pushName} (@${senderNumber})\n📍 *Chat:* ${chatName}\n🕰️ *Time:* ${time}\n📦 *Deleted:* ${mediaType}\n`;
 
           if (originalText) {
               caption += `\n❖ ── ✦ 𝐌𝐄𝐒𝐒𝐀𝐆𝐄 ✦ ── ❖\n💬 ${originalText}`;
