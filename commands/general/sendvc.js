@@ -1,31 +1,33 @@
 const { downloadContentFromMessage } = require('@whiskeysockets/baileys');
+const fs = require('fs');
+const path = require('path');
+const ffmpeg = require('fluent-ffmpeg');
+const ffmpegPath = require('ffmpeg-static');
+
+// FFmpeg ko setup karna
+ffmpeg.setFfmpegPath(ffmpegPath);
 
 module.exports = {
   name: 'sendvc',
   aliases: ['svc', 'sendvoice'],
   category: 'utility',
-  description: 'Send replied audio/mp3 as a Voice Note to a specific number',
+  description: 'Send replied audio/mp3 as a real Voice Note to a specific number',
   usage: '.sendvc <number> (reply to an audio)',
   
   async execute(sock, msg, args, extra) {
     try {
-      // 1. Check karein ke number diya gaya hai ya nahi
       if (!args[0]) {
         return extra.reply('❌ *Number Missing!*\nSahi tareeqa: `.sendvc 923001234567` (Audio ko reply karte hue)');
       }
 
-      // 2. Number ko clean karein (Extra spaces ya + sign hata dein)
       let targetNumber = args[0].replace(/[^0-9]/g, ''); 
       let targetJid = targetNumber + '@s.whatsapp.net';
 
-      // 3. Check karein ke kisi Audio/MP3 ko reply kiya gaya hai ya nahi
       const quoted = msg.message?.extendedTextMessage?.contextInfo?.quotedMessage;
-      
       if (!quoted || (!quoted.audioMessage && !quoted.documentMessage)) {
         return extra.reply('❌ Please kisi Audio ya MP3 file ko reply karein!');
       }
 
-      // Agar document file hai toh check karein ke wo audio hai
       const messageType = quoted.audioMessage ? 'audio' : 'document';
       const actualMessage = quoted.audioMessage || quoted.documentMessage;
 
@@ -33,28 +35,60 @@ module.exports = {
          return extra.reply('❌ Reply ki gayi file Audio nahi hai!');
       }
 
-      extra.reply('⏳ *Voice Note Bheja Ja Raha Hai...*');
+      extra.reply('⏳ *Audio convert ho rahi hai, please wait...*');
 
-      // 4. Audio ko background mein download karein
+      // 1. Audio stream background mein download karein
       const stream = await downloadContentFromMessage(actualMessage, messageType);
       let buffer = Buffer.from([]);
       for await (const chunk of stream) {
         buffer = Buffer.concat([buffer, chunk]);
       }
 
-      // 5. 🚀 THE MAGIC: Audio ko Voice Note (PTT) bana kar bhejna
-      await sock.sendMessage(targetJid, {
-        audio: buffer,
-        mimetype: 'audio/mp4', // PTT ke liye support format
-        ptt: true // 👈 Yeh true karne se file Voice Recording ban jati hai!
-      });
+      // 2. Temporary files banane ka setup (taake conversion ho sake)
+      const tempId = Date.now();
+      const inputPath = path.join(__dirname, `../temp_in_${tempId}.mp3`);
+      const outputPath = path.join(__dirname, `../temp_out_${tempId}.ogg`);
 
-      // 6. Kamyabi ka message
-      return extra.reply(`✅ *Success!*\nVoice Note successfully +${targetNumber} ko bhej diya gaya hai! 🎙️`);
-      
+      fs.writeFileSync(inputPath, buffer);
+
+      // 3. 🚀 THE MAGIC: MP3 ko Asli WhatsApp Voice Note (OGG OPUS) mein badalna
+      ffmpeg(inputPath)
+        .toFormat('ogg')
+        .audioCodec('libopus') // WhatsApp ka asli codec
+        .audioChannels(1)      // Mono sound (Voice note ke liye)
+        .audioFrequency(48000) // High quality
+        .on('error', (err) => {
+          console.error('FFmpeg Error:', err);
+          extra.reply('❌ Audio convert karne mein masla aaya!');
+          if (fs.existsSync(inputPath)) fs.unlinkSync(inputPath);
+        })
+        .on('end', async () => {
+          try {
+            // 4. Converted file ko buffer mein read karein
+            const convertedBuffer = fs.readFileSync(outputPath);
+            
+            // 5. Samne wale ko Voice Note bhej dein
+            await sock.sendMessage(targetJid, {
+              audio: convertedBuffer,
+              mimetype: 'audio/ogg; codecs=opus', // Asli PTT format
+              ptt: true 
+            });
+
+            extra.reply(`✅ *Success!*\nVoice Note successfully +${targetNumber} ko bhej diya gaya hai! 🎙️`);
+          } catch (sendErr) {
+            console.error('Send Error:', sendErr);
+            extra.reply('❌ Voice Note send nahi ho saka. Number check karein.');
+          } finally {
+            // 6. Safai (Kachra delete karein taake storage full na ho)
+            if (fs.existsSync(inputPath)) fs.unlinkSync(inputPath);
+            if (fs.existsSync(outputPath)) fs.unlinkSync(outputPath);
+          }
+        })
+        .save(outputPath); // Conversion start karo aur save karo
+
     } catch (err) {
       console.error('Error in sendvc command:', err);
-      return extra.reply('❌ Error: Voice Note send nahi ho saka. (Make sure number theek hai aur WhatsApp par hai)');
+      return extra.reply('❌ Error: Kuch ghalat ho gaya.');
     }
   }
 };
