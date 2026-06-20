@@ -1,4 +1,4 @@
-const config = require('../config');
+const config = require('../../config'); // 🚀 THE FIX: Path updated to ../../config
 
 module.exports = {
   name: 'alwaysonline',
@@ -21,17 +21,17 @@ module.exports = {
       const action = args[0]?.toLowerCase();
 
       if (action === 'on') {
-        // 🚀 Set global presence to ONLINE
+        // Set global presence to ONLINE
         await sock.sendPresenceUpdate('available');
         return extra.reply('✅ *Always Online Enabled!*\nThe bot will now appear as "Online" to everyone 🟢');
         
       } else if (action === 'off') {
-        // 🛑 Set global presence to OFFLINE (Hidden)
+        // Set global presence to OFFLINE (Hidden)
         await sock.sendPresenceUpdate('unavailable');
         return extra.reply('❌ *Always Online Disabled!*\nThe bot will now hide its online status ⚪');
         
       } else {
-        // ❓ If user typed wrong or no arguments
+        // If user typed wrong or no arguments
         return extra.reply('❓ *Invalid Usage!*\nCorrect format:\n👉 `.alwaysonline on`\n👉 `.alwaysonline off`');
       }
       
