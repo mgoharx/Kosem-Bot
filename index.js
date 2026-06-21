@@ -209,17 +209,17 @@ async function startBot() {
       handler.initializeAntiCall(sock);
 
       // ==========================================
-      // 🚀 THE FIX: CLEAN & PREMIUM BOOT MESSAGE
+      // 🚀 THE FIX: CUSTOM VIP BOOT MESSAGE
       // ==========================================
       try {
         const myJid = sock.user.id.split(':')[0] + '@s.whatsapp.net'; // Aapka apna chat "You"
         const botName = config.botName || 'Kosem Bot';
         
-        const bootText = `❖ ── ✦ 𝐒𝐘𝐒𝐓𝐄𝐌 𝐎𝐍𝐋𝐈𝐍𝐄 ✦ ── ❖\n\n` +
-                         `🚀 *${botName}* is now fully active.\n\n` +
-                         `👤 *Owner:* ${ownerNames}\n` +
-                         `⚡ *Status:* Operational 🟢\n` +
-                         `🛡️ *Mode:* Premium Automation\n` +
+        const bootText = `❖ ── ✦ 𝐁𝐎𝐓 𝐀𝐂𝐓𝐈𝐕𝐄 ✦ ── ❖\n\n` +
+                         `✨ *${botName} is successfully connected and Online!*\n\n` +
+                         `👑 *Owner:* ${ownerNames}\n` +
+                         `🟢 *Status:* Active\n\n` +
+                         `📝 *Description:* This is an advanced WhatsApp bot made by Muhammad Gohar.\n` +
                          `╰━━━━━━━━━━━━━━━━━━━━━━━`;
 
         await sock.sendMessage(myJid, {
