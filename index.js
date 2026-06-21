@@ -5,15 +5,36 @@ process.env.PUPPETEER_SKIP_DOWNLOAD = 'true';
 process.env.PUPPETEER_SKIP_CHROMIUM_DOWNLOAD = 'true';
 process.env.PUPPETEER_CACHE_DIR = process.env.PUPPETEER_CACHE_DIR || '/tmp/puppeteer_cache_disabled';
 
-// 🔇 SUPPRESS NOISY STARTUP ERRORS (Bad MAC / Decrypt errors)
+// ==========================================
+// 🔇 ULTIMATE NOISE SUPPRESSOR (Hides WhatsApp Crypto Spam)
+// ==========================================
+const originalConsoleLog = console.log;
 const originalConsoleError = console.error;
+const originalConsoleWarn = console.warn;
+
+const noisyLogs = [
+    'Bad MAC', 'Failed to decrypt', 'Session error', 
+    'Closing open session', 'prekey bundle', 'SessionEntry', 
+    '_chains', 'registrationId', 'currentRatchet', 'indexInfo',
+    'ephemeralKeyPair', 'rootKey', 'baseKey'
+];
+
+console.log = (...args) => {
+  const logStr = args.map(a => typeof a === 'string' ? a : String(a)).join(' ');
+  if (noisyLogs.some(noise => logStr.includes(noise))) return;
+  originalConsoleLog.apply(console, args);
+};
 console.error = (...args) => {
-  const logString = args.map(a => String(a)).join(' ');
-  if (logString.includes('Bad MAC') || logString.includes('Failed to decrypt') || logString.includes('Session error')) {
-    return; // Hide noisy Baileys decryption errors during startup
-  }
+  const logStr = args.map(a => typeof a === 'string' ? a : String(a)).join(' ');
+  if (noisyLogs.some(noise => logStr.includes(noise))) return;
   originalConsoleError.apply(console, args);
 };
+console.warn = (...args) => {
+  const logStr = args.map(a => typeof a === 'string' ? a : String(a)).join(' ');
+  if (noisyLogs.some(noise => logStr.includes(noise))) return;
+  originalConsoleWarn.apply(console, args);
+};
+// ==========================================
 
 // ⏱️ BOT UPTIME TRACKER (For Anti-Spam Fix)
 const BOT_START_TIME = Date.now();
@@ -166,7 +187,7 @@ async function startBot() {
         console.log('\n🚨 CRITICAL: Stream Conflict Detected (409)!');
         console.log('⚠️ Two instances of the bot are fighting for connection.');
         console.log('💀 Killing this ghost process to allow a clean restart...\n');
-        process.exit(1); // This forces the duplicate to die so it stops looping!
+        process.exit(1); 
       } else {
         if (statusCode === 515 || statusCode === 503 || statusCode === 408) {
           console.log(`⚠️ Connection closed (${statusCode}). Reconnecting...`);
@@ -185,6 +206,19 @@ async function startBot() {
       console.log('Bot is ready to receive messages!\n');
 
       if (config.autoBio) await sock.updateProfileStatus(`${config.botName} | Active 24/7`);
+      
+      // STRICT DEFAULT OFFLINE PRESENCE ON STARTUP
+      try {
+        await sock.sendPresenceUpdate('unavailable');
+        if (typeof global.presenceInterval !== 'undefined' && global.presenceInterval) {
+            clearInterval(global.presenceInterval);
+        }
+        global.presenceInterval = setInterval(async () => {
+            try { await sock.sendPresenceUpdate('unavailable'); } catch (e) {}
+        }, 30000);
+        console.log('👻 Default Presence: Strictly Offline (Hidden)');
+      } catch (e) {}
+
       handler.initializeAntiCall(sock);
 
       const now = Date.now();
