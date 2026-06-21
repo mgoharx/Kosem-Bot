@@ -1,10 +1,10 @@
-const config = require('../../config'); // 🚀 THE FIX: Path updated to ../../config
+const config = require('../../config');
 
 module.exports = {
   name: 'alwaysonline',
   aliases: ['online', 'aonline', 'stayonline'],
   category: 'owner',
-  description: 'Turn Always Online presence ON or OFF',
+  description: 'Turn Always Online presence strictly ON or OFF',
   usage: '.alwaysonline on/off',
   
   async execute(sock, msg, args, extra) {
@@ -17,21 +17,42 @@ module.exports = {
         return extra.reply('👑 *Owner Only!*\nThis command is restricted to the bot owner.');
       }
 
-      // 2. Check the argument (on or off)
+      // 2. Initialize global state to prevent overlapping loops
+      if (typeof global.presenceInterval === 'undefined') {
+        global.presenceInterval = null;
+      }
+
       const action = args[0]?.toLowerCase();
 
       if (action === 'on') {
-        // Set global presence to ONLINE
+        // Clear old loop if any
+        if (global.presenceInterval) clearInterval(global.presenceInterval);
+        
+        // Update immediately
         await sock.sendPresenceUpdate('available');
-        return extra.reply('*Always Online Enabled!* 🟢');
+        
+        // 🚀 THE FIX: Strict Loop to force Online every 30 seconds
+        global.presenceInterval = setInterval(async () => {
+          try { await sock.sendPresenceUpdate('available'); } catch (e) {}
+        }, 30000);
+        
+        return extra.reply('✅ *Always Online Enabled!*\nThe bot is now strictly locked to "Online" 🟢');
         
       } else if (action === 'off') {
-        // Set global presence to OFFLINE (Hidden)
+        // Clear old loop if any
+        if (global.presenceInterval) clearInterval(global.presenceInterval);
+        
+        // Update immediately
         await sock.sendPresenceUpdate('unavailable');
-        return extra.reply('*Always Online Disabled!* ⚪');
+        
+        // 🛑 THE FIX: Strict Loop to force Offline every 30 seconds (stops WhatsApp from overriding)
+        global.presenceInterval = setInterval(async () => {
+          try { await sock.sendPresenceUpdate('unavailable'); } catch (e) {}
+        }, 30000);
+
+        return extra.reply('❌ *Always Online Disabled!*\nThe bot is now strictly locked to "Offline" ⚪');
         
       } else {
-        // If user typed wrong or no arguments
         return extra.reply('❓ *Invalid Usage!*\nCorrect format:\n👉 `.alwaysonline on`\n👉 `.alwaysonline off`');
       }
       
