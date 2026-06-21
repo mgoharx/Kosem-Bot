@@ -42,7 +42,8 @@ module.exports = {
             global.presenceInterval = null;
         }
         
-        await sock.sendPresenceUpdate('available'); 
+        // 🚀 THE FIX: Bot apna presence 'unavailable' kar dega taake aapka asli phone control le sakay!
+        await sock.sendPresenceUpdate('unavailable'); 
         return extra.reply('🔄 *Status: NORMAL MODE*\nThe bot has stopped interfering with your Last Seen. Your original phone settings will now apply 📱');
 
       } else {
