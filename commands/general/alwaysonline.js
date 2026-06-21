@@ -2,14 +2,14 @@ const config = require('../../config');
 
 module.exports = {
   name: 'alwaysonline',
-  aliases: ['online', 'aonline', 'stayonline'],
+  aliases: ['online', 'aonline', 'stayonline', 'lastseen'],
   category: 'owner',
-  description: 'Turn Always Online presence strictly ON or OFF',
+  description: 'Control your Always Online status',
   usage: '.alwaysonline on/off',
   
   async execute(sock, msg, args, extra) {
     try {
-      // 1. Check if the user is the Owner
+      // Owner Check
       const senderNumber = extra.sender.split('@')[0];
       const isOwner = config.ownerNumber.includes(senderNumber);
       
@@ -17,7 +17,7 @@ module.exports = {
         return extra.reply('👑 *Owner Only!*\nThis command is restricted to the bot owner.');
       }
 
-      // 2. Initialize global state to prevent overlapping loops
+      // Initialize global state
       if (typeof global.presenceInterval === 'undefined') {
         global.presenceInterval = null;
       }
@@ -25,40 +25,33 @@ module.exports = {
       const action = args[0]?.toLowerCase();
 
       if (action === 'on') {
-        // Clear old loop if any
+        // 🟢 24/7 ONLINE MODE
         if (global.presenceInterval) clearInterval(global.presenceInterval);
         
-        // Update immediately
         await sock.sendPresenceUpdate('available');
-        
-        // 🚀 THE FIX: Strict Loop to force Online every 30 seconds
         global.presenceInterval = setInterval(async () => {
           try { await sock.sendPresenceUpdate('available'); } catch (e) {}
         }, 30000);
         
-        return extra.reply('*Always Online Enabled!* 🟢');
+        return extra.reply('✅ *Status: ONLINE 24/7*\nYour contacts will see you as sitting on WhatsApp 24/7 (Always Online) 🟢');
         
       } else if (action === 'off') {
-        // Clear old loop if any
-        if (global.presenceInterval) clearInterval(global.presenceInterval);
+        // 📱 NORMAL PHONE MODE (Bot stops interfering)
+        if (global.presenceInterval) {
+            clearInterval(global.presenceInterval);
+            global.presenceInterval = null;
+        }
         
-        // Update immediately
-        await sock.sendPresenceUpdate('unavailable');
-        
-        // 🛑 THE FIX: Strict Loop to force Offline every 30 seconds (stops WhatsApp from overriding)
-        global.presenceInterval = setInterval(async () => {
-          try { await sock.sendPresenceUpdate('unavailable'); } catch (e) {}
-        }, 30000);
+        await sock.sendPresenceUpdate('available'); 
+        return extra.reply('🔄 *Status: NORMAL MODE*\nThe bot has stopped interfering with your Last Seen. Your original phone settings will now apply 📱');
 
-        return extra.reply('*Always Online Disabled!* ⚪');
-        
       } else {
-        return extra.reply('❓ *Invalid Usage!*\nCorrect format:\n👉 `.alwaysonline on`\n👉 `.alwaysonline off`');
+        return extra.reply('❓ *Invalid Usage!*\nOptions:\n👉 `.alwaysonline on` (Show 24/7 Online)\n👉 `.alwaysonline off` (Normal phone behavior)');
       }
       
     } catch (err) {
       console.error('Error in alwaysonline command:', err);
-      return extra.reply('❌ Error: Could not update presence status.');
+      return extra.reply('❌ Error: Could not update status.');
     }
   }
 };
