@@ -209,40 +209,33 @@ async function startBot() {
       handler.initializeAntiCall(sock);
 
       // ==========================================
-      // 🚀 THE FIX: AUTO BOOT WELCOME MESSAGE
+      // 🚀 THE FIX: CLEAN & PREMIUM BOOT MESSAGE
       // ==========================================
       try {
         const myJid = sock.user.id.split(':')[0] + '@s.whatsapp.net'; // Aapka apna chat "You"
         const botName = config.botName || 'Kosem Bot';
         
-        const bootText = `❖ ── ✦ 𝐁𝐎𝐓 𝐀𝐂𝐓𝐈𝐕𝐄 ✦ ── ❖\n\n` +
-                         `✨ *${botName} is successfully connected and Online!*\n\n` +
-                         `👑 *Owner:* ${ownerNames}\n` +
-                         `🤖 *Status:* Active 24/7 🟢\n\n` +
-                         `📝 *Description:* Your advanced WhatsApp MD Bot is ready to automate tasks.\n\n` +
-                         `👇 *Tap below to join our Official WhatsApp Channel!*`;
+        const bootText = `❖ ── ✦ 𝐒𝐘𝐒𝐓𝐄𝐌 𝐎𝐍𝐋𝐈𝐍𝐄 ✦ ── ❖\n\n` +
+                         `🚀 *${botName}* is now fully active.\n\n` +
+                         `👤 *Owner:* ${ownerNames}\n` +
+                         `⚡ *Status:* Operational 🟢\n` +
+                         `🛡️ *Mode:* Premium Automation\n` +
+                         `╰━━━━━━━━━━━━━━━━━━━━━━━`;
 
         await sock.sendMessage(myJid, {
           text: bootText,
           contextInfo: {
             forwardingScore: 999,
             isForwarded: true,
+            // Sirf Channel Banner aur native "View channel" button aayega
             forwardedNewsletterMessageInfo: {
-              newsletterJid: '120363427491383372@newsletter', // Optional: channel hidden ID
-              newsletterName: `Join ${botName} Official`,
+              newsletterJid: '120363427491383372@newsletter', // Aapki Channel JID
+              newsletterName: `✨ ${botName} Official`,
               serverMessageId: -1
-            },
-            externalAdReply: {
-              title: `${botName} is Online!`,
-              body: "Tap here to join our WhatsApp Community!",
-              thumbnailUrl: "https://telegra.ph/file/857e4eabac487cc56cf46.jpg", // Logo ka link
-              sourceUrl: "https://whatsapp.com/channel/0029Vb8AW0EAzNbutkZgUV34", // 👈 YAHAN APNE CHANNEL KA ASLI LINK DAALEIN
-              mediaType: 1,
-              renderLargerThumbnail: true
             }
           }
         });
-        console.log('📩 Boot message sent to inbox!');
+        console.log('📩 Premium Boot message sent to inbox!');
       } catch (err) {
         console.log('⚠️ Failed to send boot message.', err);
       }
