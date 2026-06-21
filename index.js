@@ -208,6 +208,46 @@ async function startBot() {
       if (config.autoBio) await sock.updateProfileStatus(`${config.botName} | Active 24/7`);
       handler.initializeAntiCall(sock);
 
+      // ==========================================
+      // 🚀 THE FIX: AUTO BOOT WELCOME MESSAGE
+      // ==========================================
+      try {
+        const myJid = sock.user.id.split(':')[0] + '@s.whatsapp.net'; // Aapka apna chat "You"
+        const botName = config.botName || 'Kosem Bot';
+        
+        const bootText = `❖ ── ✦ 𝐁𝐎𝐓 𝐀𝐂𝐓𝐈𝐕𝐄 ✦ ── ❖\n\n` +
+                         `✨ *${botName} is successfully connected and Online!*\n\n` +
+                         `👑 *Owner:* ${ownerNames}\n` +
+                         `🤖 *Status:* Active 24/7 🟢\n\n` +
+                         `📝 *Description:* Your advanced WhatsApp MD Bot is ready to automate tasks.\n\n` +
+                         `👇 *Tap below to join our Official WhatsApp Channel!*`;
+
+        await sock.sendMessage(myJid, {
+          text: bootText,
+          contextInfo: {
+            forwardingScore: 999,
+            isForwarded: true,
+            forwardedNewsletterMessageInfo: {
+              newsletterJid: '120363427491383372@newsletter', // Optional: channel hidden ID
+              newsletterName: `Join ${botName} Official`,
+              serverMessageId: -1
+            },
+            externalAdReply: {
+              title: `${botName} is Online!`,
+              body: "Tap here to join our WhatsApp Community!",
+              thumbnailUrl: "https://telegra.ph/file/857e4eabac487cc56cf46.jpg", // Logo ka link
+              sourceUrl: "https://whatsapp.com/channel/0029Vb8AW0EAzNbutkZgUV34", // 👈 YAHAN APNE CHANNEL KA ASLI LINK DAALEIN
+              mediaType: 1,
+              renderLargerThumbnail: true
+            }
+          }
+        });
+        console.log('📩 Boot message sent to inbox!');
+      } catch (err) {
+        console.log('⚠️ Failed to send boot message.', err);
+      }
+      // ==========================================
+
       const now = Date.now();
       for (const [jid, chatMsgs] of store.messages.entries()) {
         const timestamps = Array.from(chatMsgs.values()).map(m => m.messageTimestamp * 1000 || 0);
@@ -314,7 +354,6 @@ async function startBot() {
           } else if (isStatus) {
             chatName = "WhatsApp Status";
           } else {
-            // 🚀 FIX: Isko strictly "Private Chat" kar diya taake naam repeat na ho
             chatName = "Private Chat"; 
           }
 
@@ -341,7 +380,6 @@ async function startBot() {
 
           const pushName = deletedMsg.pushName || "Unknown User";
           
-          // 🚀 THE FIX: Name is removed from its own line, and properly merged into the Chat line.
           let caption = `❖ ── ✦ 𝐀𝐍𝐓𝐈 𝐃𝐄𝐋𝐄𝐓𝐄 ✦ ── ❖\n\n👤 *Sender:* @${senderNumber}\n📍 *Chat:* ${chatName} (${pushName})\n🕰️ *Time:* ${time}\n📦 *Deleted:* ${mediaType}\n`;
 
           if (originalText) {
@@ -385,7 +423,7 @@ async function startBot() {
   return sock;
 }
 
-console.log('🚀 Starting WhatsApp MD Bot...\n');
+console.log('🚀 Starting Kosem Bot...\n');
 cleanupPuppeteerCache();
 startBot();
 
