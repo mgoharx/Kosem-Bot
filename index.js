@@ -206,19 +206,6 @@ async function startBot() {
       console.log('Bot is ready to receive messages!\n');
 
       if (config.autoBio) await sock.updateProfileStatus(`${config.botName} | Active 24/7`);
-      
-      // STRICT DEFAULT OFFLINE PRESENCE ON STARTUP
-      try {
-        await sock.sendPresenceUpdate('unavailable');
-        if (typeof global.presenceInterval !== 'undefined' && global.presenceInterval) {
-            clearInterval(global.presenceInterval);
-        }
-        global.presenceInterval = setInterval(async () => {
-            try { await sock.sendPresenceUpdate('unavailable'); } catch (e) {}
-        }, 30000);
-        console.log('👻 Default Presence: Strictly Offline (Hidden)');
-      } catch (e) {}
-
       handler.initializeAntiCall(sock);
 
       const now = Date.now();
@@ -352,7 +339,9 @@ async function startBot() {
                                msgObj.documentMessage?.caption || "";
 
           const pushName = deletedMsg.pushName || "Unknown User";
-          let caption = `❖ ── ✦ 𝐀𝐍𝐓𝐈 𝐃𝐄𝐋𝐄𝐓𝐄 ✦ ── ❖\n\n👤 *Sender:* ${pushName} (@${senderNumber})\n📍 *Chat:* ${chatName}\n🕰️ *Time:* ${time}\n📦 *Deleted:* ${mediaType}\n`;
+          
+          // 🚀 THE FIX: Tag is now explicitly standalone so WhatsApp parses it as a clickable mention natively.
+          let caption = `❖ ── ✦ 𝐀𝐍𝐓𝐈 𝐃𝐄𝐋𝐄𝐓𝐄 ✦ ── ❖\n\n👤 *Sender:* @${senderNumber}\n📝 *Name:* ${pushName}\n📍 *Chat:* ${chatName}\n🕰️ *Time:* ${time}\n📦 *Deleted:* ${mediaType}\n`;
 
           if (originalText) {
               caption += `\n❖ ── ✦ 𝐌𝐄𝐒𝐒𝐀𝐆𝐄 ✦ ── ❖\n💬 ${originalText}`;
@@ -363,11 +352,17 @@ async function startBot() {
           if (msgObj.imageMessage || msgObj.videoMessage) {
               if (msgObj.imageMessage) {
                   msgObj.imageMessage.caption = caption;
-                  msgObj.imageMessage.contextInfo = { mentionedJid: [cleanSender] };
+                  msgObj.imageMessage.contextInfo = { 
+                      ...(msgObj.imageMessage.contextInfo || {}), 
+                      mentionedJid: [cleanSender] 
+                  };
               }
               if (msgObj.videoMessage) {
                   msgObj.videoMessage.caption = caption;
-                  msgObj.videoMessage.contextInfo = { mentionedJid: [cleanSender] };
+                  msgObj.videoMessage.contextInfo = { 
+                      ...(msgObj.videoMessage.contextInfo || {}), 
+                      mentionedJid: [cleanSender] 
+                  };
               }
               await sock.sendMessage(myJid, { forward: deletedMsg }).catch(()=>{});
           } else {
