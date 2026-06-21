@@ -36,7 +36,7 @@ module.exports = {
           try { await sock.sendPresenceUpdate('available'); } catch (e) {}
         }, 30000);
         
-        return extra.reply('✅ *Always Online Enabled!*\nThe bot is now strictly locked to "Online" 🟢');
+        return extra.reply('*Always Online Enabled!* 🟢');
         
       } else if (action === 'off') {
         // Clear old loop if any
@@ -50,7 +50,7 @@ module.exports = {
           try { await sock.sendPresenceUpdate('unavailable'); } catch (e) {}
         }, 30000);
 
-        return extra.reply('❌ *Always Online Disabled!*\nThe bot is now strictly locked to "Offline" ⚪');
+        return extra.reply('*Always Online Disabled!* ⚪');
         
       } else {
         return extra.reply('❓ *Invalid Usage!*\nCorrect format:\n👉 `.alwaysonline on`\n👉 `.alwaysonline off`');
