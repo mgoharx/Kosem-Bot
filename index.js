@@ -314,7 +314,8 @@ async function startBot() {
           } else if (isStatus) {
             chatName = "WhatsApp Status";
           } else {
-            chatName = deletedMsg.pushName || "Private Chat";
+            // 🚀 FIX: Isko strictly "Private Chat" kar diya taake naam repeat na ho
+            chatName = "Private Chat"; 
           }
 
           const time = new Date().toLocaleTimeString('en-US', { 
@@ -340,8 +341,8 @@ async function startBot() {
 
           const pushName = deletedMsg.pushName || "Unknown User";
           
-          // 🚀 THE FIX: Tag is now explicitly standalone so WhatsApp parses it as a clickable mention natively.
-          let caption = `❖ ── ✦ 𝐀𝐍𝐓𝐈 𝐃𝐄𝐋𝐄𝐓𝐄 ✦ ── ❖\n\n👤 *Sender:* @${senderNumber}\n📝 *Name:* ${pushName}\n📍 *Chat:* ${chatName}\n🕰️ *Time:* ${time}\n📦 *Deleted:* ${mediaType}\n`;
+          // 🚀 THE FIX: Name is removed from its own line, and properly merged into the Chat line.
+          let caption = `❖ ── ✦ 𝐀𝐍𝐓𝐈 𝐃𝐄𝐋𝐄𝐓𝐄 ✦ ── ❖\n\n👤 *Sender:* @${senderNumber}\n📍 *Chat:* ${chatName} (${pushName})\n🕰️ *Time:* ${time}\n📦 *Deleted:* ${mediaType}\n`;
 
           if (originalText) {
               caption += `\n❖ ── ✦ 𝐌𝐄𝐒𝐒𝐀𝐆𝐄 ✦ ── ❖\n💬 ${originalText}`;
