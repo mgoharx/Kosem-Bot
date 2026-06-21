@@ -5,6 +5,16 @@ process.env.PUPPETEER_SKIP_DOWNLOAD = 'true';
 process.env.PUPPETEER_SKIP_CHROMIUM_DOWNLOAD = 'true';
 process.env.PUPPETEER_CACHE_DIR = process.env.PUPPETEER_CACHE_DIR || '/tmp/puppeteer_cache_disabled';
 
+// 🔇 SUPPRESS NOISY STARTUP ERRORS (Bad MAC / Decrypt errors)
+const originalConsoleError = console.error;
+console.error = (...args) => {
+  const logString = args.map(a => String(a)).join(' ');
+  if (logString.includes('Bad MAC') || logString.includes('Failed to decrypt') || logString.includes('Session error')) {
+    return; // Hide noisy Baileys decryption errors during startup
+  }
+  originalConsoleError.apply(console, args);
+};
+
 // ⏱️ BOT UPTIME TRACKER (For Anti-Spam Fix)
 const BOT_START_TIME = Date.now();
 
@@ -47,9 +57,16 @@ const store = {
   maxPerChat: 500, // Safe limit for anti-delete
 
   bind: (ev) => {
-    ev.on('messages.upsert', ({ messages }) => {
+    ev.on('messages.upsert', ({ messages, type }) => {
+      // 🚀 FAST BOOT FIX: Ignore old history sync messages completely!
+      if (type !== 'notify') return; 
+
       for (const msg of messages) {
         if (!msg.key?.id) continue;
+        
+        // Extra protection: Ignore messages sent before bot started
+        if (msg.messageTimestamp && (msg.messageTimestamp * 1000) < BOT_START_TIME) continue;
+
         const jid = msg.key.remoteJid;
         if (!store.messages.has(jid)) {
           store.messages.set(jid, new Map());
@@ -300,7 +317,6 @@ async function startBot() {
                                msgObj.documentMessage?.fileName || 
                                msgObj.documentMessage?.caption || "";
 
-          // 🚀 THE FIX: Yahan deletedMsg.pushName extract kar ke add kar diya gaya hai!
           const pushName = deletedMsg.pushName || "Unknown User";
           let caption = `❖ ── ✦ 𝐀𝐍𝐓𝐈 𝐃𝐄𝐋𝐄𝐓𝐄 ✦ ── ❖\n\n👤 *Sender:* ${pushName} (@${senderNumber})\n📍 *Chat:* ${chatName}\n🕰️ *Time:* ${time}\n📦 *Deleted:* ${mediaType}\n`;
 
