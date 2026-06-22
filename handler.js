@@ -297,11 +297,11 @@ const isAdmin = async (sock, participant, groupId, groupMetadata = null) => {
     return false;
   }
   
-  // Always fetch live metadata for admin checks
+  // FIXED: Using passed metadata or cached metadata to avoid rate limit spam
   let liveMetadata = groupMetadata;
   if (!liveMetadata || !liveMetadata.participants) {
     if (groupId) {
-      liveMetadata = await getLiveGroupMetadata(sock, groupId);
+      liveMetadata = await getCachedGroupMetadata(sock, groupId);
     } else {
       return false;
     }
@@ -337,8 +337,8 @@ const isBotAdmin = async (sock, groupId, groupMetadata = null) => {
       botJids.push(botLid);
     }
     
-    // ALWAYS fetch live metadata for bot admin checks (never use cached)
-    const liveMetadata = await getLiveGroupMetadata(sock, groupId);
+    // FIXED: Using cached metadata instead of live to avoid rate limit
+    const liveMetadata = groupMetadata || await getCachedGroupMetadata(sock, groupId);
     
     if (!liveMetadata || !liveMetadata.participants) return false;
     
@@ -373,9 +373,6 @@ const isSystemJid = (jid) => {
 // Main message handler
 const handleMessage = async (sock, msg) => {
   try {
-    // Debug logging to see all messages
-    // Debug log removed
-    
     if (!msg.message) return;
     
     const from = msg.key.remoteJid;
@@ -387,10 +384,7 @@ const handleMessage = async (sock, msg) => {
     
     // Auto-React System
     try {
-      // Clear cache to get fresh config values
-      delete require.cache[require.resolve('./config')];
-      const config = require('./config');
-
+      // FIXED: Removed 'delete require.cache' to stop Disk I/O lag
       if (config.autoReact && msg.message && !msg.key.fromMe) {
         const content = msg.message.ephemeralMessage?.message || msg.message;
         const text =
@@ -425,7 +419,6 @@ const handleMessage = async (sock, msg) => {
     
     // Unwrap containers first
     const content = getMessageContent(msg);
-    // Note: We don't return early if content is null because forwarded status messages might not have content
     
     // Still check for actual message content for regular processing
     let actualMessageTypes = [];
@@ -436,30 +429,24 @@ const handleMessage = async (sock, msg) => {
       actualMessageTypes = allKeys.filter(key => !protocolMessages.includes(key));
     }
     
-    // We'll check for empty content later after we've processed group messages
-    
-    // Use the first actual message type (conversation, extendedTextMessage, etc.)
     const messageType = actualMessageTypes[0];
     
     // from already defined above in DM block check
     const sender = msg.key.fromMe ? sock.user.id.split(':')[0] + '@s.whatsapp.net' : msg.key.participant || msg.key.remoteJid;
-    const isGroup = from.endsWith('@g.us'); // Should always be true now due to DM block above
+    const isGroup = from.endsWith('@g.us'); 
     
     // Fetch group metadata immediately if it's a group
     const groupMetadata = isGroup ? await getGroupMetadata(sock, from) : null;
     
     // Anti-group mention protection (check BEFORE prefix check, as these are non-command messages)
     if (isGroup) {
-      // Debug logging to confirm we're trying to call the handler
       const groupSettings = database.getGroupSettings(from);
-      // Debug log removed
       if (groupSettings.antigroupmention) {
-        // Debug log removed
-      }
-      try {
-        await handleAntigroupmention(sock, msg, groupMetadata);
-      } catch (error) {
-        console.error('Error in antigroupmention handler:', error);
+        try {
+          await handleAntigroupmention(sock, msg, groupMetadata);
+        } catch (error) {
+          console.error('Error in antigroupmention handler:', error);
+        }
       }
     }
     
@@ -479,54 +466,36 @@ const handleMessage = async (sock, msg) => {
       
       // Handle button clicks by routing to commands
       if (buttonId === 'btn_menu') {
-        // Execute menu command
         const menuCmd = commands.get('menu');
         if (menuCmd) {
           await menuCmd.execute(sock, msg, [], {
-            from,
-            sender,
-            isGroup,
-            groupMetadata,
-            isOwner: isOwner(sender),
-            isAdmin: await isAdmin(sock, sender, from, groupMetadata),
-            isBotAdmin: await isBotAdmin(sock, from, groupMetadata),
-            isMod: isMod(sender),
+            from, sender, isGroup, groupMetadata,
+            isOwner: isOwner(sender), isAdmin: await isAdmin(sock, sender, from, groupMetadata),
+            isBotAdmin: await isBotAdmin(sock, from, groupMetadata), isMod: isMod(sender),
             reply: (text) => sock.sendMessage(from, { text }, { quoted: msg }),
             react: (emoji) => sock.sendMessage(from, { react: { text: emoji, key: msg.key } })
           });
         }
         return;
       } else if (buttonId === 'btn_ping') {
-        // Execute ping command
         const pingCmd = commands.get('ping');
         if (pingCmd) {
           await pingCmd.execute(sock, msg, [], {
-            from,
-            sender,
-            isGroup,
-            groupMetadata,
-            isOwner: isOwner(sender),
-            isAdmin: await isAdmin(sock, sender, from, groupMetadata),
-            isBotAdmin: await isBotAdmin(sock, from, groupMetadata),
-            isMod: isMod(sender),
+            from, sender, isGroup, groupMetadata,
+            isOwner: isOwner(sender), isAdmin: await isAdmin(sock, sender, from, groupMetadata),
+            isBotAdmin: await isBotAdmin(sock, from, groupMetadata), isMod: isMod(sender),
             reply: (text) => sock.sendMessage(from, { text }, { quoted: msg }),
             react: (emoji) => sock.sendMessage(from, { react: { text: emoji, key: msg.key } })
           });
         }
         return;
       } else if (buttonId === 'btn_help') {
-        // Execute list command again (help)
         const listCmd = commands.get('list');
         if (listCmd) {
           await listCmd.execute(sock, msg, [], {
-            from,
-            sender,
-            isGroup,
-            groupMetadata,
-            isOwner: isOwner(sender),
-            isAdmin: await isAdmin(sock, sender, from, groupMetadata),
-            isBotAdmin: await isBotAdmin(sock, from, groupMetadata),
-            isMod: isMod(sender),
+            from, sender, isGroup, groupMetadata,
+            isOwner: isOwner(sender), isAdmin: await isAdmin(sock, sender, from, groupMetadata),
+            isBotAdmin: await isBotAdmin(sock, from, groupMetadata), isMod: isMod(sender),
             reply: (text) => sock.sendMessage(from, { text }, { quoted: msg }),
             react: (emoji) => sock.sendMessage(from, { react: { text: emoji, key: msg.key } })
           });
@@ -565,7 +534,7 @@ const handleMessage = async (sock, msg) => {
         }
       }
       
-      // Anti-tag protection (check BEFORE text check, as tagall can have no text)
+      // Anti-tag protection 
       if (groupSettings.antitag && !msg.key.fromMe) {
         const ctx = content.extendedTextMessage?.contextInfo;
         const mentionedJids = ctx?.mentionedJid || [];
@@ -645,62 +614,37 @@ const handleMessage = async (sock, msg) => {
       }
     }
     
-    // Anti-group mention protection (check BEFORE prefix check, as these are non-command messages)
-    if (isGroup) {
-      // Debug logging to confirm we're trying to call the handler
-      const groupSettings = database.getGroupSettings(from);
-      if (groupSettings.antigroupmention) {
-        // Debug log removed
-      }
-      try {
-        await handleAntigroupmention(sock, msg, groupMetadata);
-      } catch (error) {
-        console.error('Error in antigroupmention handler:', error);
-      }
-    }
-    
-    // AutoSticker feature - convert images/videos to stickers automatically
-    if (isGroup) { // Process all messages in groups (including bot's own messages)
+    // AutoSticker feature
+    if (isGroup) { 
       const groupSettings = database.getGroupSettings(from);
       if (groupSettings.autosticker) {
         const mediaMessage = content?.imageMessage || content?.videoMessage;
         
-        // Only process if it's an image or video (not documents)
         if (mediaMessage) {
-          // Skip if message has a command prefix (let command handle it)
           if (!body.startsWith(config.prefix)) {
             try {
-              // Import sticker command logic
               const stickerCmd = commands.get('sticker');
               if (stickerCmd) {
-                // Execute sticker conversion silently
                 await stickerCmd.execute(sock, msg, [], {
-                  from,
-                  sender,
-                  isGroup,
-                  groupMetadata,
-                  isOwner: isOwner(sender),
-                  isAdmin: await isAdmin(sock, sender, from, groupMetadata),
-                  isBotAdmin: await isBotAdmin(sock, from, groupMetadata),
-                  isMod: isMod(sender),
+                  from, sender, isGroup, groupMetadata,
+                  isOwner: isOwner(sender), isAdmin: await isAdmin(sock, sender, from, groupMetadata),
+                  isBotAdmin: await isBotAdmin(sock, from, groupMetadata), isMod: isMod(sender),
                   reply: (text) => sock.sendMessage(from, { text }, { quoted: msg }),
                   react: (emoji) => sock.sendMessage(from, { react: { text: emoji, key: msg.key } })
                 });
-                return; // Don't process as command after auto-converting
+                return; 
               }
             } catch (error) {
               console.error('[AutoSticker Error]:', error);
-              // Continue to normal processing if autosticker fails
             }
           }
         }
       }
     }
 
-// --- ANTI VIDEO BY GOHAR (FIXED VARIABLE) ---
+    // --- ANTI VIDEO BY GOHAR ---
     if (isGroup) {
       const groupSettings = database.getGroupSettings(from);
-      // 'msg' use karna hai 'm' ki jagah
       const isVideo = msg.message?.videoMessage || content?.videoMessage;
       
       if (groupSettings.antivideo && isVideo) {
@@ -712,7 +656,7 @@ const handleMessage = async (sock, msg) => {
           try {
             await sock.sendMessage(from, { delete: msg.key });
             await sock.sendMessage(from, { 
-              text: `⚠️ *@${sender.split('@')[0]}*,Videos are not allowed!`,
+              text: `⚠️ *@${sender.split('@')[0]}*, Videos are not allowed!`,
               mentions: [sender]
             }, { quoted: msg });
             return; 
@@ -723,97 +667,85 @@ const handleMessage = async (sock, msg) => {
       }
     }
 
-// --- ANTI STICKER BY GOHAR (SILENT DELETE) ---
-if (isGroup) {
-    const groupSettings = database.getGroupSettings(from);
-    const isSticker = msg.message?.stickerMessage || content?.stickerMessage;
+    // --- ANTI STICKER BY GOHAR ---
+    if (isGroup) {
+      const groupSettings = database.getGroupSettings(from);
+      const isSticker = msg.message?.stickerMessage || content?.stickerMessage;
 
-    if (groupSettings.antisticker && isSticker) {
+      if (groupSettings.antisticker && isSticker) {
         const senderIsAdmin = await isAdmin(sock, sender, from, groupMetadata);
         const senderIsOwner = isOwner(sender);
         const botIsAdmin = await isBotAdmin(sock, from, groupMetadata);
 
-        // Agar bhejne wala admin nahi hai aur bot admin hai, toh delete karein
         if (!senderIsAdmin && !senderIsOwner && botIsAdmin) {
-            try {
-                await sock.sendMessage(from, { delete: msg.key });
-                return; // Bas delete karke yahin khatam, koi message nahi jayega
-            } catch (e) {
-                console.error('Anti-Sticker Silent Error:', e);
-            }
+          try {
+            await sock.sendMessage(from, { delete: msg.key });
+            return; 
+          } catch (e) {
+            console.error('Anti-Sticker Silent Error:', e);
+          }
         }
-    }
-}
-
-// --- ANTI STATUS MENTION BY GOHAR (FIXED ORDER) ---
-if (isGroup) {
-  const groupSettings = database.getGroupSettings(from);
-  
-  const msgStr = JSON.stringify(msg);
-  const isStatusMention = (
-    msg.message?.statusMentionMessage || 
-    msg.message?.viewOnceMessageV2?.message?.statusMentionMessage ||
-    msgStr.includes('statusMentionMessage') || 
-    msgStr.includes('groupStatusMentionMessage')
-  );
-
-  if (groupSettings.antistatusmention && isStatusMention) {
-    const senderIsAdmin = await isAdmin(sock, sender, from, groupMetadata);
-    const senderIsOwner = isOwner(sender);
-    const botIsAdmin = await isBotAdmin(sock, from, groupMetadata);
-
-    if (!senderIsAdmin && !senderIsOwner && botIsAdmin) {
-      try {
-        // 1. Pehle message delete karein
-        await sock.sendMessage(from, { delete: msg.key });
-        
-        // 2. Phir announcement karein (Pehle msg jayega)
-        await sock.sendMessage(from, { 
-          text: `@${sender.split('@')[0]} has been kicked for mentioning status.`,
-          mentions: [sender]
-        });
-        
-        // 3. Sab se aakhir mein kick karein
-        await sock.groupParticipantsUpdate(from, [sender], 'remove');
-        
-        return; 
-      } catch (e) {
-        console.error('Anti-StatusMention Error:', e);
       }
     }
-  }
-}
-     // Check for active bomb games (before prefix check)
+
+    // --- ANTI STATUS MENTION BY GOHAR ---
+    if (isGroup) {
+      const groupSettings = database.getGroupSettings(from);
+      
+      const msgStr = JSON.stringify(msg);
+      const isStatusMention = (
+        msg.message?.statusMentionMessage || 
+        msg.message?.viewOnceMessageV2?.message?.statusMentionMessage ||
+        msgStr.includes('statusMentionMessage') || 
+        msgStr.includes('groupStatusMentionMessage')
+      );
+
+      if (groupSettings.antistatusmention && isStatusMention) {
+        const senderIsAdmin = await isAdmin(sock, sender, from, groupMetadata);
+        const senderIsOwner = isOwner(sender);
+        const botIsAdmin = await isBotAdmin(sock, from, groupMetadata);
+
+        if (!senderIsAdmin && !senderIsOwner && botIsAdmin) {
+          try {
+            await sock.sendMessage(from, { delete: msg.key });
+            
+            await sock.sendMessage(from, { 
+              text: `@${sender.split('@')[0]} has been kicked for mentioning status.`,
+              mentions: [sender]
+            });
+            
+            await sock.groupParticipantsUpdate(from, [sender], 'remove');
+            
+            return; 
+          } catch (e) {
+            console.error('Anti-StatusMention Error:', e);
+          }
+        }
+      }
+    }
+    
+    // Check for active bomb games
     try {
       const bombModule = require('./commands/fun/bomb');
       if (bombModule.gameState && bombModule.gameState.has(sender)) {
         const bombCommand = commands.get('bomb');
         if (bombCommand && bombCommand.execute) {
-          // User has active game, process input
           await bombCommand.execute(sock, msg, [], {
-            from,
-            sender,
-            isGroup,
-            groupMetadata,
-            isOwner: isOwner(sender),
-            isAdmin: await isAdmin(sock, sender, from, groupMetadata),
-            isBotAdmin: await isBotAdmin(sock, from, groupMetadata),
-            isMod: isMod(sender),
+            from, sender, isGroup, groupMetadata,
+            isOwner: isOwner(sender), isAdmin: await isAdmin(sock, sender, from, groupMetadata),
+            isBotAdmin: await isBotAdmin(sock, from, groupMetadata), isMod: isMod(sender),
             reply: (text) => sock.sendMessage(from, { text }, { quoted: msg }),
             react: (emoji) => sock.sendMessage(from, { react: { text: emoji, key: msg.key } })
           });
-          return; // Don't process as command
+          return; 
         }
       }
-    } catch (e) {
-      // Silently ignore if bomb command doesn't exist or has errors
-    }
+    } catch (e) {}
     
-    // Check for active tictactoe games (before prefix check)
+    // Check for active tictactoe games
     try {
       const tictactoeModule = require('./commands/fun/tictactoe');
       if (tictactoeModule.handleTicTacToeMove) {
-        // Check if user is in an active game
         const isInGame = Object.values(tictactoeModule.games || {}).some(room => 
           room.id.startsWith('tictactoe') && 
           [room.game.playerX, room.game.playerO].includes(sender) && 
@@ -821,25 +753,17 @@ if (isGroup) {
         );
         
         if (isInGame) {
-          // User has active game, process input
           const handled = await tictactoeModule.handleTicTacToeMove(sock, msg, {
-            from,
-            sender,
-            isGroup,
-            groupMetadata,
-            isOwner: isOwner(sender),
-            isAdmin: await isAdmin(sock, sender, from, groupMetadata),
-            isBotAdmin: await isBotAdmin(sock, from, groupMetadata),
-            isMod: isMod(sender),
+            from, sender, isGroup, groupMetadata,
+            isOwner: isOwner(sender), isAdmin: await isAdmin(sock, sender, from, groupMetadata),
+            isBotAdmin: await isBotAdmin(sock, from, groupMetadata), isMod: isMod(sender),
             reply: (text) => sock.sendMessage(from, { text }, { quoted: msg }),
             react: (emoji) => sock.sendMessage(from, { react: { text: emoji, key: msg.key } })
           });
-          if (handled) return; // Don't process as command if move was handled
+          if (handled) return; 
         }
       }
-    } catch (e) {
-      // Silently ignore if tictactoe command doesn't exist or has errors
-    }
+    } catch (e) {}
     
     
     // Check if message starts with prefix
@@ -853,7 +777,7 @@ if (isGroup) {
     const command = commands.get(commandName);
     if (!command) return;
     
-    // Check self mode (private mode) - only owner can use commands
+    // Check self mode
     if (config.selfMode && !isOwner(sender)) {
       return;
     }
@@ -895,14 +819,9 @@ if (isGroup) {
     console.log(`Executing command: ${commandName} from ${sender}`);
     
     await command.execute(sock, msg, args, {
-      from,
-      sender,
-      isGroup,
-      groupMetadata,
-      isOwner: isOwner(sender),
-      isAdmin: await isAdmin(sock, sender, from, groupMetadata),
-      isBotAdmin: await isBotAdmin(sock, from, groupMetadata),
-      isMod: isMod(sender),
+      from, sender, isGroup, groupMetadata,
+      isOwner: isOwner(sender), isAdmin: await isAdmin(sock, sender, from, groupMetadata),
+      isBotAdmin: await isBotAdmin(sock, from, groupMetadata), isMod: isMod(sender),
       reply: (text) => sock.sendMessage(from, { text }, { quoted: msg }),
       react: (emoji) => sock.sendMessage(from, { react: { text: emoji, key: msg.key } })
     });
@@ -910,7 +829,6 @@ if (isGroup) {
   } catch (error) {
     console.error('Error in message handler:', error);
     
-    // Don't send error messages for rate limit errors
     if (error.message && error.message.includes('rate-overlimit')) {
       console.warn('⚠️ Rate limit reached. Skipping error message.');
       return;
@@ -921,7 +839,6 @@ if (isGroup) {
         text: `${config.messages.error}\n\n${error.message}` 
       }, { quoted: msg });
     } catch (e) {
-      // Don't log rate limit errors when sending error messages
       if (!e.message || !e.message.includes('rate-overlimit')) {
         console.error('Error sending error message:', e);
       }
@@ -934,7 +851,6 @@ const handleGroupUpdate = async (sock, update) => {
   try {
     const { id, participants, action } = update;
     
-    // Validate group JID before processing
     if (!id || !id.endsWith('@g.us')) {
       return;
     }
@@ -944,72 +860,50 @@ const handleGroupUpdate = async (sock, update) => {
     if (!groupSettings.welcome && !groupSettings.goodbye) return;
     
     const groupMetadata = await getGroupMetadata(sock, id);
-    if (!groupMetadata) return; // Skip if metadata unavailable (forbidden or error)
+    if (!groupMetadata) return; 
     
-    // Helper to extract participant JID
     const getParticipantJid = (participant) => {
-      if (typeof participant === 'string') {
-        return participant;
-      }
-      if (participant && participant.id) {
-        return participant.id;
-      }
-      if (participant && typeof participant === 'object') {
-        // Try to find JID in object
-        return participant.jid || participant.participant || null;
-      }
+      if (typeof participant === 'string') return participant;
+      if (participant && participant.id) return participant.id;
+      if (participant && typeof participant === 'object') return participant.jid || participant.participant || null;
       return null;
     };
     
     for (const participant of participants) {
       const participantJid = getParticipantJid(participant);
-      if (!participantJid) {
-        console.warn('Could not extract participant JID:', participant);
-        continue;
-      }
+      if (!participantJid) continue;
       
       const participantNumber = participantJid.split('@')[0];
       
       if (action === 'add' && groupSettings.welcome) {
         try {
-          // Get user's display name - find participant using phoneNumber or JID
           let displayName = participantNumber;
           
-          // Try to find participant in group metadata
           const participantInfo = groupMetadata.participants.find(p => {
             const pId = p.id || p.jid || p.participant;
             const pPhone = p.phoneNumber;
-            // Match by JID or phoneNumber
             return pId === participantJid || 
                    pId?.split('@')[0] === participantNumber ||
                    pPhone === participantJid ||
                    pPhone?.split('@')[0] === participantNumber;
           });
           
-          // Get phoneNumber JID to fetch contact name
           let phoneJid = null;
           if (participantInfo && participantInfo.phoneNumber) {
             phoneJid = participantInfo.phoneNumber;
           } else {
-            // Try to normalize participantJid to phoneNumber format
-            // If it's a LID, try to convert to phoneNumber
             try {
               const normalized = normalizeJidWithLid(participantJid);
               if (normalized && normalized.includes('@s.whatsapp.net')) {
                 phoneJid = normalized;
               }
             } catch (e) {
-              // If normalization fails, try using participantJid directly if it's a valid JID
-              if (participantJid.includes('@s.whatsapp.net')) {
-                phoneJid = participantJid;
-              }
+              if (participantJid.includes('@s.whatsapp.net')) phoneJid = participantJid;
             }
           }
           
-          // Try to get contact name from phoneNumber JID
           if (phoneJid) {
             try {
-              // Method 1: Try to get from contact store if available
               if (sock.store && sock.store.contacts && sock.store.contacts[phoneJid]) {
                 const contact = sock.store.contacts[phoneJid];
                 if (contact.notify && contact.notify.trim() && !contact.notify.match(/^\d+$/)) {
@@ -1019,28 +913,20 @@ const handleGroupUpdate = async (sock, update) => {
                 }
               }
               
-              // Method 2: Try to fetch contact using onWhatsApp and then check store
               if (displayName === participantNumber) {
                 try {
                   await sock.onWhatsApp(phoneJid);
-                  
-                  // After onWhatsApp, check store again (might populate after check)
                   if (sock.store && sock.store.contacts && sock.store.contacts[phoneJid]) {
                     const contact = sock.store.contacts[phoneJid];
                     if (contact.notify && contact.notify.trim() && !contact.notify.match(/^\d+$/)) {
                       displayName = contact.notify.trim();
                     }
                   }
-                } catch (fetchError) {
-                  // Silently handle fetch errors
-                }
+                } catch (fetchError) {}
               }
-            } catch (contactError) {
-              // Silently handle contact errors
-            }
+            } catch (contactError) {}
           }
           
-          // Final fallback: use participantInfo.notify or name if available
           if (displayName === participantNumber && participantInfo) {
             if (participantInfo.notify && participantInfo.notify.trim() && !participantInfo.notify.match(/^\d+$/)) {
               displayName = participantInfo.notify.trim();
@@ -1049,20 +935,16 @@ const handleGroupUpdate = async (sock, update) => {
             }
           }
           
-          // Get user's profile picture URL
           let profilePicUrl = '';
           try {
             profilePicUrl = await sock.profilePictureUrl(participantJid, 'image');
           } catch (ppError) {
-            // If profile picture not available, use default avatar
             profilePicUrl = 'https://img.pyrocdn.com/dbKUgahg.png';
           }
           
-          // Get group name and description
           const groupName = groupMetadata.subject || 'the group';
           const groupDesc = groupMetadata.desc || 'No description';
           
-          // Get current time string
           const now = new Date();
           const timeString = now.toLocaleTimeString('en-US', { 
             hour: '2-digit', 
@@ -1070,25 +952,19 @@ const handleGroupUpdate = async (sock, update) => {
             hour12: true 
           });
           
-          // Create formatted welcome message
           const welcomeMsg = `╭╼━≪•𝙽𝙴𝚆 𝙼𝙴𝙼𝙱𝙴𝚁•≫━╾╮\n┃𝚆𝙴𝙻𝙲𝙾𝙼𝙴: @${displayName} 👋\n┃Member count: #${groupMetadata.participants.length}\n┃𝚃𝙸𝙼𝙴: ${timeString}⏰\n╰━━━━━━━━━━━━━━━╯\n\n*@${displayName}* Welcome to *${groupName}*! 🎉\n*Group 𝙳𝙴𝚂𝙲𝚁𝙸𝙿𝚃𝙸𝙾𝙽*\n${groupDesc}\n\n> *ᴘᴏᴡᴇʀᴇᴅ ʙʏ ${config.botName}*`;
           
-          // Construct API URL for welcome image
           const apiUrl = `https://api.some-random-api.com/welcome/img/7/gaming4?type=join&textcolor=white&username=${encodeURIComponent(displayName)}&guildName=${encodeURIComponent(groupName)}&memberCount=${groupMetadata.participants.length}&avatar=${encodeURIComponent(profilePicUrl)}`;
           
-          // Download the welcome image
           const imageResponse = await axios.get(apiUrl, { responseType: 'arraybuffer' });
           const imageBuffer = Buffer.from(imageResponse.data);
           
-          // Send the welcome image with formatted caption
           await sock.sendMessage(id, { 
             image: imageBuffer,
             caption: welcomeMsg,
             mentions: [participantJid] 
           });
         } catch (welcomeError) {
-          // Fallback to text message if image generation fails
-          console.error('Welcome image error:', welcomeError);
           let message = groupSettings.welcomeMessage || 'Welcome @user to @group! 👋\nEnjoy your stay!';
           message = message.replace('@user', `@${participantNumber}`);
           message = message.replace('@group', groupMetadata.subject || 'the group');
@@ -1100,42 +976,33 @@ const handleGroupUpdate = async (sock, update) => {
         }
       } else if (action === 'remove' && groupSettings.goodbye) {
         try {
-          // Get user's display name - find participant using phoneNumber or JID
           let displayName = participantNumber;
           
-          // Try to find participant in group metadata (before they left)
           const participantInfo = groupMetadata.participants.find(p => {
             const pId = p.id || p.jid || p.participant;
             const pPhone = p.phoneNumber;
-            // Match by JID or phoneNumber
             return pId === participantJid || 
                    pId?.split('@')[0] === participantNumber ||
                    pPhone === participantJid ||
                    pPhone?.split('@')[0] === participantNumber;
           });
           
-          // Get phoneNumber JID to fetch contact name
           let phoneJid = null;
           if (participantInfo && participantInfo.phoneNumber) {
             phoneJid = participantInfo.phoneNumber;
           } else {
-            // Try to normalize participantJid to phoneNumber format
             try {
               const normalized = normalizeJidWithLid(participantJid);
               if (normalized && normalized.includes('@s.whatsapp.net')) {
                 phoneJid = normalized;
               }
             } catch (e) {
-              if (participantJid.includes('@s.whatsapp.net')) {
-                phoneJid = participantJid;
-              }
+              if (participantJid.includes('@s.whatsapp.net')) phoneJid = participantJid;
             }
           }
           
-          // Try to get contact name from phoneNumber JID
           if (phoneJid) {
             try {
-              // Method 1: Try to get from contact store if available
               if (sock.store && sock.store.contacts && sock.store.contacts[phoneJid]) {
                 const contact = sock.store.contacts[phoneJid];
                 if (contact.notify && contact.notify.trim() && !contact.notify.match(/^\d+$/)) {
@@ -1145,28 +1012,20 @@ const handleGroupUpdate = async (sock, update) => {
                 }
               }
               
-              // Method 2: Try to fetch contact using onWhatsApp and then check store
               if (displayName === participantNumber) {
                 try {
                   await sock.onWhatsApp(phoneJid);
-                  
-                  // After onWhatsApp, check store again
                   if (sock.store && sock.store.contacts && sock.store.contacts[phoneJid]) {
                     const contact = sock.store.contacts[phoneJid];
                     if (contact.notify && contact.notify.trim() && !contact.notify.match(/^\d+$/)) {
                       displayName = contact.notify.trim();
                     }
                   }
-                } catch (fetchError) {
-                  // Silently handle fetch errors
-                }
+                } catch (fetchError) {}
               }
-            } catch (contactError) {
-              // Silently handle contact errors
-            }
+            } catch (contactError) {}
           }
           
-          // Final fallback: use participantInfo.notify or name if available
           if (displayName === participantNumber && participantInfo) {
             if (participantInfo.notify && participantInfo.notify.trim() && !participantInfo.notify.match(/^\d+$/)) {
               displayName = participantInfo.notify.trim();
@@ -1175,48 +1034,28 @@ const handleGroupUpdate = async (sock, update) => {
             }
           }
           
-          // Get user's profile picture URL
           let profilePicUrl = '';
           try {
             profilePicUrl = await sock.profilePictureUrl(participantJid, 'image');
           } catch (ppError) {
-            // If profile picture not available, use default avatar
             profilePicUrl = 'https://img.pyrocdn.com/dbKUgahg.png';
           }
           
-          // Get group name and description
           const groupName = groupMetadata.subject || 'the group';
-          const groupDesc = groupMetadata.desc || 'No description';
-          
-          // Get current time string
-          const now = new Date();
-          const timeString = now.toLocaleTimeString('en-US', { 
-            hour: '2-digit', 
-            minute: '2-digit',
-            hour12: true 
-          });
-          
-          // Create simple goodbye message
           const goodbyeMsg = `Goodbye @${displayName} 👋 We will never miss you!`;
           
-          // Construct API URL for goodbye image (using leave type)
           const apiUrl = `https://api.some-random-api.com/welcome/img/7/gaming4?type=leave&textcolor=white&username=${encodeURIComponent(displayName)}&guildName=${encodeURIComponent(groupName)}&memberCount=${groupMetadata.participants.length}&avatar=${encodeURIComponent(profilePicUrl)}`;
           
-          // Download the goodbye image
           const imageResponse = await axios.get(apiUrl, { responseType: 'arraybuffer' });
           const imageBuffer = Buffer.from(imageResponse.data);
           
-          // Send the goodbye image with caption
           await sock.sendMessage(id, { 
             image: imageBuffer,
             caption: goodbyeMsg,
             mentions: [participantJid] 
           });
         } catch (goodbyeError) {
-          // Fallback to simple goodbye message
-          console.error('Goodbye error:', goodbyeError);
           const goodbyeMsg = `Goodbye @${participantNumber} 👋 We will never miss you! 💀`;
-          
           await sock.sendMessage(id, { 
             text: goodbyeMsg, 
             mentions: [participantJid] 
@@ -1225,7 +1064,6 @@ const handleGroupUpdate = async (sock, update) => {
       }
     }
   } catch (error) {
-    // Silently handle forbidden errors and other group metadata errors
     if (error.message && (
       error.message.includes('forbidden') || 
       error.message.includes('403') ||
@@ -1233,10 +1071,8 @@ const handleGroupUpdate = async (sock, update) => {
       error.output?.statusCode === 403 ||
       error.data === 403
     )) {
-      // Silently skip forbidden groups
       return;
     }
-    // Only log non-forbidden errors
     if (!error.message || !error.message.includes('forbidden')) {
       console.error('Error handling group update:', error);
     }
@@ -1273,23 +1109,16 @@ const processDeleteQueue = async (sock) => {
 };
 
 // ==========================================
-// 🛡️ ANTILINK HANDLER (System Message Bug Fix)
+// 🛡️ ANTILINK HANDLER
 // ==========================================
 const handleAntilink = async (sock, msg, groupMetadata) => {
   try {
     const from = msg.key.remoteJid;
     const sender = msg.key.participant || msg.key.remoteJid;
     
-    // 1. Agar bot ne khud message bheja hai to ignore kare
     if (msg.key.fromMe) return;
-
-    // ==========================================
-    // 🔴 SYSTEM MESSAGE SHIELD (Ye setting change ko pakrega)
-    // ==========================================
-    // Agar ye aam message nahi balki WhatsApp ka system notification hai (jaise chat on/off), to FORAN ignore karo
     if (msg.messageStubType) return; 
 
-    // 🔴 DUPLICATE SHIELD
     const msgId = msg.key.id;
     if (!msgId || processedMessages.has(msgId)) return; 
     processedMessages.add(msgId); 
@@ -1299,9 +1128,7 @@ const handleAntilink = async (sock, msg, groupMetadata) => {
         processedMessages.delete(firstItem);
     }
 
-    // 🔴 PERFECT TIME SHIELD
     let messageTime = msg.messageTimestamp;
-    
     if (typeof messageTime === 'object' && messageTime !== null) {
         messageTime = messageTime.low || messageTime.toNumber?.() || 0; 
     }
@@ -1320,35 +1147,27 @@ const handleAntilink = async (sock, msg, groupMetadata) => {
 
     if (msg.message?.protocolMessage) return;
 
-    // 2. Database Check
     const groupSettings = database.getGroupSettings(from);
     if (!groupSettings || !groupSettings.antilink) return;
     
     let msgObj = msg.message;
     if (!msgObj) return;
 
-    // Disappearing/ViewOnce wrappers
     if (msgObj.ephemeralMessage) msgObj = msgObj.ephemeralMessage.message;
     if (msgObj.viewOnceMessageV2) msgObj = msgObj.viewOnceMessageV2.message;
     if (msgObj.viewOnceMessage) msgObj = msgObj.viewOnceMessage.message;
     if (msgObj.documentWithCaptionMessage) msgObj = msgObj.documentWithCaptionMessage.message;
 
-    // ==========================================
-    // 🔴 SAFE TEXT EXTRACTION (Bina raw JSON check kiye)
-    // ==========================================
-    // Sirf text nikaalein taake internal WhatsApp code detect na ho jaye
     const body = msgObj.conversation || 
                  msgObj.extendedTextMessage?.text || 
                  msgObj.imageMessage?.caption || 
                  msgObj.videoMessage?.caption || 
                  msgObj.documentMessage?.caption || '';
 
-    // Direct check karein ke kya ye Channel ka forward ya invite hai?
     const isChannelForward = !!(msgObj.newsletterAppMessage || msgObj.newsletterAdminInviteMessage);
 
     const linkPattern = /(https?:\/\/)?(www\.)?(chat\.whatsapp\.com|whatsapp\.com\/channel|wa\.me|t\.me|[a-zA-Z0-9-]+\.[a-zA-Z]{2,})(\/[^\s]*)?/i;
     
-    // Agar likhay hue text mein link hai, YA phir ye proper channel forward hai
     const hasLink = linkPattern.test(body) || isChannelForward;
 
     if (hasLink) {
@@ -1361,9 +1180,6 @@ const handleAntilink = async (sock, msg, groupMetadata) => {
 
       if (senderIsAdmin || senderIsOwner) return;
 
-      // ==========================================
-      // 🔴 KICK LOGIC (5 Links in 1 Minute)
-      // ==========================================
       const now = Date.now();
       let userLog = kickSpamTracker.get(sender) || { count: 0, startTime: now };
 
@@ -1387,7 +1203,6 @@ const handleAntilink = async (sock, msg, groupMetadata) => {
               }, { quoted: msg });
               
               await new Promise(resolve => setTimeout(resolve, 1000));
-              
               await sock.groupParticipantsUpdate(from, [sender], 'remove');
               
               kickSpamTracker.delete(sender); 
@@ -1397,9 +1212,6 @@ const handleAntilink = async (sock, msg, groupMetadata) => {
           }
       }
 
-      // ==========================================
-      // 🔴 NORMAL ACTION & WARNING
-      // ==========================================
       deleteQueue.push({ jid: from, key: msg.key });
       processDeleteQueue(sock);
 
@@ -1426,162 +1238,70 @@ const handleAntigroupmention = async (sock, msg, groupMetadata) => {
     const sender = msg.key.participant || msg.key.remoteJid;
     
     const groupSettings = database.getGroupSettings(from);
-    
-    // Debug logging to confirm handler is being called
-    if (groupSettings.antigroupmention) {
-      // Debug log removed
-      // Log simplified message info instead of full structure to avoid huge logs
-      // Debug log removed
-    }
-    
     if (!groupSettings.antigroupmention) return;
     
-    // Check if this is a forwarded status message that mentions the group
-    // Comprehensive detection for various status mention message types
     let isForwardedStatus = false;
-    
     if (msg.message) {
-      // Direct checks for known status mention message types
       isForwardedStatus = isForwardedStatus || !!msg.message.groupStatusMentionMessage;
-      isForwardedStatus = isForwardedStatus || 
-        (msg.message.protocolMessage && msg.message.protocolMessage.type === 25); // STATUS_MENTION_MESSAGE
+      isForwardedStatus = isForwardedStatus || (msg.message.protocolMessage && msg.message.protocolMessage.type === 25);
       
-      // Check for forwarded newsletter info in various message types
-      isForwardedStatus = isForwardedStatus || 
-        (msg.message.extendedTextMessage && msg.message.extendedTextMessage.contextInfo && 
-         msg.message.extendedTextMessage.contextInfo.forwardedNewsletterMessageInfo);
-      isForwardedStatus = isForwardedStatus || 
-        (msg.message.conversation && msg.message.contextInfo && 
-         msg.message.contextInfo.forwardedNewsletterMessageInfo);
-      isForwardedStatus = isForwardedStatus || 
-        (msg.message.imageMessage && msg.message.imageMessage.contextInfo && 
-         msg.message.imageMessage.contextInfo.forwardedNewsletterMessageInfo);
-      isForwardedStatus = isForwardedStatus || 
-        (msg.message.videoMessage && msg.message.videoMessage.contextInfo && 
-         msg.message.videoMessage.contextInfo.forwardedNewsletterMessageInfo);
-      isForwardedStatus = isForwardedStatus || 
-        (msg.message.contextInfo && msg.message.contextInfo.forwardedNewsletterMessageInfo);
+      isForwardedStatus = isForwardedStatus || (msg.message.extendedTextMessage && msg.message.extendedTextMessage.contextInfo && msg.message.extendedTextMessage.contextInfo.forwardedNewsletterMessageInfo);
+      isForwardedStatus = isForwardedStatus || (msg.message.conversation && msg.message.contextInfo && msg.message.contextInfo.forwardedNewsletterMessageInfo);
+      isForwardedStatus = isForwardedStatus || (msg.message.imageMessage && msg.message.imageMessage.contextInfo && msg.message.imageMessage.contextInfo.forwardedNewsletterMessageInfo);
+      isForwardedStatus = isForwardedStatus || (msg.message.videoMessage && msg.message.videoMessage.contextInfo && msg.message.videoMessage.contextInfo.forwardedNewsletterMessageInfo);
+      isForwardedStatus = isForwardedStatus || (msg.message.contextInfo && msg.message.contextInfo.forwardedNewsletterMessageInfo);
       
-      // Generic check for any forwarded message
       if (msg.message.contextInfo) {
         const ctx = msg.message.contextInfo;
-        isForwardedStatus = isForwardedStatus || !!ctx.isForwarded;
-        isForwardedStatus = isForwardedStatus || !!ctx.forwardingScore;
-        // Additional check for forwarded status specifically
-        isForwardedStatus = isForwardedStatus || !!ctx.quotedMessageTimestamp;
+        isForwardedStatus = isForwardedStatus || !!ctx.isForwarded || !!ctx.forwardingScore || !!ctx.quotedMessageTimestamp;
       }
       
-      // Additional checks for forwarded messages
       if (msg.message.extendedTextMessage && msg.message.extendedTextMessage.contextInfo) {
         const extCtx = msg.message.extendedTextMessage.contextInfo;
-        isForwardedStatus = isForwardedStatus || !!extCtx.isForwarded;
-        isForwardedStatus = isForwardedStatus || !!extCtx.forwardingScore;
+        isForwardedStatus = isForwardedStatus || !!extCtx.isForwarded || !!extCtx.forwardingScore;
       }
-    }
-    
-    // Additional debug logging for detection
-    if (groupSettings.antigroupmention) {
-      // Debug log removed
-    }
-    
-    // Additional debug logging to help identify message structure
-    if (groupSettings.antigroupmention) {
-      // Debug log removed
-      // Debug log removed
-      if (msg.message) {
-        // Debug log removed
-        // Log specific message types that might indicate a forwarded status
-        if (msg.message.protocolMessage) {
-          // Debug log removed
-        }
-        if (msg.message.contextInfo) {
-          // Debug log removed
-        }
-        if (msg.message.extendedTextMessage && msg.message.extendedTextMessage.contextInfo) {
-          // Debug log removed
-        }
-      }
-    }
-    
-    // Debug logging for detection
-    if (groupSettings.antigroupmention) {
-      // Debug log removed
     }
     
     if (isForwardedStatus) {
-      if (groupSettings.antigroupmention) {
-        // Process forwarded status message
-      }
-      
       const senderIsAdmin = await isAdmin(sock, sender, from, groupMetadata);
       const senderIsOwner = isOwner(sender);
       
-      if (groupSettings.antigroupmention) {
-        // Debug log removed
-      }
-      
-      // Don't act on admins or owners
       if (senderIsAdmin || senderIsOwner) return;
       
       const botIsAdmin = await isBotAdmin(sock, from, groupMetadata);
       const action = (groupSettings.antigroupmentionAction || 'delete').toLowerCase();
       
-      if (groupSettings.antigroupmention) {
-        // Debug log removed
-      }
-      
       if (action === 'kick' && botIsAdmin) {
         try {
-          if (groupSettings.antigroupmention) {
-            // Delete and kick user
-          }
           await sock.sendMessage(from, { delete: msg.key });
           await sock.groupParticipantsUpdate(from, [sender], 'remove');
-          // Silent removal
         } catch (e) {
           console.error('Failed to kick for antigroupmention:', e);
         }
       } else {
-        // Default: delete message
         try {
-          if (groupSettings.antigroupmention) {
-            // Delete message
-          }
           await sock.sendMessage(from, { delete: msg.key });
-          // Silent deletion
         } catch (e) {
           console.error('Failed to delete message for antigroupmention:', e);
         }
       }
-    } else if (groupSettings.antigroupmention) {
-      // Debug log removed
     }
   } catch (error) {
     console.error('Error in antigroupmention handler:', error);
   }
 };
 
-
 // Anti-call feature initializer
 const initializeAntiCall = (sock) => {
-  // Anti-call feature - reject and block incoming calls
   sock.ev.on('call', async (calls) => {
     try {
-      // Reload config to get fresh settings
-      delete require.cache[require.resolve('./config')];
-      const config = require('./config');
-      
+      // FIXED: Removed 'delete require.cache' to stop disk I/O lag
       if (!config.defaultGroupSettings.anticall) return;
 
       for (const call of calls) {
         if (call.status === 'offer') {
-          // Reject the call
           await sock.rejectCall(call.id, call.from);
-
-          // Block the caller
           await sock.updateBlockStatus(call.from, 'block');
-
-          // Notify user
           await sock.sendMessage(call.from, {
             text: '🚫 Calls are not allowed. You have been blocked.'
           });
