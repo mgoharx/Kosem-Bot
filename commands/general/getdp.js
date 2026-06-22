@@ -31,7 +31,7 @@ module.exports = {
       }
       
       if (!targetUser) {
-        return extra.reply('❖ ── ✦ 𝐄𝐑𝐑𝐎𝐑 ✦ ── ❖\n\n❌ Could not identify the target.\n╰━━━━━━━━━━━━━━━━━━━━━━━');
+        return extra.reply('❖ ── ✦ 𝐄𝐑𝐑𝐎𝐑 ✦ ── ❖\n\n❌ Could not identify the target.\n╰━━━━━━━━━━━━━━━━━━━━');
       }
 
       isGroupTarget = targetUser.endsWith('@g.us');
@@ -41,7 +41,7 @@ module.exports = {
         const ppUrl = await sock.profilePictureUrl(targetUser, 'image');
         
         if (!ppUrl) {
-          return extra.reply('❖ ── ✦ 𝐀𝐕𝐀𝐓𝐀𝐑 ✦ ── ❖\n\n❌ Profile picture not found or is completely private.\n╰━━━━━━━━━━━━━━━━━━━━━━━');
+          return extra.reply('❖ ── ✦ 𝐀𝐕𝐀𝐓𝐀𝐑 ✦ ── ❖\n\n❌ Profile picture not found or is completely private.\n╰━━━━━━━━━━━━━━━━━━━━');
         }
         
         // Download the profile picture
@@ -53,9 +53,9 @@ module.exports = {
         let mentionsInfo = [];
 
         if (isGroupTarget) {
-          captionText = `❖ ── ✦ 𝐆𝐑𝐎𝐔𝐏 𝐈𝐂𝐎𝐍 ✦ ── ❖\n\n📸 *Target:* Group Avatar\n╰━━━━━━━━━━━━━━━━━━━━━━━`;
+          captionText = `❖ ── ✦ 𝐆𝐑𝐎𝐔𝐏 𝐈𝐂𝐎𝐍 ✦ ── ❖\n\n📸 *Target:* Group Avatar\n╰━━━━━━━━━━━━━━━━━━━━`;
         } else {
-          captionText = `❖ ── ✦ 𝐏𝐑𝐎𝐅𝐈𝐋𝐄 𝐏𝐈𝐂 ✦ ── ❖\n\n👤 *User:* @${targetUser.split('@')[0]}\n╰━━━━━━━━━━━━━━━━━━━━━━━`;
+          captionText = `❖ ── ✦ 𝐏𝐑𝐎𝐅𝐈𝐋𝐄 𝐏𝐈𝐂 ✦ ── ❖\n\n👤 *User:* @${targetUser.split('@')[0]}\n╰━━━━━━━━━━━━━━━━━━━━`;
           mentionsInfo = [targetUser];
         }
 
