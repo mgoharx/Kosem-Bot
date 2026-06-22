@@ -1,5 +1,5 @@
 /**
- * ATTP - Animated Text to Picture Sticker (Premium RGB Edition)
+ * ATTP - Animated Text to Picture Sticker (Ultra-HD Auto-Scaling RGB Edition)
  */
 
 const { spawn } = require('child_process');
@@ -10,35 +10,28 @@ const { writeExifVid } = require('../../utils/exif');
 module.exports = {
   name: 'attp',
   aliases: ['ttp'],
-  category: 'utility',
-  description: 'Create premium animated RGB text sticker',
+  category: 'general',
+  description: 'Create premium auto-scaling RGB animated text sticker',
   usage: '<text>',
   
   async execute(sock, msg, args, extra) {
     try {
       if (args.length === 0) {
-        return extra.reply(`❖ ── ✦ 𝐀𝐓𝐓𝐏 ✦ ── ❖\n\n❌ *Text Missing*\nPlease provide text to animate.\n\n👉 *Example:* \`${extra.prefix || '.'}attp Hello World\`\n╰━━━━━━━━━━━━━━━━━━━━━━━`);
+        return extra.reply(`❖ ── ✦ 𝐀𝐓𝐓𝐏 ✦ ── ❖\n\n❌ *Text Missing*\nPlease provide text to animate.\n\n👉 *Example:* \`${extra.prefix || '.'}attp Knight Bot\`\n╰━━━━━━━━━━━━━━━━━━━━━━━`);
       }
       
       const text = args.join(' ');
-      if (text.length > 50) {
-        return extra.reply('❖ ── ✦ 𝐀𝐓𝐓𝐏 ✦ ── ❖\n\n❌ *Text Limit Exceeded*\nMaximum 50 characters allowed.\n╰━━━━━━━━━━━━━━━━━━━━━━━');
+      if (text.length > 70) { // Limit increased slightly because of auto-scaling
+        return extra.reply('❖ ── ✦ 𝐀𝐓𝐓𝐏 ✦ ── ❖\n\n❌ *Text Limit Exceeded*\nMaximum 70 characters allowed.\n╰━━━━━━━━━━━━━━━━━━━━━━━');
       }
       
-      // Sending a wait reaction
       if (extra.react) await extra.react('⏳');
 
       try {
-        // Generate the transparent WEBM buffer
         const webmBuffer = await renderBlinkingVideoWithFfmpeg(text);
+        const webpBuffer = await writeExifVid(webmBuffer, { packname: 'Knight Bot', author: 'Gohar' });
         
-        // Convert to WebP sticker with Exif (Author Metadata)
-        const webpBuffer = await writeExifVid(webmBuffer, { packname: 'Kosem Bot', author: 'Gohar' });
-        
-        // Send the final sticker
         await sock.sendMessage(extra.from, { sticker: webpBuffer }, { quoted: msg });
-        
-        // Success reaction
         if (extra.react) await extra.react('✅');
 
       } catch (error) {
@@ -55,9 +48,10 @@ module.exports = {
 function renderBlinkingVideoWithFfmpeg(text) {
   return new Promise((resolve, reject) => {
     const fontPath = process.platform === 'win32'
-      ? 'C:/Windows/Fonts/arialbd.ttf'
+      ? 'C:/Windows/Fonts/impact.ttf' // Changed to Impact for a bolder, premium gaming look
       : '/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf';
 
+    // Advanced Text Escaping
     const escapeDrawtextText = (s) => s
       .replace(/\\/g, '\\\\')
       .replace(/:/g, '\\:')
@@ -67,44 +61,68 @@ function renderBlinkingVideoWithFfmpeg(text) {
       .replace(/\]/g, '\\]')
       .replace(/%/g, '\\%');
 
-    const safeText = escapeDrawtextText(text);
+    // 🚀 AUTO-SCALING LOGIC (Fit to Box)
+    // Agar text lamba hai, toh usko line break (new line) de dega taake bahar na jaye
+    let formattedText = text;
+    if (text.length > 15) {
+        const words = text.split(' ');
+        let currentLine = '';
+        const lines = [];
+        
+        for (const word of words) {
+            if ((currentLine + word).length > 15) {
+                lines.push(currentLine.trim());
+                currentLine = word + ' ';
+            } else {
+                currentLine += word + ' ';
+            }
+        }
+        lines.push(currentLine.trim());
+        formattedText = lines.join('\n'); // Add actual line breaks
+    }
+
+    const safeText = escapeDrawtextText(formattedText);
     const safeFontPath = process.platform === 'win32'
       ? fontPath.replace(/\\/g, '/').replace(':', '\\:')
       : fontPath;
 
-    // 🚀 RGB GAMING LOGIC (6 Colors Rapid Cycle)
-    const dur = 1.8; 
-    const cycle = 0.6; // Pura cycle 0.6 sec ka, har color 0.1 sec dikhega
+    // 🚀 DYNAMIC FONT SIZE: Text jitna lamba, font utna chota hoga
+    const linesCount = formattedText.split('\n').length;
+    let fontSize = 85; 
+    if (linesCount === 2) fontSize = 65;
+    if (linesCount >= 3) fontSize = 50;
 
-    // Function to generate premium 3D text layers
+    const dur = 1.8; 
+    const cycle = 0.6; 
+
+    // 🚀 PREMIUM 4K SHADOWS & NEON BORDER
     const getDrawText = (color, startTime, endTime, isLast = false) => {
-      // borderw=4 (Thick White Outline), shadowx/y=5 (3D Black Drop Shadow)
       const enableCondition = isLast 
         ? `gte(mod(t\\,${cycle})\\,${startTime})` 
         : `between(mod(t\\,${cycle})\\,${startTime}\\,${endTime})`;
 
-      return `drawtext=fontfile='${safeFontPath}':text='${safeText}':fontcolor=${color}:borderw=4:bordercolor=white:shadowcolor=black@0.8:shadowx=5:shadowy=5:fontsize=75:x=(w-text_w)/2:y=(h-text_h)/2:enable='${enableCondition}'`;
+      // line_spacing=10 (lines ke darmiyan space), borderw=5 (Ultra thick outline)
+      return `drawtext=fontfile='${safeFontPath}':text='${safeText}':fontcolor=${color}:borderw=5:bordercolor=white:shadowcolor=black@0.9:shadowx=6:shadowy=6:fontsize=${fontSize}:line_spacing=15:x=(w-text_w)/2:y=(h-text_h)/2:enable='${enableCondition}'`;
     };
 
-    // Generating 6 Color Layers
-    const drawRed     = getDrawText('red', 0, 0.1);
-    const drawYellow  = getDrawText('yellow', 0.1, 0.2);
-    const drawGreen   = getDrawText('#00FF00', 0.2, 0.3); // Neon Green
-    const drawCyan    = getDrawText('cyan', 0.3, 0.4);
-    const drawBlue    = getDrawText('#0088FF', 0.4, 0.5); // Vibrant Blue
-    const drawMagenta = getDrawText('magenta', 0.5, 0.6, true);
+    const drawRed     = getDrawText('#FF0033', 0, 0.1);    // Premium Red
+    const drawYellow  = getDrawText('#FFD700', 0.1, 0.2);  // Gold Yellow
+    const drawGreen   = getDrawText('#00FF00', 0.2, 0.3);  // Neon Green
+    const drawCyan    = getDrawText('#00FFFF', 0.3, 0.4);  // Bright Cyan
+    const drawBlue    = getDrawText('#0066FF', 0.4, 0.5);  // Deep Blue
+    const drawMagenta = getDrawText('#FF00FF', 0.5, 0.6, true); // Neon Pink
 
     const filter = `${drawRed},${drawYellow},${drawGreen},${drawCyan},${drawBlue},${drawMagenta}`;
 
-    // 🚀 THE MAGIC: Output transparent WEBM instead of solid MP4
+    // 🚀 HIGH QUALITY RENDERING (Anti-Aliasing + Higher Bitrate)
     const args = [
       '-y',
       '-f', 'lavfi',
-      // black@0 means 100% transparent background
-      '-i', `color=c=black@0:s=512x512:d=${dur}:r=20,format=rgba`,
+      '-i', `color=c=black@0:s=512x512:d=${dur}:r=30,format=rgba`, // Increased Frame Rate to 30fps for smoother blink
       '-vf', filter,
-      '-c:v', 'libvpx-vp9', // Codec that supports transparency
-      '-pix_fmt', 'yuva420p', // 'a' stands for Alpha (Transparency)
+      '-c:v', 'libvpx-vp9', 
+      '-b:v', '2M', // High Bitrate for Crystal Clear Quality
+      '-pix_fmt', 'yuva420p', 
       '-auto-alt-ref', '0',
       '-t', String(dur),
       '-f', 'webm',
