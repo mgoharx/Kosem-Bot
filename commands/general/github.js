@@ -28,7 +28,6 @@ module.exports = {
             message += `🔒 *Status:* Private & Exclusive\n\n`;
             
             message += `⚠️ *Note:* The GitHub repository and source code for this bot are strictly *Private* and are not available to the public.\n\n`;
-            message += `Join our official channel for the latest updates!\n\n`;
             message += `╰━━━━━━━━━━━━━━━━━━`;
             
             // Send final message with Channel Button
