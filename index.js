@@ -5,41 +5,44 @@ process.env.PUPPETEER_SKIP_DOWNLOAD = 'true';
 process.env.PUPPETEER_SKIP_CHROMIUM_DOWNLOAD = 'true';
 process.env.PUPPETEER_CACHE_DIR = process.env.PUPPETEER_CACHE_DIR || '/tmp/puppeteer_cache_disabled';
 
-// 🚀 SYSTEM LOCKS
-global.isBotReady = false; 
 if (typeof global.isAlwaysOnline === 'undefined') {
     global.isAlwaysOnline = false;
 }
 
 // ==========================================
-// 💎 PREMIUM 1-LINE CONSOLE LOGS 
+// 💎 AGGRESSIVE NOISE SUPPRESSOR (Kills all Buffer/Session logs)
 // ==========================================
 const util = require('util');
 const originalConsoleLog = console.log;
 const originalConsoleError = console.error;
 const originalConsoleWarn = console.warn;
 
+// Aapke bheje gaye logs ke mutabiq naye keywords add kar diye!
 const noisyLogs = [
-    'Bad MAC', 'Failed to decrypt', 'Session error', 
-    'Closing open session', 'prekey bundle', 'SessionEntry', 
-    '_chains', 'registrationId', 'currentRatchet', 'indexInfo',
-    'ephemeralKeyPair', 'rootKey', 'baseKey', 'conflict'
+    'SessionEntry', 'Buffer', 'ephemeralKeyPair', 'lastRemoteEphemeralKey', 
+    'rootKey', 'baseKey', 'Closing session:', 'Removing old closed session:', 
+    'pendingPreKey', 'registrationId', 'Bad MAC', 'Failed to decrypt', 'conflict'
 ];
 
-console.log = function() {
-  let msg = util.format.apply(util, arguments);
-  if (noisyLogs.some(noise => msg.includes(noise))) return;
-  originalConsoleLog('✦ ' + msg.replace(/\n/g, ' | ')); // 1-Line Magic
+function isNoisy(args) {
+    const fullLog = args.map(a => typeof a === 'string' ? a : util.inspect(a, { depth: 5 })).join(' ');
+    return noisyLogs.some(noise => fullLog.includes(noise));
+}
+
+console.log = (...args) => {
+    if (isNoisy(args)) return;
+    const msg = args.map(a => typeof a === 'string' ? a : util.inspect(a, { breakLength: Infinity })).join(' ').replace(/\n/g, ' | ');
+    originalConsoleLog(`✦ ${msg}`);
 };
-console.error = function() {
-  let msg = util.format.apply(util, arguments);
-  if (noisyLogs.some(noise => msg.includes(noise))) return;
-  originalConsoleError('❌ ERROR: ' + msg.replace(/\n/g, ' | '));
+console.error = (...args) => {
+    if (isNoisy(args)) return;
+    const msg = args.map(a => typeof a === 'string' ? a : util.inspect(a, { breakLength: Infinity })).join(' ').replace(/\n/g, ' | ');
+    originalConsoleError(`❌ ERROR: ${msg}`);
 };
-console.warn = function() {
-  let msg = util.format.apply(util, arguments);
-  if (noisyLogs.some(noise => msg.includes(noise))) return;
-  originalConsoleWarn('⚠️ WARN: ' + msg.replace(/\n/g, ' | '));
+console.warn = (...args) => {
+    if (isNoisy(args)) return;
+    const msg = args.map(a => typeof a === 'string' ? a : util.inspect(a, { breakLength: Infinity })).join(' ').replace(/\n/g, ' | ');
+    originalConsoleWarn(`⚠️ WARN: ${msg}`);
 };
 // ==========================================
 
@@ -63,7 +66,6 @@ const path = require('path');
 const zlib = require('zlib');
 const os = require('os');
 
-// Clean Chrome Cache
 function cleanupPuppeteerCache() {
   try {
     const cacheDir = path.join(os.homedir(), '.cache', 'puppeteer');
@@ -71,29 +73,19 @@ function cleanupPuppeteerCache() {
   } catch (err) {}
 }
 
-// ==========================================
-// 🚀 OPTIMIZED ANTI-DELETE STORE (No Time Limit)
-// ==========================================
 const store = {
   messages: new Map(),
-  maxPerChat: 50, // Ultra-Fast Memory
+  maxPerChat: 50, // Optimized for speed
   bind: (ev) => {
     ev.on('messages.upsert', ({ messages, type }) => {
-      if (type !== 'notify' || !global.isBotReady) return; 
-      
+      if (type !== 'notify') return; 
       for (const msg of messages) {
         if (!msg.key?.id) continue;
-        
         const jid = msg.key.remoteJid;
         if (!store.messages.has(jid)) store.messages.set(jid, new Map());
-        
         const chatMsgs = store.messages.get(jid);
         chatMsgs.set(msg.key.id, msg);
-        
-        if (chatMsgs.size > store.maxPerChat) {
-          const oldestKey = chatMsgs.keys().next().value;
-          chatMsgs.delete(oldestKey);
-        }
+        if (chatMsgs.size > store.maxPerChat) chatMsgs.delete(chatMsgs.keys().next().value);
       }
     });
   },
@@ -103,9 +95,7 @@ const store = {
 const processedMessages = new Set();
 setInterval(() => processedMessages.clear(), 3 * 60 * 1000); 
 
-// ==========================================
-// 🚀 PREMIUM BOOT MESSAGE
-// ==========================================
+// 🚀 REAL BOOT MESSAGE (Sent ONLY when fully ready)
 async function sendPremiumBootMessage(sock) {
     try {
         const myJid = sock.user.id.split(':')[0] + '@s.whatsapp.net'; 
@@ -113,7 +103,7 @@ async function sendPremiumBootMessage(sock) {
         const ownerNames = Array.isArray(config.ownerName) ? config.ownerName.join(', ') : config.ownerName;
         
         const bootText = `❖ ── ✦ 𝐁𝐎𝐓 𝐀𝐂𝐓𝐈𝐕𝐄 ✦ ── ❖\n\n` +
-                         `✨ *${botName} is successfully connected!*\n\n` +
+                         `✨ *${botName} is Connected!*\n\n` +
                          `👑 *Owner:* ${ownerNames}\n` +
                          `🟢 *Status:* Ready for Commands ⚡\n\n` +
                          `📝 *Description:* Advanced WhatsApp Bot by Muhammad Gohar.\n` +
@@ -136,7 +126,7 @@ async function sendPremiumBootMessage(sock) {
 }
 
 async function startBot() {
-  console.log('SYSTEM BOOTING IN ULTRA-FAST MODE...');
+  console.log('SYSTEM BOOTING...');
   cleanupPuppeteerCache();
 
   const sessionFolder = `./${config.sessionName}`;
@@ -151,9 +141,9 @@ async function startBot() {
         const decompressedData = zlib.gunzipSync(Buffer.from(b64data.replace('...', ''), 'base64'));
         if (!fs.existsSync(sessionFolder)) fs.mkdirSync(sessionFolder, { recursive: true });
         fs.writeFileSync(sessionFile, decompressedData, 'utf8');
-        console.log('Session perfectly loaded!');
+        console.log('Session loaded!');
       }
-    } catch (e) { console.error(`Session unpacking failed: ${e.message}`); }
+    } catch (e) { console.error(`Session error: ${e.message}`); }
   }
 
   const { state, saveCreds } = await useMultiFileAuthState(sessionFolder);
@@ -186,7 +176,7 @@ async function startBot() {
   }, 5 * 60 * 1000);
 
   setInterval(async () => {
-    if (!sock || !global.isBotReady) return;
+    if (!sock) return;
     try { await sock.sendPresenceUpdate(global.isAlwaysOnline ? 'available' : 'unavailable'); } catch(e) {}
   }, 30000);
 
@@ -195,10 +185,9 @@ async function startBot() {
     if (qr) qrcode.generate(qr, { small: true });
 
     if (connection === 'close') {
-      global.isBotReady = false; 
       const statusCode = lastDisconnect?.error?.output?.statusCode;
       if (statusCode === 409 || String(lastDisconnect?.error).includes('conflict')) {
-        console.log('Stream Conflict Resolved. Restarting backend process...');
+        console.log('Stream Conflict Resolved. Restarting...');
         process.exit(1); 
       } else {
         if (statusCode !== DisconnectReason.loggedOut) setTimeout(() => startBot(), 3000);
@@ -210,15 +199,8 @@ async function startBot() {
       handler.initializeAntiCall(sock);
       try { await sock.sendPresenceUpdate('unavailable'); } catch(e) {}
       
-      // ==========================================
-      // 🚀 SYSTEM SHIELD: 8 Second Backlog Drainer
-      // ==========================================
-      console.log('Draining backlog messages to prevent lag...');
-      setTimeout(() => {
-          global.isBotReady = true;
-          console.log('System Unlocked! Ready to receive commands instantly.');
-          sendPremiumBootMessage(sock);
-      }, 8000); 
+      // REAL START: Direct message bhejo, koi fake intezar nahi!
+      sendPremiumBootMessage(sock);
     }
   });
 
@@ -227,11 +209,10 @@ async function startBot() {
   const isSystemJid = (jid) => !jid || jid.includes('@broadcast') || jid.includes('@newsletter');
 
   // ==========================================
-  // 🚀 COMMAND HANDLER (Time Travel Hack Installed)
+  // 🚀 COMMAND HANDLER (TIME TRAVEL HACK)
   // ==========================================
   sock.ev.on('messages.upsert', async ({ messages, type }) => {
     if (type !== 'notify') return;
-    if (!global.isBotReady) return; // Ignore everything during boot drain
 
     try { await sock.sendPresenceUpdate(global.isAlwaysOnline ? 'available' : 'unavailable'); } catch(e) {}
 
@@ -245,14 +226,13 @@ async function startBot() {
       if (processedMessages.has(msgId)) continue;
       processedMessages.add(msgId);
 
-      // 🔮 TIME-TRAVEL OVERWRITE MAGIC!
-      // Server clock ka farq khatam karne ke liye hum message ka time Zabardasti current server time par set kar rahay hain.
-      // Is se handler.js kabhi bhi naye message ko purana samajh kar reject nahi karega!
+      // 🔮 THE MAGICAL FIX FOR HANDLER.JS TIME LOCK!
+      // Aapki handler.js puranay waqt walay messages ignore kar deti hai.
+      // Hum har naye message ka waqt badal kar Server ka current waqt daal rahay hain.
+      // Is se handler.js khushi khushi FORAN command uthayega!
       msg.messageTimestamp = Math.floor(Date.now() / 1000); 
 
-      handler.handleMessage(sock, msg).catch(err => {
-          console.error(`Command failed internally: ${err.message}`);
-      });
+      handler.handleMessage(sock, msg).catch(err => {});
 
       setImmediate(async () => {
         if (config.autoRead && from.endsWith('@g.us')) {
@@ -275,8 +255,6 @@ async function startBot() {
   // 🔴 ANTI-DELETE ENGINE (LAG-FREE)
   // ==========================================
   sock.ev.on('messages.update', async (chatUpdate) => {
-    if (!global.isBotReady) return;
-
     for (const { key, update } of chatUpdate) {
       let isDeletedMessage = false;
       if (update.message === null) isDeletedMessage = true;
