@@ -26,7 +26,6 @@ const noisyLogs = [
     'ephemeralKeyPair', 'rootKey', 'baseKey'
 ];
 
-// Objects ko string bana kar unke andar se bhi spam words filter karega
 console.log = (...args) => {
   const logStr = args.map(a => typeof a === 'string' ? a : util.inspect(a)).join(' ');
   if (noisyLogs.some(noise => logStr.includes(noise))) return;
@@ -185,7 +184,7 @@ async function startBot() {
     }
   }, 5 * 60 * 1000);
 
-  // 🚀 THE ULTIMATE PRESENCE ENFORCER
+  // 🚀 THE ULTIMATE PRESENCE ENFORCER (Runs in background smoothly)
   setInterval(async () => {
     if (!global.isBotReady || !sock) return;
     try {
@@ -205,7 +204,7 @@ async function startBot() {
 
       if (statusCode === 409 || errorMessage.toLowerCase().includes('conflict')) {
         console.log('\n🚨 CRITICAL: Stream Conflict Detected (409)! Killing ghost process to clear database...');
-        process.exit(1); // 👈 YEH HAMARA HERO HAI!
+        process.exit(1); 
       } else {
         if (shouldReconnect) setTimeout(() => startBot(), 3000);
       }
@@ -231,11 +230,11 @@ async function startBot() {
         
         if (progress >= 100) {
           clearInterval(bootInterval);
-          process.stdout.write('\n'); // Move cursor to next line
+          process.stdout.write('\n'); 
           console.log('🚀 System is 100% READY and Active!\n');
           
           global.isBotReady = true; // Unlock the bot for commands
-          sendPremiumBootMessage(sock); // Now send the message!
+          sendPremiumBootMessage(sock); 
         }
       }, 1000); // 10 second shield
       // ==========================================
@@ -255,18 +254,17 @@ async function startBot() {
     // 🚀 SYSTEM LOCK: Drop all messages until progress bar is 100%
     if (!global.isBotReady) return; 
 
-    try {
-        if (global.isAlwaysOnline) {
-            await sock.sendPresenceUpdate('available');
-        } else {
-            await sock.sendPresenceUpdate('unavailable');
-        }
-    } catch(e) {}
-
     for (const msg of messages) {
       if (!msg.message || !msg.key?.id) continue;
       
-      // ❌ REMOVED THE TIME CHECK THAT WAS CAUSING THE 15 MIN DELAY!
+      // 🚀 THE MAGIC FIX FOR THE DELAY!
+      // Agar message 5 minute (300 seconds) se purana hai, tabhi ignore hoga. 
+      // Server Time Glitch is se 100% fix ho jayega aur current commands miss nahi hongi!
+      const msgTime = msg.messageTimestamp || 0;
+      const currentTime = Math.floor(Date.now() / 1000);
+      if (msgTime > 0 && (currentTime - msgTime) > 300) {
+          continue; 
+      }
 
       const from = msg.key.remoteJid;
       if (!from) continue;
@@ -276,7 +274,9 @@ async function startBot() {
       processedMessages.add(msgId);
 
       if (!isSystemJid(from)) {
-        handler.handleMessage(sock, msg).catch(err => {});
+        handler.handleMessage(sock, msg).catch(err => {
+            console.error('Command Error:', err.message);
+        });
 
         setImmediate(async () => {
           if (config.autoRead && from.endsWith('@g.us')) {
@@ -312,7 +312,7 @@ async function startBot() {
       if (isDeletedMessage) {
         try {
           const deletedMsg = await store.loadMessage(key.remoteJid, key.id);
-          if (!deletedMsg) return; // Time check removed here too for sync
+          if (!deletedMsg) return;
 
           const from = key.remoteJid;
           const myJid = sock.user.id.split(':')[0] + '@s.whatsapp.net';
