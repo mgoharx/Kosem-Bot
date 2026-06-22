@@ -9,11 +9,8 @@ if (typeof global.isAlwaysOnline === 'undefined') {
     global.isAlwaysOnline = false;
 }
 
-// 🚀 IGNITION LOCK (Traffic Controller for Offline Messages)
-global.acceptCommands = false; 
-
 // ==========================================
-// 💎 PREMIUM CONSOLE LOGS (1-Line Clean Format)
+// 💎 AGGRESSIVE NOISE SUPPRESSOR (Kills all Buffer/Crypto logs)
 // ==========================================
 const util = require('util');
 const originalConsoleLog = console.log;
@@ -24,27 +21,28 @@ const forbiddenPatternsConsole = [
   'closing session', 'closing open session', 'sessionentry', 
   'prekey bundle', 'pendingprekey', '_chains', 'registrationid', 
   'currentratchet', 'chainkey', 'ratchet', 'signal protocol', 
-  'ephemeralkeypair', 'indexinfo', 'basekey', 'conflict', 'buffer'
+  'ephemeralkeypair', 'indexinfo', 'basekey', 'pubkey', 'privkey', 
+  '<buffer', 'lastremoteephemeralkey', 'previouscounter', 'rootkey'
 ];
 
 function isNoisy(args) {
-    const msg = args.map(a => typeof a === 'string' ? a : util.inspect(a)).join(' ').toLowerCase();
+    const msg = args.map(a => typeof a === 'string' ? a : util.inspect(a, { depth: 5 })).join(' ').toLowerCase();
     return forbiddenPatternsConsole.some(pattern => msg.includes(pattern));
 }
 
 console.log = (...args) => {
     if (isNoisy(args)) return;
-    const msg = args.map(a => typeof a === 'string' ? a : util.inspect(a, { breakLength: Infinity })).join(' ').replace(/\n/g, ' | ');
+    const msg = args.map(a => typeof a === 'string' ? a : typeof a === 'object' ? JSON.stringify(a) : String(a)).join(' ');
     originalConsoleLog(`✦ ${msg}`);
 };
 console.error = (...args) => {
     if (isNoisy(args)) return;
-    const msg = args.map(a => typeof a === 'string' ? a : util.inspect(a, { breakLength: Infinity })).join(' ').replace(/\n/g, ' | ');
+    const msg = args.map(a => typeof a === 'string' ? a : typeof a === 'object' ? JSON.stringify(a) : String(a)).join(' ');
     originalConsoleError(`❌ ERROR: ${msg}`);
 };
 console.warn = (...args) => {
     if (isNoisy(args)) return;
-    const msg = args.map(a => typeof a === 'string' ? a : util.inspect(a, { breakLength: Infinity })).join(' ').replace(/\n/g, ' | ');
+    const msg = args.map(a => typeof a === 'string' ? a : typeof a === 'object' ? JSON.stringify(a) : String(a)).join(' ');
     originalConsoleWarn(`⚠️ WARN: ${msg}`);
 };
 // ==========================================
@@ -79,7 +77,6 @@ function cleanupPuppeteerCache() {
   } catch (err) {}
 }
 
-// 🚀 ORIGINAL MEMORY STORE (Anti-Delete keeps working without lagging the bot)
 const store = {
   messages: new Map(),
   maxPerChat: 20, 
@@ -89,14 +86,9 @@ const store = {
         if (!msg.key?.id) continue;
         const jid = msg.key.remoteJid;
         if (!store.messages.has(jid)) store.messages.set(jid, new Map());
-        
         const chatMsgs = store.messages.get(jid);
         chatMsgs.set(msg.key.id, msg);
-
-        if (chatMsgs.size > store.maxPerChat) {
-          const oldestKey = chatMsgs.keys().next().value;
-          chatMsgs.delete(oldestKey);
-        }
+        if (chatMsgs.size > store.maxPerChat) chatMsgs.delete(chatMsgs.keys().next().value);
       }
     });
   },
@@ -106,9 +98,21 @@ const store = {
 const processedMessages = new Set();
 setInterval(() => processedMessages.clear(), 5 * 60 * 1000); 
 
-const createSuppressedLogger = (level = 'silent') => pino({ level });
+const createSuppressedLogger = (level = 'silent') => {
+  let logger = pino({ level });
+  const originalInfo = logger.info.bind(logger);
+  logger.info = (...args) => {
+    const msg = args.map(a => typeof a === 'string' ? a : JSON.stringify(a)).join(' ').toLowerCase();
+    if (!forbiddenPatternsConsole.some(pattern => msg.includes(pattern))) {
+      originalInfo(...args);
+    }
+  };
+  logger.debug = () => { }; 
+  logger.trace = () => { }; 
+  return logger;
+};
 
-// 🚀 PREMIUM BOOT MESSAGE FUNCTION
+// 🚀 REAL BOOT MESSAGE
 async function sendPremiumBootMessage(sock) {
     try {
         const myJid = sock.user.id.split(':')[0] + '@s.whatsapp.net'; 
@@ -118,7 +122,7 @@ async function sendPremiumBootMessage(sock) {
         const bootText = `❖ ── ✦ 𝐁𝐎𝐓 𝐀𝐂𝐓𝐈𝐕𝐄 ✦ ── ❖\n\n` +
                          `✨ *${botName} is Connected!*\n\n` +
                          `👑 *Owner:* ${ownerNames}\n` +
-                         `🟢 *Status:* Ready for Commands ⚡\n\n` +
+                         `🟢 *Status:* Active\n\n` +
                          `📝 *Description:* Advanced WhatsApp Bot by Muhammad Gohar.\n` +
                          `╰━━━━━━━━━━━━━━━━━━━━━━`;
 
@@ -143,14 +147,13 @@ async function startBot() {
 
   const sessionFolder = `./${config.sessionName}`;
   const sessionFile = path.join(sessionFolder, 'creds.json');
+  const botSessionID = process.env.SESSION_ID || config.sessionID;
 
-  if (config.sessionID && config.sessionID.startsWith('Kosem!')) {
+  if (botSessionID && botSessionID.startsWith('Kosem!') && !fs.existsSync(sessionFile)) {
     try {
-      const [header, b64data] = config.sessionID.split('!');
+      const [header, b64data] = botSessionID.split('!');
       if (header === 'Kosem' && b64data) {
-        const cleanB64 = b64data.replace('...', '');
-        const compressedData = Buffer.from(cleanB64, 'base64');
-        const decompressedData = zlib.gunzipSync(compressedData);
+        const decompressedData = zlib.gunzipSync(Buffer.from(b64data.replace('...', ''), 'base64'));
         if (!fs.existsSync(sessionFolder)) fs.mkdirSync(sessionFolder, { recursive: true });
         fs.writeFileSync(sessionFile, decompressedData, 'utf8');
       }
@@ -162,7 +165,7 @@ async function startBot() {
   const suppressedLogger = createSuppressedLogger('silent');
 
   const sock = makeWASocket({
-    version, 
+    version,
     logger: suppressedLogger,
     printQRInTerminal: false,
     browser: ['Chrome', 'Windows', '10.0'],
@@ -176,18 +179,15 @@ async function startBot() {
   store.bind(sock.ev);
 
   let lastActivity = Date.now();
-  const INACTIVITY_TIMEOUT = 30 * 60 * 1000; 
-
   sock.ev.on('messages.upsert', () => { lastActivity = Date.now(); });
 
   const watchdogInterval = setInterval(async () => {
-    if (Date.now() - lastActivity > INACTIVITY_TIMEOUT && sock.ws.readyState === 1) {
-      console.log('No activity detected. Forcing reconnect...');
+    if (Date.now() - lastActivity > 30 * 60 * 1000 && sock.ws.readyState === 1) {
       await sock.end(undefined, undefined, { reason: 'inactive' });
       clearInterval(watchdogInterval);
       setTimeout(() => startBot(), 5000); 
     }
-  }, 5 * 60 * 1000); 
+  }, 5 * 60 * 1000);
 
   setInterval(async () => {
     if (!sock) return;
@@ -206,46 +206,30 @@ async function startBot() {
     if (qr) qrcode.generate(qr, { small: true });
 
     if (connection === 'close') {
-      global.acceptCommands = false; // Lock commands on disconnect
       const statusCode = lastDisconnect?.error?.output?.statusCode;
-      const shouldReconnect = statusCode !== DisconnectReason.loggedOut;
-
       if (statusCode === 409 || String(lastDisconnect?.error).includes('conflict')) {
-        console.log('Stream Conflict Resolved. Restarting backend process...');
-        process.exit(1);
+        process.exit(1); 
       } else {
-        if (shouldReconnect) setTimeout(() => startBot(), 3000);
+        if (statusCode !== DisconnectReason.loggedOut) setTimeout(() => startBot(), 3000);
       }
     } else if (connection === 'open') {
-      console.log(`CONNECTED SECURELY | Bot: ${config.botName}`);
+      console.log(`✅ CONNECTED SECURELY | Bot: ${config.botName}`);
       
       if (config.autoBio) await sock.updateProfileStatus(`${config.botName} | Active 24/7`);
       handler.initializeAntiCall(sock);
       try { await sock.sendPresenceUpdate('unavailable'); } catch(e) {}
 
-      // ==========================================
-      // 🚀 THE MAGIC FIX: OFFLINE MESSAGE DRAINER
-      // ==========================================
-      console.log('Draining old offline messages to prevent lag...');
-      
-      // Bot 6 seconds tak puranay messages ko drain karega, uske baad unlock hoga
-      setTimeout(() => {
-          global.acceptCommands = true; // UNLOCK SYSTEM
-          console.log('✅ System Unlocked! Ready to receive new commands instantly.');
-          sendPremiumBootMessage(sock);
-      }, 6000); 
+      // REAL START: Direct message, no fake delays!
+      sendPremiumBootMessage(sock);
     }
   });
 
   sock.ev.on('creds.update', saveCreds);
 
-  const isSystemJid = (jid) => {
-    if (!jid) return true;
-    return jid.includes('@broadcast') || jid.includes('status.broadcast') || jid.includes('@newsletter');
-  };
+  const isSystemJid = (jid) => !jid || jid.includes('@broadcast') || jid.includes('status.broadcast') || jid.includes('@newsletter');
 
   // ==========================================
-  // 🚀 FAST COMMAND HANDLER
+  // 🚀 ORIGINAL COMMAND HANDLER (30-Min Golden Rule)
   // ==========================================
   sock.ev.on('messages.upsert', ({ messages, type }) => {
     if (type !== 'notify') return;
@@ -258,14 +242,18 @@ async function startBot() {
 
       const msgId = msg.key.id;
       if (processedMessages.has(msgId)) continue;
+
+      // 🔮 THE MAGIC SHIELD: 30 MINUTES RULE
+      // Yeh rule Server desync (15 min) ko bypass karega, magar dinon/ghanton puranay offline flood ko instantly drop kar dega!
+      const MESSAGE_AGE_LIMIT = 30 * 60 * 1000; // 30 minutes
+      if (msg.messageTimestamp) {
+        const messageAge = Date.now() - (msg.messageTimestamp * 1000);
+        if (messageAge > MESSAGE_AGE_LIMIT) continue; // Purana kachra 0.1 sec mein drop!
+      }
+
       processedMessages.add(msgId);
 
-      // 🛑 TRAFFIC CONTROLLER: 
-      // Agar bot boot hone ke 6 seconds ke andar hai, toh is message ko command handler mein mat bhejo!
-      // (Kyunke yeh offline flood hai jo bot ko hang karta tha)
-      if (!global.acceptCommands) continue;
-
-      // Agar system unlocked hai, toh foran command process karo
+      // Process command IMMEDIATELY
       handler.handleMessage(sock, msg).catch(err => {
         if (!err.message?.includes('rate-overlimit') && !err.message?.includes('not-authorized')) {
           console.error(`Error handling message: ${err.message}`);
@@ -290,7 +278,7 @@ async function startBot() {
   sock.ev.on('message-receipt.update', () => { });
 
   // ==========================================
-  // 🔴 SAFE ANTI-DELETE SYSTEM
+  // 🔴 ANTI-DELETE (Synchronized with 30-Min Rule)
   // ==========================================
   sock.ev.on('messages.update', async (chatUpdate) => {
     for (const { key, update } of chatUpdate) {
@@ -306,6 +294,12 @@ async function startBot() {
       try {
         const deletedMsg = await store.loadMessage(key.remoteJid, key.id);
         if (!deletedMsg) return;
+
+        // Anti-delete mein bhi 30-min rule lagaya taake purani chat load na ho
+        if (deletedMsg.messageTimestamp) {
+            const age = Date.now() - (deletedMsg.messageTimestamp * 1000);
+            if (age > 30 * 60 * 1000) return;
+        }
 
         const from = key.remoteJid;
         const myJid = sock.user.id.split(':')[0] + '@s.whatsapp.net';
