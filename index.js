@@ -9,20 +9,18 @@ if (typeof global.isAlwaysOnline === 'undefined') {
     global.isAlwaysOnline = false;
 }
 
-// 🚀 REAL-TIME BOOT SYSTEM VARIABLES
+// 🚀 NAYA SYSTEM LOCK (Offline messages se bachne ke liye)
 global.isBotReady = false;
-let offlineMsgCount = 0;
-let bootUnlockTimer = null;
-const BOT_START_TIME = Date.now();
 
 // ==========================================
-// 💎 AGGRESSIVE NOISE SUPPRESSOR (Kills Crypto Logs)
+// 💎 AGGRESSIVE NOISE SUPPRESSOR (Aapka Original Filter)
 // ==========================================
 const util = require('util');
 const originalConsoleLog = console.log;
 const originalConsoleError = console.error;
 const originalConsoleWarn = console.warn;
 
+// ✅ Fuzool logs ko rokne ke liye mukammal lowercase list
 const forbiddenPatternsConsole = [
   'closing session', 'closing open session', 'sessionentry', 
   'prekey bundle', 'pendingprekey', '_chains', 'registrationid', 
@@ -39,17 +37,17 @@ function isNoisy(args) {
 
 console.log = (...args) => {
     if (isNoisy(args)) return;
-    const msg = args.map(a => typeof a === 'string' ? a : typeof a === 'object' ? JSON.stringify(a) : String(a)).join(' ');
+    const msg = args.map(a => typeof a === 'string' ? a : util.inspect(a, { breakLength: Infinity })).join(' ').replace(/\n/g, ' | ');
     originalConsoleLog(`✦ ${msg}`);
 };
 console.error = (...args) => {
     if (isNoisy(args)) return;
-    const msg = args.map(a => typeof a === 'string' ? a : typeof a === 'object' ? JSON.stringify(a) : String(a)).join(' ');
+    const msg = args.map(a => typeof a === 'string' ? a : util.inspect(a, { breakLength: Infinity })).join(' ').replace(/\n/g, ' | ');
     originalConsoleError(`❌ ERROR: ${msg}`);
 };
 console.warn = (...args) => {
     if (isNoisy(args)) return;
-    const msg = args.map(a => typeof a === 'string' ? a : typeof a === 'object' ? JSON.stringify(a) : String(a)).join(' ');
+    const msg = args.map(a => typeof a === 'string' ? a : util.inspect(a, { breakLength: Infinity })).join(' ').replace(/\n/g, ' | ');
     originalConsoleWarn(`⚠️ WARN: ${msg}`);
 };
 // ==========================================
@@ -74,22 +72,23 @@ const path = require('path');
 const zlib = require('zlib');
 const os = require('os');
 
+// Clean Chrome Cache quietly
 function cleanupPuppeteerCache() {
   try {
-    const home = os.homedir();
-    const cacheDir = path.join(home, '.cache', 'puppeteer');
-    if (fs.existsSync(cacheDir)) {
-      fs.rmSync(cacheDir, { recursive: true, force: true });
-    }
+    const cacheDir = path.join(os.homedir(), '.cache', 'puppeteer');
+    if (fs.existsSync(cacheDir)) fs.rmSync(cacheDir, { recursive: true, force: true });
   } catch (err) {}
 }
 
-// 🚀 ORIGINAL MEMORY STORE (Lag-Free Anti-Delete base)
+// ==========================================
+// 🚀 OPTIMIZED ANTI-DELETE STORE (Aapka Original Store)
+// ==========================================
 const store = {
   messages: new Map(),
-  maxPerChat: 30, 
+  maxPerChat: 50, 
   bind: (ev) => {
-    ev.on('messages.upsert', ({ messages }) => {
+    ev.on('messages.upsert', ({ messages, type }) => {
+      if (type !== 'notify') return; 
       for (const msg of messages) {
         if (!msg.key?.id) continue;
         const jid = msg.key.remoteJid;
@@ -104,7 +103,7 @@ const store = {
 };
 
 const processedMessages = new Set();
-setInterval(() => processedMessages.clear(), 5 * 60 * 1000); 
+setInterval(() => processedMessages.clear(), 3 * 60 * 1000); 
 
 const createSuppressedLogger = (level = 'silent') => {
   let logger = pino({ level });
@@ -120,7 +119,7 @@ const createSuppressedLogger = (level = 'silent') => {
   return logger;
 };
 
-// 🚀 REAL BOOT MESSAGE (Sent ONLY when Backlog is 100% Cleared)
+// 🚀 REAL BOOT MESSAGE (Sent ONLY when fully ready)
 async function sendPremiumBootMessage(sock) {
     try {
         const myJid = sock.user.id.split(':')[0] + '@s.whatsapp.net'; 
@@ -146,11 +145,12 @@ async function sendPremiumBootMessage(sock) {
             }
           }
         });
-        console.log('\n✦ Boot message delivered successfully!');
+        console.log('Boot message delivered successfully!');
     } catch (err) {}
 }
 
 async function startBot() {
+  console.log('SYSTEM BOOTING...');
   cleanupPuppeteerCache();
 
   const sessionFolder = `./${config.sessionName}`;
@@ -159,13 +159,15 @@ async function startBot() {
 
   if (botSessionID && botSessionID.startsWith('Kosem!') && !fs.existsSync(sessionFile)) {
     try {
+      console.log("Unpacking Session JID...");
       const [header, b64data] = botSessionID.split('!');
       if (header === 'Kosem' && b64data) {
         const decompressedData = zlib.gunzipSync(Buffer.from(b64data.replace('...', ''), 'base64'));
         if (!fs.existsSync(sessionFolder)) fs.mkdirSync(sessionFolder, { recursive: true });
         fs.writeFileSync(sessionFile, decompressedData, 'utf8');
+        console.log('Session loaded!');
       }
-    } catch (e) {}
+    } catch (e) { console.error(`Session error: ${e.message}`); }
   }
 
   const { state, saveCreds } = await useMultiFileAuthState(sessionFolder);
@@ -178,10 +180,10 @@ async function startBot() {
     printQRInTerminal: false,
     browser: ['Chrome', 'Windows', '10.0'],
     auth: state,
-    syncFullHistory: false,
-    downloadHistory: false,
-    markOnlineOnConnect: false,
-    getMessage: async () => undefined 
+    syncFullHistory: false, 
+    downloadHistory: false, 
+    markOnlineOnConnect: false, 
+    getMessage: async () => undefined
   });
 
   store.bind(sock.ev);
@@ -190,7 +192,8 @@ async function startBot() {
   sock.ev.on('messages.upsert', () => { lastActivity = Date.now(); });
 
   const watchdogInterval = setInterval(async () => {
-    if (Date.now() - lastActivity > 30 * 60 * 1000 && sock.ws?.readyState === 1) {
+    if (Date.now() - lastActivity > 30 * 60 * 1000 && sock.ws.readyState === 1) {
+      console.log('Inactivity detected. Recycling connection...');
       await sock.end(undefined, undefined, { reason: 'inactive' });
       clearInterval(watchdogInterval);
       setTimeout(() => startBot(), 5000); 
@@ -198,7 +201,7 @@ async function startBot() {
   }, 5 * 60 * 1000);
 
   setInterval(async () => {
-    if (!sock || !global.isBotReady) return;
+    if (!sock) return;
     try { await sock.sendPresenceUpdate(global.isAlwaysOnline ? 'available' : 'unavailable'); } catch(e) {}
   }, 30000);
 
@@ -217,24 +220,25 @@ async function startBot() {
       global.isBotReady = false; 
       const statusCode = lastDisconnect?.error?.output?.statusCode;
       if (statusCode === 409 || String(lastDisconnect?.error).includes('conflict')) {
+        console.log('Stream Conflict Resolved. Restarting backend process...');
         process.exit(1); 
       } else {
         if (statusCode !== DisconnectReason.loggedOut) setTimeout(() => startBot(), 3000);
       }
     } else if (connection === 'open') {
-      console.log(`✅ CONNECTED SECURELY | Bot: ${config.botName}`);
+      console.log(`CONNECTED SECURELY | Bot: ${config.botName}`);
       
       if (config.autoBio) await sock.updateProfileStatus(`${config.botName} | Active 24/7`);
       handler.initializeAntiCall(sock);
       try { await sock.sendPresenceUpdate('unavailable'); } catch(e) {}
-
-      // 🚀 START THE REAL DRAINER TIMER
-      // Agar bot start honay ke 4 second tak koi message nahi aata, toh system foran unlock ho jayega
-      bootUnlockTimer = setTimeout(() => {
+      
+      // 🚀 THE FIX: OFFLINE DRAINER LOCK
+      console.log('Draining offline messages to prevent CPU lag...');
+      setTimeout(() => {
           global.isBotReady = true;
-          console.log(`\n✦ ✅ System Unlocked! No pending messages found.`);
+          console.log('✅ System Unlocked! Ready to receive new commands instantly.');
           sendPremiumBootMessage(sock);
-      }, 4000);
+      }, 5000); // Wait exactly 5 seconds to bypass the massive offline message flood!
     }
   });
 
@@ -243,7 +247,7 @@ async function startBot() {
   const isSystemJid = (jid) => !jid || jid.includes('@broadcast') || jid.includes('status.broadcast') || jid.includes('@newsletter');
 
   // ==========================================
-  // 🚀 HIGH-SPEED COMMAND HANDLER (CPU Saver)
+  // 🚀 ORIGINAL COMMAND HANDLER (Aapka Pura Lamba Code)
   // ==========================================
   sock.ev.on('messages.upsert', ({ messages, type }) => {
     if (type !== 'notify') return;
@@ -251,33 +255,8 @@ async function startBot() {
     for (const msg of messages) {
       if (!msg.message || !msg.key?.id) continue;
 
-      // 🛑 REAL-TIME OFFLINE DRAINER LOGIC
-      // Agar message old hai (bot start hone se pichlay waqt ka)
-      const isOldMessage = msg.messageTimestamp && (msg.messageTimestamp * 1000) < BOT_START_TIME;
-
-      if (!global.isBotReady) {
-          if (isOldMessage) {
-              offlineMsgCount++;
-              // Yeh line console mein real-time counter chalayegi!
-              process.stdout.write(`\r✦ 📥 Processing Offline Backlog: ${offlineMsgCount} messages drained... `);
-              
-              // Flood aane par timer reset karo. Jab flood rukega (3 sec shanti), tab bot unlock hoga!
-              clearTimeout(bootUnlockTimer);
-              bootUnlockTimer = setTimeout(() => {
-                  global.isBotReady = true;
-                  console.log(`\n✦ ✅ Backlog Cleared! Total ${offlineMsgCount} old messages bypassed safely.`);
-                  sendPremiumBootMessage(sock);
-              }, 3000); 
-              
-              // THE CPU SAVER: Puranay message ko command ke liye handler mein MAT bhejo! Speed 1000x fast.
-              continue; 
-          }
-      }
-
-      // Agar system abhi ready nahi hai aur naya message bhi aa gaya hai, toh usko block karo taake lag na ho
+      // 🛑 THE WALL: Agar bot boot ho raha hai, toh pichlay msgs ko discard karo (No CPU load!)
       if (!global.isBotReady) continue;
-
-      // --- YAHAN SE SIRF NAYE MESSAGES PASS HONGE ---
 
       const from = msg.key.remoteJid;
       if (!from || isSystemJid(from)) continue;
@@ -286,10 +265,7 @@ async function startBot() {
       if (processedMessages.has(msgId)) continue;
       processedMessages.add(msgId);
 
-      // 🔮 Server Time Desync Bypass
-      msg.messageTimestamp = Math.floor(Date.now() / 1000); 
-
-      // Send to handler
+      // Process command
       handler.handleMessage(sock, msg).catch(err => {
         if (!err.message?.includes('rate-overlimit') && !err.message?.includes('not-authorized')) {
           const errMsg = err.message.toLowerCase();
@@ -317,14 +293,12 @@ async function startBot() {
   sock.ev.on('message-receipt.update', () => { });
 
   // ==========================================
-  // 🔴 ANTI-DELETE ENGINE
+  // 🔴 ANTI-DELETE ENGINE (Aapka Original)
   // ==========================================
   sock.ev.on('messages.update', async (chatUpdate) => {
-    // Prevent Anti-Delete from choking the system during the boot drain
     if (!global.isBotReady) return; 
 
     for (const { key, update } of chatUpdate) {
-      
       let isDeletedMessage = false;
       if (update.message === null) isDeletedMessage = true;
       else if (update.message?.protocolMessage && (update.message.protocolMessage.type === 0 || update.message.protocolMessage.type === 'REVOKE')) {
