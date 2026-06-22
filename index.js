@@ -5,6 +5,11 @@ process.env.PUPPETEER_SKIP_DOWNLOAD = 'true';
 process.env.PUPPETEER_SKIP_CHROMIUM_DOWNLOAD = 'true';
 process.env.PUPPETEER_CACHE_DIR = process.env.PUPPETEER_CACHE_DIR || '/tmp/puppeteer_cache_disabled';
 
+// 🚀 DEFAULT OFFLINE STATE (Bot will never show online on boot)
+if (typeof global.isAlwaysOnline === 'undefined') {
+    global.isAlwaysOnline = false;
+}
+
 // ==========================================
 // 🔇 ULTIMATE NOISE SUPPRESSOR (Hides WhatsApp Crypto Spam)
 // ==========================================
@@ -44,7 +49,6 @@ const { startCleanup } = require('./utils/cleanup');
 initializeTempSystem();
 startCleanup();
 
-// Now safe to load libraries
 const pino = require('pino');
 const {
   default: makeWASocket,
@@ -60,7 +64,6 @@ const path = require('path');
 const zlib = require('zlib');
 const os = require('os');
 
-// Remove Puppeteer cache
 function cleanupPuppeteerCache() {
   try {
     const home = os.homedir();
@@ -72,20 +75,17 @@ function cleanupPuppeteerCache() {
   } catch (err) {}
 }
 
-// Optimized in-memory store
 const store = {
   messages: new Map(),
-  maxPerChat: 500, // Safe limit for anti-delete
+  maxPerChat: 500,
 
   bind: (ev) => {
     ev.on('messages.upsert', ({ messages, type }) => {
-      // 🚀 FAST BOOT FIX: Ignore old history sync messages completely!
       if (type !== 'notify') return; 
 
       for (const msg of messages) {
         if (!msg.key?.id) continue;
         
-        // Extra protection: Ignore messages sent before bot started
         if (msg.messageTimestamp && (msg.messageTimestamp * 1000) < BOT_START_TIME) continue;
 
         const jid = msg.key.remoteJid;
@@ -109,7 +109,6 @@ const store = {
 const processedMessages = new Set();
 setInterval(() => processedMessages.clear(), 5 * 60 * 1000); 
 
-// Main connection function
 async function startBot() {
   const sessionFolder = `./${config.sessionName}`;
   const sessionFile = path.join(sessionFolder, 'creds.json');
@@ -136,7 +135,6 @@ async function startBot() {
   const { state, saveCreds } = await useMultiFileAuthState(sessionFolder);
   const { version } = await fetchLatestBaileysVersion();
   
-  // 🔇 STRICT LOG SILENCING: This permanently disables the SessionEntry/Buffer logs
   const silentLogger = pino({ level: 'silent' });
 
   const sock = makeWASocket({
@@ -147,7 +145,7 @@ async function startBot() {
     auth: state,
     syncFullHistory: false,
     downloadHistory: false,
-    markOnlineOnConnect: false,
+    markOnlineOnConnect: false, // Prevents online status on connect
     getMessage: async () => undefined
   });
 
@@ -182,38 +180,25 @@ async function startBot() {
       const errorMessage = lastDisconnect?.error?.message || String(lastDisconnect?.error) || 'Unknown error';
       let shouldReconnect = statusCode !== DisconnectReason.loggedOut;
 
-      // 🚨 GHOST PROCESS KILLER (Fixes the Double Bot Issue)
       if (statusCode === 409 || errorMessage.toLowerCase().includes('conflict')) {
         console.log('\n🚨 CRITICAL: Stream Conflict Detected (409)!');
-        console.log('⚠️ Two instances of the bot are fighting for connection.');
-        console.log('💀 Killing this ghost process to allow a clean restart...\n');
         process.exit(1); 
       } else {
-        if (statusCode === 515 || statusCode === 503 || statusCode === 408) {
-          console.log(`⚠️ Connection closed (${statusCode}). Reconnecting...`);
-        } else {
-          console.log('Connection closed due to:', errorMessage, 'Reconnecting:', shouldReconnect);
-        }
         if (shouldReconnect) setTimeout(() => startBot(), 3000);
       }
     } else if (connection === 'open') {
       console.log('\n✅ Bot connected successfully!');
       console.log(`📱 Bot Number: ${sock.user.id.split(':')[0]}`);
-      console.log(`🤖 Bot Name: ${config.botName}`);
-      console.log(`⚡ Prefix: ${config.prefix}`);
-      const ownerNames = Array.isArray(config.ownerName) ? config.ownerName.join(',') : config.ownerName;
-      console.log(`👑 Owner: ${ownerNames}\n`);
-      console.log('Bot is ready to receive messages!\n');
-
+      
       if (config.autoBio) await sock.updateProfileStatus(`${config.botName} | Active 24/7`);
       handler.initializeAntiCall(sock);
 
-      // ==========================================
-      // 🚀 THE FIX: CUSTOM VIP BOOT MESSAGE
-      // ==========================================
       try {
-        const myJid = sock.user.id.split(':')[0] + '@s.whatsapp.net'; // Aapka apna chat "You"
+        await sock.sendPresenceUpdate('unavailable'); // Force offline on boot
+        
+        const myJid = sock.user.id.split(':')[0] + '@s.whatsapp.net'; 
         const botName = config.botName || 'Kosem Bot';
+        const ownerNames = Array.isArray(config.ownerName) ? config.ownerName.join(',') : config.ownerName;
         
         const bootText = `❖ ── ✦ 𝐁𝐎𝐓 𝐀𝐂𝐓𝐈𝐕𝐄 ✦ ── ❖\n\n` +
                          `✨ *${botName} is successfully connected and Online!*\n\n` +
@@ -227,19 +212,14 @@ async function startBot() {
           contextInfo: {
             forwardingScore: 999,
             isForwarded: true,
-            // Sirf Channel Banner aur native "View channel" button aayega
             forwardedNewsletterMessageInfo: {
-              newsletterJid: '120363427491383372@newsletter', // Aapki Channel JID
+              newsletterJid: '120363427491383372@newsletter', 
               newsletterName: `✨ ${botName} Official`,
               serverMessageId: -1
             }
           }
         });
-        console.log('📩 Premium Boot message sent to inbox!');
-      } catch (err) {
-        console.log('⚠️ Failed to send boot message.', err);
-      }
-      // ==========================================
+      } catch (err) {}
 
       const now = Date.now();
       for (const [jid, chatMsgs] of store.messages.entries()) {
@@ -248,7 +228,6 @@ async function startBot() {
           store.messages.delete(jid);
         }
       }
-      console.log(`🧹 Store cleaned. Active chats: ${store.messages.size}`);
     }
   });
 
@@ -262,8 +241,22 @@ async function startBot() {
   sock.ev.on('messages.upsert', async ({ messages, type }) => {
     if (type !== 'notify') return;
 
+    // 🚀 THE ULTIMATE PRESENCE FIX: Har message par strict rule apply karega!
+    try {
+        if (global.isAlwaysOnline) {
+            await sock.sendPresenceUpdate('available');
+        } else {
+            await sock.sendPresenceUpdate('unavailable');
+        }
+    } catch(e) {}
+
     for (const msg of messages) {
       if (!msg.message || !msg.key?.id) continue;
+
+      // 🚀 THE QUICK START FIX: Ignore all backlog messages instantly!
+      if (msg.messageTimestamp && (msg.messageTimestamp * 1000) < BOT_START_TIME) {
+          continue; 
+      }
 
       const from = msg.key.remoteJid;
       if (!from) continue;
@@ -404,7 +397,7 @@ async function startBot() {
                 await sock.sendMessage(myJid, { forward: deletedMsg }).catch(()=>{});
               }
           }
-        } catch (err) {} // Safe catch to prevent crashes
+        } catch (err) {} 
       }
     }
   });
