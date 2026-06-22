@@ -10,23 +10,23 @@ if (typeof global.isAlwaysOnline === 'undefined') {
 }
 
 // ==========================================
-// 💎 AGGRESSIVE NOISE SUPPRESSOR (Kills all Buffer/Session logs)
+// 💎 PREMIUM CONSOLE LOGS (1-Line Clean Format)
 // ==========================================
 const util = require('util');
 const originalConsoleLog = console.log;
 const originalConsoleError = console.error;
 const originalConsoleWarn = console.warn;
 
-// Aapke bheje gaye logs ke mutabiq naye keywords add kar diye!
-const noisyLogs = [
-    'SessionEntry', 'Buffer', 'ephemeralKeyPair', 'lastRemoteEphemeralKey', 
-    'rootKey', 'baseKey', 'Closing session:', 'Removing old closed session:', 
-    'pendingPreKey', 'registrationId', 'Bad MAC', 'Failed to decrypt', 'conflict'
+const forbiddenPatternsConsole = [
+  'closing session', 'closing open session', 'sessionentry', 
+  'prekey bundle', 'pendingprekey', '_chains', 'registrationid', 
+  'currentratchet', 'chainkey', 'ratchet', 'signal protocol', 
+  'ephemeralkeypair', 'indexinfo', 'basekey', 'conflict', 'buffer'
 ];
 
 function isNoisy(args) {
-    const fullLog = args.map(a => typeof a === 'string' ? a : util.inspect(a, { depth: 5 })).join(' ');
-    return noisyLogs.some(noise => fullLog.includes(noise));
+    const msg = args.map(a => typeof a === 'string' ? a : util.inspect(a)).join(' ').toLowerCase();
+    return forbiddenPatternsConsole.some(pattern => msg.includes(pattern));
 }
 
 console.log = (...args) => {
@@ -68,24 +68,32 @@ const os = require('os');
 
 function cleanupPuppeteerCache() {
   try {
-    const cacheDir = path.join(os.homedir(), '.cache', 'puppeteer');
-    if (fs.existsSync(cacheDir)) fs.rmSync(cacheDir, { recursive: true, force: true });
+    const home = os.homedir();
+    const cacheDir = path.join(home, '.cache', 'puppeteer');
+    if (fs.existsSync(cacheDir)) {
+      fs.rmSync(cacheDir, { recursive: true, force: true });
+    }
   } catch (err) {}
 }
 
+// 🚀 ORIGINAL MEMORY STORE (Lag-Free)
 const store = {
   messages: new Map(),
-  maxPerChat: 50, // Optimized for speed
+  maxPerChat: 20, 
   bind: (ev) => {
-    ev.on('messages.upsert', ({ messages, type }) => {
-      if (type !== 'notify') return; 
+    ev.on('messages.upsert', ({ messages }) => {
       for (const msg of messages) {
         if (!msg.key?.id) continue;
         const jid = msg.key.remoteJid;
         if (!store.messages.has(jid)) store.messages.set(jid, new Map());
+        
         const chatMsgs = store.messages.get(jid);
         chatMsgs.set(msg.key.id, msg);
-        if (chatMsgs.size > store.maxPerChat) chatMsgs.delete(chatMsgs.keys().next().value);
+
+        if (chatMsgs.size > store.maxPerChat) {
+          const oldestKey = chatMsgs.keys().next().value;
+          chatMsgs.delete(oldestKey);
+        }
       }
     });
   },
@@ -93,9 +101,11 @@ const store = {
 };
 
 const processedMessages = new Set();
-setInterval(() => processedMessages.clear(), 3 * 60 * 1000); 
+setInterval(() => processedMessages.clear(), 5 * 60 * 1000); 
 
-// 🚀 REAL BOOT MESSAGE (Sent ONLY when fully ready)
+const createSuppressedLogger = (level = 'silent') => pino({ level });
+
+// 🚀 PREMIUM BOOT MESSAGE FUNCTION
 async function sendPremiumBootMessage(sock) {
     try {
         const myJid = sock.user.id.split(':')[0] + '@s.whatsapp.net'; 
@@ -126,71 +136,82 @@ async function sendPremiumBootMessage(sock) {
 }
 
 async function startBot() {
-  console.log('SYSTEM BOOTING...');
   cleanupPuppeteerCache();
 
   const sessionFolder = `./${config.sessionName}`;
   const sessionFile = path.join(sessionFolder, 'creds.json');
-  const botSessionID = process.env.SESSION_ID || config.sessionID;
 
-  if (botSessionID && botSessionID.startsWith('Kosem!') && !fs.existsSync(sessionFile)) {
+  if (config.sessionID && config.sessionID.startsWith('Kosem!')) {
     try {
-      console.log("Unpacking Session JID...");
-      const [header, b64data] = botSessionID.split('!');
+      const [header, b64data] = config.sessionID.split('!');
       if (header === 'Kosem' && b64data) {
-        const decompressedData = zlib.gunzipSync(Buffer.from(b64data.replace('...', ''), 'base64'));
+        const cleanB64 = b64data.replace('...', '');
+        const compressedData = Buffer.from(cleanB64, 'base64');
+        const decompressedData = zlib.gunzipSync(compressedData);
         if (!fs.existsSync(sessionFolder)) fs.mkdirSync(sessionFolder, { recursive: true });
         fs.writeFileSync(sessionFile, decompressedData, 'utf8');
-        console.log('Session loaded!');
       }
-    } catch (e) { console.error(`Session error: ${e.message}`); }
+    } catch (e) {}
   }
 
   const { state, saveCreds } = await useMultiFileAuthState(sessionFolder);
   const { version } = await fetchLatestBaileysVersion();
-  const silentLogger = pino({ level: 'silent' });
+  const suppressedLogger = createSuppressedLogger('silent');
 
   const sock = makeWASocket({
-    version,
-    logger: silentLogger,
+    version, 
+    logger: suppressedLogger,
     printQRInTerminal: false,
     browser: ['Chrome', 'Windows', '10.0'],
     auth: state,
-    syncFullHistory: false, 
-    downloadHistory: false, 
-    markOnlineOnConnect: false, 
-    getMessage: async () => undefined
+    syncFullHistory: false,
+    downloadHistory: false,
+    markOnlineOnConnect: false,
+    getMessage: async () => undefined 
   });
 
   store.bind(sock.ev);
 
   let lastActivity = Date.now();
+  const INACTIVITY_TIMEOUT = 30 * 60 * 1000; 
+
   sock.ev.on('messages.upsert', () => { lastActivity = Date.now(); });
 
   const watchdogInterval = setInterval(async () => {
-    if (Date.now() - lastActivity > 30 * 60 * 1000 && sock.ws?.readyState === 1) {
-      console.log('Inactivity detected. Recycling connection...');
+    if (Date.now() - lastActivity > INACTIVITY_TIMEOUT && sock.ws.readyState === 1) {
+      console.log('No activity detected. Forcing reconnect...');
       await sock.end(undefined, undefined, { reason: 'inactive' });
       clearInterval(watchdogInterval);
+      setTimeout(() => startBot(), 5000); 
     }
-  }, 5 * 60 * 1000);
+  }, 5 * 60 * 1000); 
 
+  // Background Presence Enforcer
   setInterval(async () => {
     if (!sock) return;
     try { await sock.sendPresenceUpdate(global.isAlwaysOnline ? 'available' : 'unavailable'); } catch(e) {}
   }, 30000);
 
+  sock.ev.on('connection.update', (update) => {
+    const { connection } = update;
+    if (connection === 'open') lastActivity = Date.now(); 
+    else if (connection === 'close') clearInterval(watchdogInterval);
+  });
+
   sock.ev.on('connection.update', async (update) => {
     const { connection, lastDisconnect, qr } = update;
+
     if (qr) qrcode.generate(qr, { small: true });
 
     if (connection === 'close') {
       const statusCode = lastDisconnect?.error?.output?.statusCode;
+      const shouldReconnect = statusCode !== DisconnectReason.loggedOut;
+
       if (statusCode === 409 || String(lastDisconnect?.error).includes('conflict')) {
-        console.log('Stream Conflict Resolved. Restarting...');
-        process.exit(1); 
+        console.log('Stream Conflict Resolved. Restarting backend process...');
+        process.exit(1);
       } else {
-        if (statusCode !== DisconnectReason.loggedOut) setTimeout(() => startBot(), 3000);
+        if (shouldReconnect) setTimeout(() => startBot(), 3000);
       }
     } else if (connection === 'open') {
       console.log(`CONNECTED SECURELY | Bot: ${config.botName}`);
@@ -198,23 +219,24 @@ async function startBot() {
       if (config.autoBio) await sock.updateProfileStatus(`${config.botName} | Active 24/7`);
       handler.initializeAntiCall(sock);
       try { await sock.sendPresenceUpdate('unavailable'); } catch(e) {}
-      
-      // REAL START: Direct message bhejo, koi fake intezar nahi!
+
+      // REAL START: Direct Boot Message
       sendPremiumBootMessage(sock);
     }
   });
 
   sock.ev.on('creds.update', saveCreds);
 
-  const isSystemJid = (jid) => !jid || jid.includes('@broadcast') || jid.includes('@newsletter');
+  const isSystemJid = (jid) => {
+    if (!jid) return true;
+    return jid.includes('@broadcast') || jid.includes('status.broadcast') || jid.includes('@newsletter');
+  };
 
   // ==========================================
-  // 🚀 COMMAND HANDLER (TIME TRAVEL HACK)
+  // 🚀 YOUR ORIGINAL FAST COMMAND HANDLER
   // ==========================================
-  sock.ev.on('messages.upsert', async ({ messages, type }) => {
+  sock.ev.on('messages.upsert', ({ messages, type }) => {
     if (type !== 'notify') return;
-
-    try { await sock.sendPresenceUpdate(global.isAlwaysOnline ? 'available' : 'unavailable'); } catch(e) {}
 
     for (const msg of messages) {
       if (!msg.message || !msg.key?.id) continue;
@@ -226,22 +248,25 @@ async function startBot() {
       if (processedMessages.has(msgId)) continue;
       processedMessages.add(msgId);
 
-      // 🔮 THE MAGICAL FIX FOR HANDLER.JS TIME LOCK!
-      // Aapki handler.js puranay waqt walay messages ignore kar deti hai.
-      // Hum har naye message ka waqt badal kar Server ka current waqt daal rahay hain.
-      // Is se handler.js khushi khushi FORAN command uthayega!
-      msg.messageTimestamp = Math.floor(Date.now() / 1000); 
+      // ❌ THE FIX: Age Limit / Timestamp Checking has been COMPLETELY REMOVED!
+      // Pehlay yahan 5-minute wala code tha jo server delay ki wajah se command rokay khara tha.
+      // Ab command aate hi foran handler ko bhej di jayegi.
 
-      handler.handleMessage(sock, msg).catch(err => {});
+      // Process command IMMEDIATELY
+      handler.handleMessage(sock, msg).catch(err => {
+        if (!err.message?.includes('rate-overlimit') && !err.message?.includes('not-authorized')) {
+          console.error(`Error handling message: ${err.message}`);
+        }
+      });
 
+      // Background tasks
       setImmediate(async () => {
         if (config.autoRead && from.endsWith('@g.us')) {
           try { await sock.readMessages([msg.key]); } catch (e) { }
         }
-        try { if (handler.autoSniffViewOnce) await handler.autoSniffViewOnce(sock, msg); } catch (err) { }
         if (from.endsWith('@g.us')) {
           try {
-            const groupMetadata = await handler.getGroupMetadata(sock, from);
+            const groupMetadata = await handler.getGroupMetadata(sock, msg.key.remoteJid);
             if (groupMetadata) await handler.handleAntilink(sock, msg, groupMetadata);
           } catch (error) { }
         }
@@ -252,10 +277,11 @@ async function startBot() {
   sock.ev.on('message-receipt.update', () => { });
 
   // ==========================================
-  // 🔴 ANTI-DELETE ENGINE (LAG-FREE)
+  // 🔴 SAFE ANTI-DELETE SYSTEM (Optimized)
   // ==========================================
   sock.ev.on('messages.update', async (chatUpdate) => {
     for (const { key, update } of chatUpdate) {
+      
       let isDeletedMessage = false;
       if (update.message === null) isDeletedMessage = true;
       else if (update.message?.protocolMessage && (update.message.protocolMessage.type === 0 || update.message.protocolMessage.type === 'REVOKE')) {
@@ -305,7 +331,6 @@ async function startBot() {
 
         const originalText = msgObj.conversation || msgObj.extendedTextMessage?.text || msgObj.imageMessage?.caption || msgObj.videoMessage?.caption || "";
 
-        const pushName = deletedMsg.pushName || "User";
         let caption = `❖ ── ✦ 𝐀𝐍𝐓𝐈 𝐃𝐄𝐋𝐄𝐓𝐄 ✦ ── ❖\n\n👤 *By:* @${senderNumber}\n📍 *From:* ${chatName}\n🕰️ *Time:* ${time}\n📦 *Type:* ${mediaType}\n`;
 
         if (originalText) caption += `\n❖ ── ✦ 𝐌𝐄𝐒𝐒𝐀𝐆𝐄 ✦ ── ❖\n💬 ${originalText}`;
@@ -337,13 +362,19 @@ async function startBot() {
   return sock;
 }
 
-startBot();
+console.log('🚀 Starting WhatsApp MD Bot...');
+startBot().catch(err => {
+  console.error(`Error starting bot: ${err}`);
+  process.exit(1);
+});
 
 process.on('uncaughtException', (err) => {
-    if (err.code === 'ENOSPC' || err.message?.includes('no space left')) {
-        console.log('Storage full. Cleaning up...');
-        require('./utils/cleanup').cleanupOldFiles();
-    }
+  if (err.code === 'ENOSPC' || err.message?.includes('no space left')) {
+    console.warn('⚠️ Storage full. Attempting cleanup...');
+    require('./utils/cleanup').cleanupOldFiles();
+  }
 });
-process.on('unhandledRejection', () => {});
+process.on('unhandledRejection', (err) => {
+  if (err.message && err.message.includes('rate-overlimit')) return;
+});
 module.exports = { store };
