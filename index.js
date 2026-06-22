@@ -11,7 +11,7 @@ if (typeof global.isAlwaysOnline === 'undefined') {
 }
 
 // ==========================================
-// 💎 PREMIUM CONSOLE LOGS & NOISE SUPPRESSOR
+// 💎 PREMIUM & SHORT CONSOLE LOGS (1-Liner)
 // ==========================================
 const util = require('util');
 const originalConsoleLog = console.log;
@@ -22,27 +22,28 @@ const noisyLogs = [
     'Bad MAC', 'Failed to decrypt', 'Session error', 
     'Closing open session', 'prekey bundle', 'SessionEntry', 
     '_chains', 'registrationId', 'currentRatchet', 'indexInfo',
-    'ephemeralKeyPair', 'rootKey', 'baseKey', 'conflict'
+    'ephemeralKeyPair', 'rootKey', 'baseKey', 'conflict', 'rate-overlimit'
 ];
 
 console.log = (...args) => {
-  const logStr = args.map(a => typeof a === 'string' ? a : util.inspect(a)).join(' ');
-  if (noisyLogs.some(noise => logStr.includes(noise))) return;
-  originalConsoleLog.apply(console, ['✦', ...args]); // Premium Bullet added
+  let msg = args.map(a => typeof a === 'string' ? a : util.inspect(a, { breakLength: Infinity, compact: true })).join(' ');
+  if (noisyLogs.some(noise => msg.includes(noise))) return;
+  msg = msg.replace(/\n/g, ' | '); // Forces everything into a single line
+  originalConsoleLog(`✦ ${msg}`);
 };
 console.error = (...args) => {
-  const logStr = args.map(a => typeof a === 'string' ? a : util.inspect(a)).join(' ');
-  if (noisyLogs.some(noise => logStr.includes(noise))) return;
-  originalConsoleError.apply(console, ['❌ [ERROR]', ...args]);
+  let msg = args.map(a => typeof a === 'string' ? a : util.inspect(a, { breakLength: Infinity, compact: true })).join(' ');
+  if (noisyLogs.some(noise => msg.includes(noise))) return;
+  msg = msg.replace(/\n/g, ' | ');
+  originalConsoleError(`❌ ERROR: ${msg}`);
 };
 console.warn = (...args) => {
-  const logStr = args.map(a => typeof a === 'string' ? a : util.inspect(a)).join(' ');
-  if (noisyLogs.some(noise => logStr.includes(noise))) return;
-  originalConsoleWarn.apply(console, ['⚠️ [WARN]', ...args]);
+  let msg = args.map(a => typeof a === 'string' ? a : util.inspect(a, { breakLength: Infinity, compact: true })).join(' ');
+  if (noisyLogs.some(noise => msg.includes(noise))) return;
+  msg = msg.replace(/\n/g, ' | ');
+  originalConsoleWarn(`⚠️ WARN: ${msg}`);
 };
 // ==========================================
-
-const BOT_START_TIME = Date.now();
 
 const { initializeTempSystem } = require('./utils/tempManager');
 const { startCleanup } = require('./utils/cleanup');
@@ -73,20 +74,17 @@ function cleanupPuppeteerCache() {
 }
 
 // ==========================================
-// 🚀 OPTIMIZED ANTI-DELETE STORE (No Lag)
+// 🚀 OPTIMIZED ANTI-DELETE STORE (Lag-Free)
 // ==========================================
 const store = {
   messages: new Map(),
-  maxPerChat: 100, // Reduced from 500 to save memory and increase speed
+  maxPerChat: 50, // Ultra-optimized memory size
   bind: (ev) => {
     ev.on('messages.upsert', ({ messages, type }) => {
       if (type !== 'notify') return; 
       for (const msg of messages) {
         if (!msg.key?.id) continue;
         
-        // 🛡️ THE MAGIC SHIELD: Do NOT save historical messages to RAM!
-        if (msg.messageTimestamp && (msg.messageTimestamp * 1000) < BOT_START_TIME) continue;
-
         const jid = msg.key.remoteJid;
         if (!store.messages.has(jid)) store.messages.set(jid, new Map());
         
@@ -104,7 +102,7 @@ const store = {
 };
 
 const processedMessages = new Set();
-setInterval(() => processedMessages.clear(), 5 * 60 * 1000); 
+setInterval(() => processedMessages.clear(), 3 * 60 * 1000); 
 
 // ==========================================
 // 🚀 PREMIUM BOOT MESSAGE
@@ -134,14 +132,12 @@ async function sendPremiumBootMessage(sock) {
             }
           }
         });
-        console.log('📬 Premium Boot message delivered!');
+        console.log('Boot message delivered successfully.');
     } catch (err) {}
 }
 
 async function startBot() {
-  console.log('╭━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-  console.log('┃ 🚀 SYSTEM BOOTING...');
-  console.log('╰━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+  console.log('🚀 SYSTEM BOOTING IN ULTRA-FAST MODE...');
   cleanupPuppeteerCache();
 
   const sessionFolder = `./${config.sessionName}`;
@@ -160,7 +156,7 @@ async function startBot() {
         fs.writeFileSync(sessionFile, decompressedData, 'utf8');
         console.log('✅ Session perfectly loaded!');
       }
-    } catch (e) { console.error('Session unpacking failed:', e.message); }
+    } catch (e) { console.error(`Session unpacking failed: ${e.message}`); }
   }
 
   const { state, saveCreds } = await useMultiFileAuthState(sessionFolder);
@@ -173,8 +169,8 @@ async function startBot() {
     printQRInTerminal: false,
     browser: ['Chrome', 'Windows', '10.0'],
     auth: state,
-    syncFullHistory: false,
-    downloadHistory: false,
+    syncFullHistory: false, // Forces fast boot
+    downloadHistory: false, // Prevents loading useless old chats
     markOnlineOnConnect: false, 
     getMessage: async () => undefined
   });
@@ -193,7 +189,6 @@ async function startBot() {
     }
   }, 5 * 60 * 1000);
 
-  // Background Presence Enforcer
   setInterval(async () => {
     if (!sock) return;
     try { await sock.sendPresenceUpdate(global.isAlwaysOnline ? 'available' : 'unavailable'); } catch(e) {}
@@ -208,24 +203,20 @@ async function startBot() {
       let shouldReconnect = statusCode !== DisconnectReason.loggedOut;
 
       if (statusCode === 409 || String(lastDisconnect?.error).includes('conflict')) {
-        console.log('\n🛡️ Stream Conflict Resolved. Clearing backend process...');
+        console.log('🛡️ Stream Conflict Resolved. Clearing backend process...');
         process.exit(1); 
       } else {
         if (shouldReconnect) setTimeout(() => startBot(), 3000);
       }
     } else if (connection === 'open') {
-      console.log('\n╭━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-      console.log(`┃ ✅ CONNECTED SECURELY`);
-      console.log(`┃ 📱 Number : ${sock.user.id.split(':')[0]}`);
-      console.log(`┃ 🤖 Bot    : ${config.botName}`);
-      console.log('╰━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
+      console.log(`✅ CONNECTED SECURELY | Bot: ${config.botName} | Mode: Fast`);
       
       if (config.autoBio) await sock.updateProfileStatus(`${config.botName} | Active 24/7`);
       handler.initializeAntiCall(sock);
       
       try { await sock.sendPresenceUpdate('unavailable'); } catch(e) {}
       
-      // Instantly send boot message, NO DELAYS.
+      // Send Boot Message directly. 
       sendPremiumBootMessage(sock);
     }
   });
@@ -234,16 +225,19 @@ async function startBot() {
 
   const isSystemJid = (jid) => !jid || jid.includes('@broadcast') || jid.includes('@newsletter');
 
+  // ==========================================
+  // 🚀 COMMAND HANDLER (Zero Delays, Zero Time Locks)
+  // ==========================================
   sock.ev.on('messages.upsert', async ({ messages, type }) => {
-    if (type !== 'notify') return;
+    if (type !== 'notify') return; // ONLY process fresh new messages
 
     try { await sock.sendPresenceUpdate(global.isAlwaysOnline ? 'available' : 'unavailable'); } catch(e) {}
 
     for (const msg of messages) {
       if (!msg.message || !msg.key?.id) continue;
       
-      // 🚀 THE ULTIMATE SHIELD: Drops old messages instantly so bot doesn't lag!
-      if (msg.messageTimestamp && (msg.messageTimestamp * 1000) < BOT_START_TIME) continue;
+      // ❌ [THE BUG FIX] : Time filter completely removed. 
+      // Server desync will no longer ignore your real-time commands!
 
       const from = msg.key.remoteJid;
       if (!from) continue;
@@ -253,7 +247,7 @@ async function startBot() {
       processedMessages.add(msgId);
 
       if (!isSystemJid(from)) {
-        handler.handleMessage(sock, msg).catch(err => {});
+        handler.handleMessage(sock, msg).catch(err => {}); // Errors handled silently to keep console clean
 
         setImmediate(async () => {
           if (config.autoRead && from.endsWith('@g.us')) {
@@ -274,12 +268,11 @@ async function startBot() {
   sock.ev.on('message-receipt.update', () => { });
 
   // ==========================================
-  // 🔴 ANTI-DELETE ENGINE (LAG-FREE OPTIMIZED)
+  // 🔴 ANTI-DELETE ENGINE (LAG-FREE)
   // ==========================================
   sock.ev.on('messages.update', async (chatUpdate) => {
     for (const { key, update } of chatUpdate) {
       
-      // 🚀 THE SPEED HACK: Instantly skip all non-delete events!
       let isDeletedMessage = false;
       if (update.message === null) {
           isDeletedMessage = true;
@@ -287,7 +280,7 @@ async function startBot() {
           isDeletedMessage = true;
       }
 
-      if (!isDeletedMessage) continue; // Saves 99% CPU load!
+      if (!isDeletedMessage) continue; 
 
       try {
         const deletedMsg = await store.loadMessage(key.remoteJid, key.id);
@@ -301,7 +294,7 @@ async function startBot() {
         const cleanSender = rawSender.includes(':') ? rawSender.split(':')[0] + '@s.whatsapp.net' : rawSender;
         const senderNumber = cleanSender.split('@')[0];
         
-        if (cleanSender === myJid) return; // Ignore own deletions
+        if (cleanSender === myJid) return;
 
         let msgObj = deletedMsg.message;
         if (!msgObj) return;
