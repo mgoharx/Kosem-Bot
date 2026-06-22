@@ -223,7 +223,7 @@ async function startBot() {
                          `👑 *Owner:* ${ownerNames}\n` +
                          `🟢 *Status:* Active\n\n` +
                          `📝 *Description:* This is an advanced WhatsApp bot made by Muhammad Gohar.\n` +
-                         `╰━━━━━━━━━━━━━━━━━━━━━━━`;
+                         `╰━━━━━━━━━━━━━━━━━━━━━━`;
 
         await sock.sendMessage(myJid, {
           text: bootText,
