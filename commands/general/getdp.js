@@ -31,7 +31,7 @@ module.exports = {
       }
       
       if (!targetUser) {
-        return extra.reply('❖ ── ✦ 𝐄𝐑𝐑𝐎𝐑 ✦ ── ❖\n\n❌ Could not identify the target.\n╰━━━━━━━━━━━━━━━━━━━━');
+        return extra.reply('❖ ── ✦ 𝐄𝐑𝐑𝐎𝐑 ✦ ── ❖\n\n❌ Could not identify the target.\n╰━━━━━━━━━━━━━━━━━━');
       }
 
       isGroupTarget = targetUser.endsWith('@g.us');
@@ -41,21 +41,21 @@ module.exports = {
         const ppUrl = await sock.profilePictureUrl(targetUser, 'image');
         
         if (!ppUrl) {
-          return extra.reply('❖ ── ✦ 𝐀𝐕𝐀𝐓𝐀𝐑 ✦ ── ❖\n\n❌ Profile picture not found or is completely private.\n╰━━━━━━━━━━━━━━━━━━━━');
+          return extra.reply('❖ ── ✦ 𝐀𝐕𝐀𝐓𝐀𝐑 ✦ ── ❖\n\n❌ Profile picture not found or is private.\n╰━━━━━━━━━━━━━━━━━━');
         }
         
         // Download the profile picture
         const response = await axios.get(ppUrl, { responseType: 'arraybuffer' });
         const buffer = Buffer.from(response.data);
         
-        // Premium Caption Logic
+        // Premium Caption Logic (Perfectly Aligned Lines)
         let captionText = '';
         let mentionsInfo = [];
 
         if (isGroupTarget) {
-          captionText = `❖ ── ✦ 𝐆𝐑𝐎𝐔𝐏 𝐈𝐂𝐎𝐍 ✦ ── ❖\n\n📸 *Target:* Group Avatar\n╰━━━━━━━━━━━━━━━━━━━━`;
+          captionText = `❖ ── ✦ 𝐆𝐑𝐎𝐔𝐏 𝐈𝐂𝐎𝐍 ✦ ── ❖\n\n📸 *Target:* Group Avatar\n╰━━━━━━━━━━━━━━━━━━`;
         } else {
-          captionText = `❖ ── ✦ 𝐏𝐑𝐎𝐅𝐈𝐋𝐄 𝐏𝐈𝐂 ✦ ── ❖\n\n👤 *User:* @${targetUser.split('@')[0]}\n╰━━━━━━━━━━━━━━━━━━━━`;
+          captionText = `❖ ── ✦ 𝐏𝐑𝐎𝐅𝐈𝐋𝐄 𝐏𝐈𝐂 ✦ ── ❖\n\n👤 *User:* @${targetUser.split('@')[0]}\n╰━━━━━━━━━━━━━━━━━━`;
           mentionsInfo = [targetUser];
         }
 
@@ -71,11 +71,11 @@ module.exports = {
 
       } catch (profileError) {
         // Handle all profile errors silently and cleanly
-        return extra.reply('❖ ── ✦ 𝐀𝐕𝐀𝐓𝐀𝐑 ✦ ── ❖\n\n❌ Profile picture not found.\n(It might be private, deleted, or you are not in their contacts)\n╰━━━━━━━━━━━━━━━━━━━━━━━');
+        return extra.reply('❖ ── ✦ 𝐀𝐕𝐀𝐓𝐀𝐑 ✦ ── ❖\n\n❌ Profile picture not found.\n(It might be private or deleted)\n╰━━━━━━━━━━━━━━━━━━');
       }
       
     } catch (error) {
-      extra.reply('❖ ── ✦ 𝐄𝐑𝐑𝐎𝐑 ✦ ── ❖\n\n❌ An unexpected error occurred while fetching the profile picture.\n╰━━━━━━━━━━━━━━━━━━━━━━━');
+      extra.reply('❖ ── ✦ 𝐄𝐑𝐑𝐎𝐑 ✦ ── ❖\n\n❌ An error occurred while fetching the picture.\n╰━━━━━━━━━━━━━━━━━━');
     }
   }
 };
