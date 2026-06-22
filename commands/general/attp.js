@@ -1,5 +1,5 @@
 /**
- * ATTP - Animated Text to Picture Sticker
+ * ATTP - Animated Text to Picture Sticker (Premium RGB Edition)
  */
 
 const { spawn } = require('child_process');
@@ -10,32 +10,44 @@ const { writeExifVid } = require('../../utils/exif');
 module.exports = {
   name: 'attp',
   aliases: ['ttp'],
-  category: 'general',
-  description: 'Create animated text sticker',
+  category: 'utility',
+  description: 'Create premium animated RGB text sticker',
   usage: '<text>',
   
   async execute(sock, msg, args, extra) {
     try {
       if (args.length === 0) {
-        return extra.reply(`❌ Please provide text!\n\nExample: ${extra.prefix || '.'}attp Hello World`);
+        return extra.reply(`❖ ── ✦ 𝐀𝐓𝐓𝐏 ✦ ── ❖\n\n❌ *Text Missing*\nPlease provide text to animate.\n\n👉 *Example:* \`${extra.prefix || '.'}attp Hello World\`\n╰━━━━━━━━━━━━━━━━━━━━━━━`);
       }
       
       const text = args.join(' ');
       if (text.length > 50) {
-        return extra.reply('❌ Text is too long! Maximum 50 characters.');
+        return extra.reply('❖ ── ✦ 𝐀𝐓𝐓𝐏 ✦ ── ❖\n\n❌ *Text Limit Exceeded*\nMaximum 50 characters allowed.\n╰━━━━━━━━━━━━━━━━━━━━━━━');
       }
       
+      // Sending a wait reaction
+      if (extra.react) await extra.react('⏳');
+
       try {
-        const mp4Buffer = await renderBlinkingVideoWithFfmpeg(text);
-        const webpBuffer = await writeExifVid(mp4Buffer, { packname: 'Knight Bot' });
+        // Generate the transparent WEBM buffer
+        const webmBuffer = await renderBlinkingVideoWithFfmpeg(text);
+        
+        // Convert to WebP sticker with Exif (Author Metadata)
+        const webpBuffer = await writeExifVid(webmBuffer, { packname: 'Kosem Bot', author: 'Gohar' });
+        
+        // Send the final sticker
         await sock.sendMessage(extra.from, { sticker: webpBuffer }, { quoted: msg });
+        
+        // Success reaction
+        if (extra.react) await extra.react('✅');
+
       } catch (error) {
         console.error('Error generating attp sticker:', error);
-        await extra.reply('❌ Failed to generate the sticker.');
+        await extra.reply('❖ ── ✦ 𝐄𝐑𝐑𝐎𝐑 ✦ ── ❖\n\n❌ Failed to generate the animated sticker.\n╰━━━━━━━━━━━━━━━━━━━━━━━');
       }
     } catch (error) {
       console.error('ATTP command error:', error);
-      await extra.reply('❌ An error occurred while creating animated sticker!');
+      await extra.reply('❖ ── ✦ 𝐄𝐑𝐑𝐎𝐑 ✦ ── ❖\n\n❌ An unexpected error occurred while creating the sticker!\n╰━━━━━━━━━━━━━━━━━━━━━━━');
     }
   }
 };
@@ -60,32 +72,49 @@ function renderBlinkingVideoWithFfmpeg(text) {
       ? fontPath.replace(/\\/g, '/').replace(':', '\\:')
       : fontPath;
 
-    // Blink cycle length (seconds) and fast delay ~0.1s per color
-    const cycle = 0.3;
-    const dur = 1.8; // 6 cycles
+    // 🚀 RGB GAMING LOGIC (6 Colors Rapid Cycle)
+    const dur = 1.8; 
+    const cycle = 0.6; // Pura cycle 0.6 sec ka, har color 0.1 sec dikhega
 
-    const drawRed = `drawtext=fontfile='${safeFontPath}':text='${safeText}':fontcolor=red:borderw=2:bordercolor=black@0.6:fontsize=56:x=(w-text_w)/2:y=(h-text_h)/2:enable='lt(mod(t\\,${cycle})\\,0.1)'`;
-    const drawBlue = `drawtext=fontfile='${safeFontPath}':text='${safeText}':fontcolor=blue:borderw=2:bordercolor=black@0.6:fontsize=56:x=(w-text_w)/2:y=(h-text_h)/2:enable='between(mod(t\\,${cycle})\\,0.1\\,0.2)'`;
-    const drawGreen = `drawtext=fontfile='${safeFontPath}':text='${safeText}':fontcolor=green:borderw=2:bordercolor=black@0.6:fontsize=56:x=(w-text_w)/2:y=(h-text_h)/2:enable='gte(mod(t\\,${cycle})\\,0.2)'`;
+    // Function to generate premium 3D text layers
+    const getDrawText = (color, startTime, endTime, isLast = false) => {
+      // borderw=4 (Thick White Outline), shadowx/y=5 (3D Black Drop Shadow)
+      const enableCondition = isLast 
+        ? `gte(mod(t\\,${cycle})\\,${startTime})` 
+        : `between(mod(t\\,${cycle})\\,${startTime}\\,${endTime})`;
 
-    const filter = `${drawRed},${drawBlue},${drawGreen}`;
+      return `drawtext=fontfile='${safeFontPath}':text='${safeText}':fontcolor=${color}:borderw=4:bordercolor=white:shadowcolor=black@0.8:shadowx=5:shadowy=5:fontsize=75:x=(w-text_w)/2:y=(h-text_h)/2:enable='${enableCondition}'`;
+    };
 
+    // Generating 6 Color Layers
+    const drawRed     = getDrawText('red', 0, 0.1);
+    const drawYellow  = getDrawText('yellow', 0.1, 0.2);
+    const drawGreen   = getDrawText('#00FF00', 0.2, 0.3); // Neon Green
+    const drawCyan    = getDrawText('cyan', 0.3, 0.4);
+    const drawBlue    = getDrawText('#0088FF', 0.4, 0.5); // Vibrant Blue
+    const drawMagenta = getDrawText('magenta', 0.5, 0.6, true);
+
+    const filter = `${drawRed},${drawYellow},${drawGreen},${drawCyan},${drawBlue},${drawMagenta}`;
+
+    // 🚀 THE MAGIC: Output transparent WEBM instead of solid MP4
     const args = [
       '-y',
       '-f', 'lavfi',
-      '-i', `color=c=black:s=512x512:d=${dur}:r=20`,
+      // black@0 means 100% transparent background
+      '-i', `color=c=black@0:s=512x512:d=${dur}:r=20,format=rgba`,
       '-vf', filter,
-      '-c:v', 'libx264',
-      '-pix_fmt', 'yuv420p',
-      '-movflags', '+faststart+frag_keyframe+empty_moov',
+      '-c:v', 'libvpx-vp9', // Codec that supports transparency
+      '-pix_fmt', 'yuva420p', // 'a' stands for Alpha (Transparency)
+      '-auto-alt-ref', '0',
       '-t', String(dur),
-      '-f', 'mp4',
+      '-f', 'webm',
       'pipe:1'
     ];
 
     const ff = spawn('ffmpeg', args);
     const chunks = [];
     const errors = [];
+    
     ff.stdout.on('data', d => chunks.push(d));
     ff.stderr.on('data', e => errors.push(e));
     ff.on('error', reject);
