@@ -14,12 +14,7 @@ module.exports = {
       const isOwner = config.ownerNumber.includes(senderNumber);
       
       if (!isOwner) {
-        return extra.reply('👑 *Owner Only!*\nThis command is restricted to the bot owner.');
-      }
-
-      // Initialize global state
-      if (typeof global.presenceInterval === 'undefined') {
-        global.presenceInterval = null;
+        return extra.reply('❖ ── ✦ 𝐀𝐂𝐂𝐄𝐒𝐒 𝐃𝐄𝐍𝐈𝐄𝐃 ✦ ── ❖\n\n👑 *Owner Only!*\n╰━━━━━━━━━━━━━━━━━━━━━');
       }
 
       const action = args[0]?.toLowerCase();
@@ -29,30 +24,49 @@ module.exports = {
         if (global.presenceInterval) clearInterval(global.presenceInterval);
         
         await sock.sendPresenceUpdate('available');
+        
+        // Interval to force ONLINE
         global.presenceInterval = setInterval(async () => {
           try { await sock.sendPresenceUpdate('available'); } catch (e) {}
         }, 30000);
         
-        return extra.reply('✅ *Status: ONLINE 24/7*\nYour contacts will see you as sitting on WhatsApp 24/7 (Always Online) 🟢');
+        const replyTxt = `❖ ── ✦ 𝐒𝐓𝐀𝐓𝐔𝐒 ✦ ── ❖\n\n` +
+                         `🟢 *Always Online:* ON\n` +
+                         `_You will look online 24/7._\n` +
+                         `╰━━━━━━━━━━━━━━━━━━━━━`;
+        return extra.reply(replyTxt);
         
       } else if (action === 'off') {
-        // 📱 NORMAL PHONE MODE (Bot stops interfering)
-        if (global.presenceInterval) {
-            clearInterval(global.presenceInterval);
-            global.presenceInterval = null;
-        }
+        // 📱 STRICT OFFLINE MODE
+        if (global.presenceInterval) clearInterval(global.presenceInterval);
         
-        // 🚀 THE FIX: Bot apna presence 'unavailable' kar dega taake aapka asli phone control le sakay!
         await sock.sendPresenceUpdate('unavailable'); 
-        return extra.reply('🔄 *Status: NORMAL MODE*\nThe bot has stopped interfering with your Last Seen. Your original phone settings will now apply 📱');
+        
+        // 🚀 Auto-Offline loop so WhatsApp never makes you online
+        global.presenceInterval = setInterval(async () => {
+          try { await sock.sendPresenceUpdate('unavailable'); } catch (e) {}
+        }, 30000);
+
+        const replyTxt = `❖ ── ✦ 𝐒𝐓𝐀𝐓𝐔𝐒 ✦ ── ❖\n\n` +
+                         `🔴 *Always Online:* OFF\n` +
+                         `_Bot will not show you online._\n` +
+                         `╰━━━━━━━━━━━━━━━━━━━━━`;
+        return extra.reply(replyTxt);
 
       } else {
-        return extra.reply('❓ *Invalid Usage!*\nOptions:\n👉 `.alwaysonline on` (Show 24/7 Online)\n👉 `.alwaysonline off` (Normal phone behavior)');
+        // Invalid Usage
+        const replyTxt = `❖ ── ✦ 𝐒𝐓𝐀𝐓𝐔𝐒 ✦ ── ❖\n\n` +
+                         `❓ *Wrong Command*\n\n` +
+                         `Type:\n` +
+                         `👉 \`.online on\`\n` +
+                         `👉 \`.online off\`\n` +
+                         `╰━━━━━━━━━━━━━━━━━━━━━`;
+        return extra.reply(replyTxt);
       }
       
     } catch (err) {
       console.error('Error in alwaysonline command:', err);
-      return extra.reply('❌ Error: Could not update status.');
+      return extra.reply('❖ ── ✦ 𝐄𝐑𝐑𝐎𝐑 ✦ ── ❖\n\n❌ Action Failed.\n╰━━━━━━━━━━━━━━━━━━━━━');
     }
   }
 };
