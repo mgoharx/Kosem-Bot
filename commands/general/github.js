@@ -1,90 +1,56 @@
 /**
- * GitHub Command - Show bot GitHub repository and stats
+ * Source Code Command - Premium Private UI (English)
  */
 
-const axios = require('axios');
 const config = require('../../config');
 
 module.exports = {
     name: 'github',
     aliases: ['repo', 'git', 'source', 'sc', 'script'],
     category: 'general',
-    description: 'Show bot GitHub repository and statistics',
-    usage: '.github',
+    description: 'Show bot source code info',
+    usage: '.script',
     ownerOnly: false,
 
     async execute(sock, msg, args, extra) {
         try {
             const chatId = extra.from;
+            const botName = config.botName || 'Kosem Bot';
+            const ownerNames = Array.isArray(config.ownerName) ? config.ownerName.join(', ') : (config.ownerName || 'Muhammad Gohar');
             
-            // GitHub repository URL
-            const repoUrl = 'https://github.com/mruniquehacker/KnightBot-Mini';
-            const apiUrl = 'https://api.github.com/repos/mruniquehacker/KnightBot-Mini';
+            // ⏳ Reaction for processing
+            if (extra.react) await extra.react('⏳');
             
-            // Send loading message
-            const loadingMsg = await extra.reply('🔍 Fetching GitHub repository information...');
+            // VIP Premium Format (Private Repo - Fully English)
+            let message = `❖ ── ✦ 𝐒𝐎𝐔𝐑𝐂𝐄 𝐂𝐎𝐃𝐄 ✦ ── ❖\n\n`;
+            message += `🤖 *Bot Name:* ${botName}\n`;
+            message += `👑 *Developer:* ${ownerNames}\n`;
+            message += `🔒 *Status:* Private & Exclusive\n\n`;
             
-            try {
-                // Fetch repository data from GitHub API
-                const response = await axios.get(apiUrl, {
-                    headers: {
-                        'User-Agent': 'KnightBot-Mini'
+            message += `⚠️ *Note:* The GitHub repository and source code for this bot are strictly *Private* and are not available to the public.\n\n`;
+            message += `Join our official channel for the latest updates!\n\n`;
+            message += `╰━━━━━━━━━━━━━━━━━━`;
+            
+            // Send final message with Channel Button
+            await sock.sendMessage(chatId, {
+                text: message,
+                contextInfo: {
+                    forwardingScore: 999,
+                    isForwarded: true,
+                    forwardedNewsletterMessageInfo: {
+                        newsletterJid: '120363427491383372@newsletter', // Aapke channel ki JID
+                        newsletterName: `✨ ${botName} Official`,
+                        serverMessageId: -1
                     }
-                });
-                
-                const repo = response.data;
-                
-                // Format the response with proper styling
-                let message = `╭━━『 *GitHub Repository* 』━━╮\n\n`;
-                message += `🤖 *Bot Name:* ${config.botName}\n`;
-                message += `🔗 *Repository:* ${repo.name}\n`;
-                message += `👨‍💻 *Owner:* ${repo.owner.login}\n`;
-                message += `📄 *Description:* ${repo.description || 'No description provided'}\n`;
-                message += `🌐 *URL:* ${repo.html_url}\n\n`;
-                
-                message += `📊 *Repository Statistics*\n`;
-                message += `⭐ *Stars:* ${repo.stargazers_count.toLocaleString()}\n`;
-                message += `🍴 *Forks:* ${repo.forks_count.toLocaleString()}\n`;
-                message += `👁️ *Watchers:* ${repo.watchers_count.toLocaleString()}\n`;
-                message += `📦 *Size:* ${(repo.size / 1024).toFixed(2)} MB\n\n`;
-                
-                message += `🔗 *Quick Links*\n`;
-                message += `⭐ Star: ${repo.html_url}/stargazers\n`;
-                message += `🍴 Fork: ${repo.html_url}/fork\n`;
-                message += `📥 Clone: git clone ${repo.clone_url}\n\n`;
-                
-                message += `╰━━━━━━━━━━━━━━━╯\n\n`;
-                message += `> *ᴘᴏᴡᴇʀᴇᴅ ʙʏ ${config.botName}*`;
-                
-                // Edit the loading message with the actual data
-                await sock.sendMessage(chatId, {
-                    text: message,
-                    edit: loadingMsg.key
-                });
-                
-            } catch (apiError) {
-                // Fallback message if API fails
-                console.error('GitHub API Error:', apiError.message);
-                
-                let fallbackMessage = `╭━━『 *GitHub Repository* 』━━╮\n\n`;
-                fallbackMessage += `🤖 *Bot Name:* ${config.botName}\n`;
-                fallbackMessage += `🔗 *Repository:* KnightBot-Mini\n`;
-                fallbackMessage += `👨‍💻 *Owner:* mruniquehacker\n`;
-                fallbackMessage += `🌐 *URL:* ${repoUrl}\n\n`;
-                fallbackMessage += `⚠️ *Note:* Unable to fetch real-time statistics.\n`;
-                fallbackMessage += `Please visit the repository directly for latest stats.\n\n`;
-                fallbackMessage += `╰━━━━━━━━━━━━━━━╯\n\n`;
-                fallbackMessage += `> *ᴘᴏᴡᴇʀᴇᴅ ʙʏ ${config.botName}*`;
-                
-                await sock.sendMessage(chatId, {
-                    text: fallbackMessage,
-                    edit: loadingMsg.key
-                });
-            }
+                }
+            }, { quoted: msg });
+            
+            // ✅ Reaction for success
+            if (extra.react) await extra.react('✅');
             
         } catch (error) {
-            console.error('GitHub command error:', error);
-            await extra.reply(`❌ Error: ${error.message}`);
+            console.error('Source code command error:', error);
+            await extra.reply('❖ ── ✦ 𝐄𝐑𝐑𝐎𝐑 ✦ ── ❖\n\n❌ Failed to fetch info.\n╰━━━━━━━━━━━━━━━━━━');
         }
     }
 };
