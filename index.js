@@ -12,8 +12,9 @@ if (typeof global.isAlwaysOnline === 'undefined') {
 global.isBotReady = false; // System lock until 100% processed
 
 // ==========================================
-// 🔇 ULTIMATE NOISE SUPPRESSOR (Hides WhatsApp Crypto Spam)
+// 🔇 ULTIMATE NOISE SUPPRESSOR (Advanced)
 // ==========================================
+const util = require('util');
 const originalConsoleLog = console.log;
 const originalConsoleError = console.error;
 const originalConsoleWarn = console.warn;
@@ -25,24 +26,23 @@ const noisyLogs = [
     'ephemeralKeyPair', 'rootKey', 'baseKey'
 ];
 
+// Objects ko string bana kar unke andar se bhi spam words filter karega
 console.log = (...args) => {
-  const logStr = args.map(a => typeof a === 'string' ? a : String(a)).join(' ');
+  const logStr = args.map(a => typeof a === 'string' ? a : util.inspect(a)).join(' ');
   if (noisyLogs.some(noise => logStr.includes(noise))) return;
   originalConsoleLog.apply(console, args);
 };
 console.error = (...args) => {
-  const logStr = args.map(a => typeof a === 'string' ? a : String(a)).join(' ');
+  const logStr = args.map(a => typeof a === 'string' ? a : util.inspect(a)).join(' ');
   if (noisyLogs.some(noise => logStr.includes(noise))) return;
   originalConsoleError.apply(console, args);
 };
 console.warn = (...args) => {
-  const logStr = args.map(a => typeof a === 'string' ? a : String(a)).join(' ');
+  const logStr = args.map(a => typeof a === 'string' ? a : util.inspect(a)).join(' ');
   if (noisyLogs.some(noise => logStr.includes(noise))) return;
   originalConsoleWarn.apply(console, args);
 };
 // ==========================================
-
-const BOT_START_TIME = Date.now();
 
 const { initializeTempSystem } = require('./utils/tempManager');
 const { startCleanup } = require('./utils/cleanup');
@@ -83,8 +83,7 @@ const store = {
       if (type !== 'notify') return; 
       for (const msg of messages) {
         if (!msg.key?.id) continue;
-        if (msg.messageTimestamp && (msg.messageTimestamp * 1000) < BOT_START_TIME) continue;
-
+        
         const jid = msg.key.remoteJid;
         if (!store.messages.has(jid)) {
           store.messages.set(jid, new Map());
@@ -118,7 +117,7 @@ async function sendPremiumBootMessage(sock) {
                          `👑 *Owner:* ${ownerNames}\n` +
                          `🟢 *Status:* Active\n\n` +
                          `📝 *Description:* This is an advanced WhatsApp bot made by Muhammad Gohar.\n` +
-                         `╰━━━━━━━━━━━━━━━━━━━━`;
+                         `╰━━━━━━━━━━━━━━━━━━━━━━`;
 
         await sock.sendMessage(myJid, {
           text: bootText,
@@ -186,7 +185,7 @@ async function startBot() {
     }
   }, 5 * 60 * 1000);
 
-  // 🚀 THE ULTIMATE PRESENCE ENFORCER (Runs smoothly in background, no lag!)
+  // 🚀 THE ULTIMATE PRESENCE ENFORCER
   setInterval(async () => {
     if (!global.isBotReady || !sock) return;
     try {
@@ -205,8 +204,8 @@ async function startBot() {
       let shouldReconnect = statusCode !== DisconnectReason.loggedOut;
 
       if (statusCode === 409 || errorMessage.toLowerCase().includes('conflict')) {
-        console.log('\n🚨 CRITICAL: Stream Conflict Detected (409)! Killing process...');
-        process.exit(1); 
+        console.log('\n🚨 CRITICAL: Stream Conflict Detected (409)! Killing ghost process to clear database...');
+        process.exit(1); // 👈 YEH HAMARA HERO HAI!
       } else {
         if (shouldReconnect) setTimeout(() => startBot(), 3000);
       }
@@ -219,7 +218,7 @@ async function startBot() {
       await sock.sendPresenceUpdate('unavailable'); // Force offline instantly
 
       // ==========================================
-      // 🚀 THE FIX: PROCESSING BAR (No more hang issues!)
+      // 🚀 PROCESSING BAR & QUEUE DRAINER
       // ==========================================
       console.log('\n🔄 Clearing backlog and setting up system...');
       let progress = 0;
@@ -238,7 +237,7 @@ async function startBot() {
           global.isBotReady = true; // Unlock the bot for commands
           sendPremiumBootMessage(sock); // Now send the message!
         }
-      }, 1000); // 10 second shield to clear the event queue safely
+      }, 1000); // 10 second shield
       // ==========================================
     }
   });
@@ -256,9 +255,18 @@ async function startBot() {
     // 🚀 SYSTEM LOCK: Drop all messages until progress bar is 100%
     if (!global.isBotReady) return; 
 
+    try {
+        if (global.isAlwaysOnline) {
+            await sock.sendPresenceUpdate('available');
+        } else {
+            await sock.sendPresenceUpdate('unavailable');
+        }
+    } catch(e) {}
+
     for (const msg of messages) {
       if (!msg.message || !msg.key?.id) continue;
-      if (msg.messageTimestamp && (msg.messageTimestamp * 1000) < BOT_START_TIME) continue;
+      
+      // ❌ REMOVED THE TIME CHECK THAT WAS CAUSING THE 15 MIN DELAY!
 
       const from = msg.key.remoteJid;
       if (!from) continue;
@@ -304,7 +312,7 @@ async function startBot() {
       if (isDeletedMessage) {
         try {
           const deletedMsg = await store.loadMessage(key.remoteJid, key.id);
-          if (!deletedMsg || (deletedMsg.messageTimestamp * 1000) < BOT_START_TIME) return;
+          if (!deletedMsg) return; // Time check removed here too for sync
 
           const from = key.remoteJid;
           const myJid = sock.user.id.split(':')[0] + '@s.whatsapp.net';
