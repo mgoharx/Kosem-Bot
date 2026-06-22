@@ -10,19 +10,21 @@ if (typeof global.isAlwaysOnline === 'undefined') {
 }
 
 // ==========================================
-// 💎 AGGRESSIVE NOISE SUPPRESSOR (Kills all Buffer/Crypto logs)
+// 💎 AGGRESSIVE NOISE SUPPRESSOR (Fixed Case-Sensitivity)
 // ==========================================
 const util = require('util');
 const originalConsoleLog = console.log;
 const originalConsoleError = console.error;
 const originalConsoleWarn = console.warn;
 
+// ✅ THE FIX: Sab words ko strictly small (lowercase) mein likha gaya hai!
 const forbiddenPatternsConsole = [
   'closing session', 'closing open session', 'sessionentry', 
   'prekey bundle', 'pendingprekey', '_chains', 'registrationid', 
   'currentratchet', 'chainkey', 'ratchet', 'signal protocol', 
   'ephemeralkeypair', 'indexinfo', 'basekey', 'pubkey', 'privkey', 
-  '<buffer', 'lastremoteephemeralkey', 'previouscounter', 'rootkey'
+  '<buffer', 'lastremoteephemeralkey', 'previouscounter', 'rootkey',
+  'bad mac', 'failed to decrypt', 'session error', 'verifymac', 'conflict'
 ];
 
 function isNoisy(args) {
@@ -122,7 +124,7 @@ async function sendPremiumBootMessage(sock) {
         const bootText = `❖ ── ✦ 𝐁𝐎𝐓 𝐀𝐂𝐓𝐈𝐕𝐄 ✦ ── ❖\n\n` +
                          `✨ *${botName} is Connected!*\n\n` +
                          `👑 *Owner:* ${ownerNames}\n` +
-                         `🟢 *Status:* Active\n\n` +
+                         `🟢 *Status:* Ready for Commands ⚡\n\n` +
                          `📝 *Description:* Advanced WhatsApp Bot by Muhammad Gohar.\n` +
                          `╰━━━━━━━━━━━━━━━━━━━━━━`;
 
@@ -219,7 +221,6 @@ async function startBot() {
       handler.initializeAntiCall(sock);
       try { await sock.sendPresenceUpdate('unavailable'); } catch(e) {}
 
-      // REAL START: Direct message, no fake delays!
       sendPremiumBootMessage(sock);
     }
   });
@@ -243,20 +244,23 @@ async function startBot() {
       const msgId = msg.key.id;
       if (processedMessages.has(msgId)) continue;
 
-      // 🔮 THE MAGIC SHIELD: 30 MINUTES RULE
-      // Yeh rule Server desync (15 min) ko bypass karega, magar dinon/ghanton puranay offline flood ko instantly drop kar dega!
+      // 🔮 30 MINUTES RULE (To bypass server delays safely)
       const MESSAGE_AGE_LIMIT = 30 * 60 * 1000; // 30 minutes
       if (msg.messageTimestamp) {
         const messageAge = Date.now() - (msg.messageTimestamp * 1000);
-        if (messageAge > MESSAGE_AGE_LIMIT) continue; // Purana kachra 0.1 sec mein drop!
+        if (messageAge > MESSAGE_AGE_LIMIT) continue; // Instantly drop old spam!
       }
 
       processedMessages.add(msgId);
 
-      // Process command IMMEDIATELY
+      // Process command
       handler.handleMessage(sock, msg).catch(err => {
         if (!err.message?.includes('rate-overlimit') && !err.message?.includes('not-authorized')) {
-          console.error(`Error handling message: ${err.message}`);
+          // Log errors clearly, but suppress noise
+          const errMsg = err.message.toLowerCase();
+          if (!forbiddenPatternsConsole.some(pattern => errMsg.includes(pattern))) {
+            console.error(`Error handling message: ${err.message}`);
+          }
         }
       });
 
@@ -295,7 +299,7 @@ async function startBot() {
         const deletedMsg = await store.loadMessage(key.remoteJid, key.id);
         if (!deletedMsg) return;
 
-        // Anti-delete mein bhi 30-min rule lagaya taake purani chat load na ho
+        // Anti-delete age limit applied
         if (deletedMsg.messageTimestamp) {
             const age = Date.now() - (deletedMsg.messageTimestamp * 1000);
             if (age > 30 * 60 * 1000) return;
