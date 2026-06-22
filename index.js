@@ -116,9 +116,9 @@ async function sendPremiumBootMessage(sock) {
         const bootText = `❖ ── ✦ 𝐁𝐎𝐓 𝐀𝐂𝐓𝐈𝐕𝐄 ✦ ── ❖\n\n` +
                          `✨ *${botName} is successfully connected and Online!*\n\n` +
                          `👑 *Owner:* ${ownerNames}\n` +
-                         `🟢 *Status:* 100% Ready & Fast\n\n` +
+                         `🟢 *Status:* Active\n\n` +
                          `📝 *Description:* This is an advanced WhatsApp bot made by Muhammad Gohar.\n` +
-                         `╰━━━━━━━━━━━━━━━━━━━━━━━`;
+                         `╰━━━━━━━━━━━━━━━━━━━━`;
 
         await sock.sendMessage(myJid, {
           text: bootText,
