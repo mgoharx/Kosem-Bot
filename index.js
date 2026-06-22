@@ -9,15 +9,20 @@ if (typeof global.isAlwaysOnline === 'undefined') {
     global.isAlwaysOnline = false;
 }
 
+// 🚀 REAL-TIME BOOT SYSTEM VARIABLES
+global.isBotReady = false;
+let offlineMsgCount = 0;
+let bootUnlockTimer = null;
+const BOT_START_TIME = Date.now();
+
 // ==========================================
-// 💎 AGGRESSIVE NOISE SUPPRESSOR (Fixed Case-Sensitivity)
+// 💎 AGGRESSIVE NOISE SUPPRESSOR (Kills Crypto Logs)
 // ==========================================
 const util = require('util');
 const originalConsoleLog = console.log;
 const originalConsoleError = console.error;
 const originalConsoleWarn = console.warn;
 
-// ✅ THE FIX: Sab words ko strictly small (lowercase) mein likha gaya hai!
 const forbiddenPatternsConsole = [
   'closing session', 'closing open session', 'sessionentry', 
   'prekey bundle', 'pendingprekey', '_chains', 'registrationid', 
@@ -79,9 +84,10 @@ function cleanupPuppeteerCache() {
   } catch (err) {}
 }
 
+// 🚀 ORIGINAL MEMORY STORE (Lag-Free Anti-Delete base)
 const store = {
   messages: new Map(),
-  maxPerChat: 20, 
+  maxPerChat: 30, 
   bind: (ev) => {
     ev.on('messages.upsert', ({ messages }) => {
       for (const msg of messages) {
@@ -114,7 +120,7 @@ const createSuppressedLogger = (level = 'silent') => {
   return logger;
 };
 
-// 🚀 REAL BOOT MESSAGE
+// 🚀 REAL BOOT MESSAGE (Sent ONLY when Backlog is 100% Cleared)
 async function sendPremiumBootMessage(sock) {
     try {
         const myJid = sock.user.id.split(':')[0] + '@s.whatsapp.net'; 
@@ -140,7 +146,7 @@ async function sendPremiumBootMessage(sock) {
             }
           }
         });
-        console.log('Boot message delivered successfully!');
+        console.log('\n✦ Boot message delivered successfully!');
     } catch (err) {}
 }
 
@@ -184,7 +190,7 @@ async function startBot() {
   sock.ev.on('messages.upsert', () => { lastActivity = Date.now(); });
 
   const watchdogInterval = setInterval(async () => {
-    if (Date.now() - lastActivity > 30 * 60 * 1000 && sock.ws.readyState === 1) {
+    if (Date.now() - lastActivity > 30 * 60 * 1000 && sock.ws?.readyState === 1) {
       await sock.end(undefined, undefined, { reason: 'inactive' });
       clearInterval(watchdogInterval);
       setTimeout(() => startBot(), 5000); 
@@ -192,7 +198,7 @@ async function startBot() {
   }, 5 * 60 * 1000);
 
   setInterval(async () => {
-    if (!sock) return;
+    if (!sock || !global.isBotReady) return;
     try { await sock.sendPresenceUpdate(global.isAlwaysOnline ? 'available' : 'unavailable'); } catch(e) {}
   }, 30000);
 
@@ -208,6 +214,7 @@ async function startBot() {
     if (qr) qrcode.generate(qr, { small: true });
 
     if (connection === 'close') {
+      global.isBotReady = false; 
       const statusCode = lastDisconnect?.error?.output?.statusCode;
       if (statusCode === 409 || String(lastDisconnect?.error).includes('conflict')) {
         process.exit(1); 
@@ -221,7 +228,13 @@ async function startBot() {
       handler.initializeAntiCall(sock);
       try { await sock.sendPresenceUpdate('unavailable'); } catch(e) {}
 
-      sendPremiumBootMessage(sock);
+      // 🚀 START THE REAL DRAINER TIMER
+      // Agar bot start honay ke 4 second tak koi message nahi aata, toh system foran unlock ho jayega
+      bootUnlockTimer = setTimeout(() => {
+          global.isBotReady = true;
+          console.log(`\n✦ ✅ System Unlocked! No pending messages found.`);
+          sendPremiumBootMessage(sock);
+      }, 4000);
     }
   });
 
@@ -230,7 +243,7 @@ async function startBot() {
   const isSystemJid = (jid) => !jid || jid.includes('@broadcast') || jid.includes('status.broadcast') || jid.includes('@newsletter');
 
   // ==========================================
-  // 🚀 ORIGINAL COMMAND HANDLER (30-Min Golden Rule)
+  // 🚀 HIGH-SPEED COMMAND HANDLER (CPU Saver)
   // ==========================================
   sock.ev.on('messages.upsert', ({ messages, type }) => {
     if (type !== 'notify') return;
@@ -238,25 +251,47 @@ async function startBot() {
     for (const msg of messages) {
       if (!msg.message || !msg.key?.id) continue;
 
+      // 🛑 REAL-TIME OFFLINE DRAINER LOGIC
+      // Agar message old hai (bot start hone se pichlay waqt ka)
+      const isOldMessage = msg.messageTimestamp && (msg.messageTimestamp * 1000) < BOT_START_TIME;
+
+      if (!global.isBotReady) {
+          if (isOldMessage) {
+              offlineMsgCount++;
+              // Yeh line console mein real-time counter chalayegi!
+              process.stdout.write(`\r✦ 📥 Processing Offline Backlog: ${offlineMsgCount} messages drained... `);
+              
+              // Flood aane par timer reset karo. Jab flood rukega (3 sec shanti), tab bot unlock hoga!
+              clearTimeout(bootUnlockTimer);
+              bootUnlockTimer = setTimeout(() => {
+                  global.isBotReady = true;
+                  console.log(`\n✦ ✅ Backlog Cleared! Total ${offlineMsgCount} old messages bypassed safely.`);
+                  sendPremiumBootMessage(sock);
+              }, 3000); 
+              
+              // THE CPU SAVER: Puranay message ko command ke liye handler mein MAT bhejo! Speed 1000x fast.
+              continue; 
+          }
+      }
+
+      // Agar system abhi ready nahi hai aur naya message bhi aa gaya hai, toh usko block karo taake lag na ho
+      if (!global.isBotReady) continue;
+
+      // --- YAHAN SE SIRF NAYE MESSAGES PASS HONGE ---
+
       const from = msg.key.remoteJid;
       if (!from || isSystemJid(from)) continue;
 
       const msgId = msg.key.id;
       if (processedMessages.has(msgId)) continue;
-
-      // 🔮 30 MINUTES RULE (To bypass server delays safely)
-      const MESSAGE_AGE_LIMIT = 30 * 60 * 1000; // 30 minutes
-      if (msg.messageTimestamp) {
-        const messageAge = Date.now() - (msg.messageTimestamp * 1000);
-        if (messageAge > MESSAGE_AGE_LIMIT) continue; // Instantly drop old spam!
-      }
-
       processedMessages.add(msgId);
 
-      // Process command
+      // 🔮 Server Time Desync Bypass
+      msg.messageTimestamp = Math.floor(Date.now() / 1000); 
+
+      // Send to handler
       handler.handleMessage(sock, msg).catch(err => {
         if (!err.message?.includes('rate-overlimit') && !err.message?.includes('not-authorized')) {
-          // Log errors clearly, but suppress noise
           const errMsg = err.message.toLowerCase();
           if (!forbiddenPatternsConsole.some(pattern => errMsg.includes(pattern))) {
             console.error(`Error handling message: ${err.message}`);
@@ -282,9 +317,12 @@ async function startBot() {
   sock.ev.on('message-receipt.update', () => { });
 
   // ==========================================
-  // 🔴 ANTI-DELETE (Synchronized with 30-Min Rule)
+  // 🔴 ANTI-DELETE ENGINE
   // ==========================================
   sock.ev.on('messages.update', async (chatUpdate) => {
+    // Prevent Anti-Delete from choking the system during the boot drain
+    if (!global.isBotReady) return; 
+
     for (const { key, update } of chatUpdate) {
       
       let isDeletedMessage = false;
@@ -298,12 +336,6 @@ async function startBot() {
       try {
         const deletedMsg = await store.loadMessage(key.remoteJid, key.id);
         if (!deletedMsg) return;
-
-        // Anti-delete age limit applied
-        if (deletedMsg.messageTimestamp) {
-            const age = Date.now() - (deletedMsg.messageTimestamp * 1000);
-            if (age > 30 * 60 * 1000) return;
-        }
 
         const from = key.remoteJid;
         const myJid = sock.user.id.split(':')[0] + '@s.whatsapp.net';
@@ -367,6 +399,7 @@ async function startBot() {
   });
 
   sock.ev.on('group-participants.update', async (update) => {
+    if (!global.isBotReady) return;
     try { await handler.handleGroupUpdate(sock, update); } catch(e){}
   });
 
