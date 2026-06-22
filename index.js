@@ -5,14 +5,15 @@ process.env.PUPPETEER_SKIP_DOWNLOAD = 'true';
 process.env.PUPPETEER_SKIP_CHROMIUM_DOWNLOAD = 'true';
 process.env.PUPPETEER_CACHE_DIR = process.env.PUPPETEER_CACHE_DIR || '/tmp/puppeteer_cache_disabled';
 
-// 🚀 GLOBAL VARIABLES (For Boot & Presence Control)
+// 🚀 GLOBAL VARIABLES
 if (typeof global.isAlwaysOnline === 'undefined') {
     global.isAlwaysOnline = false; // Default is strictly OFFLINE
 }
-global.isBotReady = false; // System lock until 100% processed
+global.isBotReady = false; // Strict system lock
+global.bootPingText = null; // Verification Code
 
 // ==========================================
-// 🔇 ULTIMATE NOISE SUPPRESSOR (Advanced)
+// 🔇 ULTIMATE NOISE SUPPRESSOR
 // ==========================================
 const util = require('util');
 const originalConsoleLog = console.log;
@@ -42,6 +43,8 @@ console.warn = (...args) => {
   originalConsoleWarn.apply(console, args);
 };
 // ==========================================
+
+const BOT_START_TIME = Date.now();
 
 const { initializeTempSystem } = require('./utils/tempManager');
 const { startCleanup } = require('./utils/cleanup');
@@ -114,9 +117,9 @@ async function sendPremiumBootMessage(sock) {
         const bootText = `❖ ── ✦ 𝐁𝐎𝐓 𝐀𝐂𝐓𝐈𝐕𝐄 ✦ ── ❖\n\n` +
                          `✨ *${botName} is successfully connected and Online!*\n\n` +
                          `👑 *Owner:* ${ownerNames}\n` +
-                         `🟢 *Status:* Active\n\n` +
+                         `🟢 *Status:* Verified & Fast\n\n` +
                          `📝 *Description:* This is an advanced WhatsApp bot made by Muhammad Gohar.\n` +
-                         `╰━━━━━━━━━━━━━━━━━━━━━━`;
+                         `╰━━━━━━━━━━━━━━━━━━━━━━━`;
 
         await sock.sendMessage(myJid, {
           text: bootText,
@@ -184,7 +187,7 @@ async function startBot() {
     }
   }, 5 * 60 * 1000);
 
-  // 🚀 THE ULTIMATE PRESENCE ENFORCER (Runs in background smoothly)
+  // 🚀 THE ULTIMATE PRESENCE ENFORCER
   setInterval(async () => {
     if (!global.isBotReady || !sock) return;
     try {
@@ -203,7 +206,7 @@ async function startBot() {
       let shouldReconnect = statusCode !== DisconnectReason.loggedOut;
 
       if (statusCode === 409 || errorMessage.toLowerCase().includes('conflict')) {
-        console.log('\n🚨 CRITICAL: Stream Conflict Detected (409)! Killing ghost process to clear database...');
+        console.log('\n🚨 CRITICAL: Stream Conflict Detected (409)! Killing ghost process...');
         process.exit(1); 
       } else {
         if (shouldReconnect) setTimeout(() => startBot(), 3000);
@@ -217,26 +220,28 @@ async function startBot() {
       await sock.sendPresenceUpdate('unavailable'); // Force offline instantly
 
       // ==========================================
-      // 🚀 PROCESSING BAR & QUEUE DRAINER
+      // 🚀 THE FIX: SELF-PING VERIFICATION SYSTEM
       // ==========================================
-      console.log('\n🔄 Clearing backlog and setting up system...');
-      let progress = 0;
+      console.log('\n🔄 Sending self-ping to verify real-time connection...');
+      global.bootPingText = `[KOSEM_SYSTEM_VERIFY_${Date.now()}]`;
+      const myJid = sock.user.id.split(':')[0] + '@s.whatsapp.net';
       
-      const bootInterval = setInterval(() => {
-        progress += 10;
-        const filled = Math.floor(progress / 10);
-        const empty = 10 - filled;
-        process.stdout.write(`\r⏳ Processing: [${'█'.repeat(filled)}${'░'.repeat(empty)}] ${progress}%`);
-        
-        if (progress >= 100) {
-          clearInterval(bootInterval);
-          process.stdout.write('\n'); 
-          console.log('🚀 System is 100% READY and Active!\n');
-          
-          global.isBotReady = true; // Unlock the bot for commands
-          sendPremiumBootMessage(sock); 
-        }
-      }, 1000); // 10 second shield
+      try {
+          await sock.sendMessage(myJid, { text: global.bootPingText });
+      } catch (err) {
+          console.log('⚠️ Failed to send ping, forcing unlock...');
+          global.isBotReady = true;
+          sendPremiumBootMessage(sock);
+      }
+
+      // Fallback unlocker if WhatsApp server is extremely lagging (20 seconds max)
+      setTimeout(() => {
+          if (!global.isBotReady) {
+              console.log('⚠️ Ping timeout reached. Unlocking system safely.');
+              global.isBotReady = true;
+              sendPremiumBootMessage(sock);
+          }
+      }, 20000);
       // ==========================================
     }
   });
@@ -250,33 +255,45 @@ async function startBot() {
 
   sock.ev.on('messages.upsert', async ({ messages, type }) => {
     if (type !== 'notify') return;
-    
-    // 🚀 SYSTEM LOCK: Drop all messages until progress bar is 100%
-    if (!global.isBotReady) return; 
+
+    try {
+        if (global.isBotReady) {
+            await sock.sendPresenceUpdate(global.isAlwaysOnline ? 'available' : 'unavailable');
+        }
+    } catch(e) {}
 
     for (const msg of messages) {
       if (!msg.message || !msg.key?.id) continue;
       
-      // 🚀 THE MAGIC FIX FOR THE DELAY!
-      // Agar message 5 minute (300 seconds) se purana hai, tabhi ignore hoga. 
-      // Server Time Glitch is se 100% fix ho jayega aur current commands miss nahi hongi!
-      const msgTime = msg.messageTimestamp || 0;
-      const currentTime = Math.floor(Date.now() / 1000);
-      if (msgTime > 0 && (currentTime - msgTime) > 300) {
-          continue; 
-      }
-
       const from = msg.key.remoteJid;
       if (!from) continue;
 
+      const originalText = msg.message?.conversation || 
+                           msg.message?.extendedTextMessage?.text || "";
+
+      // 🚀 SYSTEM LOCK & PING CHECKER
+      if (!global.isBotReady) {
+          // Check if this message is our verification ping
+          if (originalText === global.bootPingText) {
+              console.log('✅ Self-Ping Received! Backlog cleared. System is 100% verified.');
+              global.isBotReady = true; // UNLOCK THE SYSTEM
+              
+              // Chupke se apna ping delete kar do taake chat clean rahay
+              try { await sock.sendMessage(from, { delete: msg.key }); } catch (e) {}
+              
+              // Ab asal Boot message bhejo
+              sendPremiumBootMessage(sock);
+          }
+          continue; // DRAIN THE BACKLOG: Jab tak ping na mile, baki sab purana kachra reject karo!
+      }
+
+      // --- Normal Fast Processing (Only happens AFTER verification) ---
       const msgId = msg.key.id;
       if (processedMessages.has(msgId)) continue;
       processedMessages.add(msgId);
 
       if (!isSystemJid(from)) {
-        handler.handleMessage(sock, msg).catch(err => {
-            console.error('Command Error:', err.message);
-        });
+        handler.handleMessage(sock, msg).catch(err => {});
 
         setImmediate(async () => {
           if (config.autoRead && from.endsWith('@g.us')) {
@@ -300,7 +317,7 @@ async function startBot() {
   // 🔴 ANTI-DELETE & ANTI-STATUS SYSTEM
   // ==========================================
   sock.ev.on('messages.update', async (chatUpdate) => {
-    if (!global.isBotReady) return; // Prevent anti-delete lag during boot
+    if (!global.isBotReady) return; 
 
     for (const { key, update } of chatUpdate) {
       let isDeletedMessage = false;
@@ -314,6 +331,13 @@ async function startBot() {
           const deletedMsg = await store.loadMessage(key.remoteJid, key.id);
           if (!deletedMsg) return;
 
+          let msgObj = deletedMsg.message;
+          if (!msgObj) return;
+
+          // 🚀 IGNORE SYSTEM PING DELETION IN ANTI-DELETE
+          const deletedText = msgObj.conversation || msgObj.extendedTextMessage?.text || "";
+          if (deletedText.includes('KOSEM_SYSTEM_VERIFY_')) return;
+
           const from = key.remoteJid;
           const myJid = sock.user.id.split(':')[0] + '@s.whatsapp.net';
 
@@ -321,9 +345,9 @@ async function startBot() {
           if (!rawSender) return;
           const cleanSender = rawSender.includes(':') ? rawSender.split(':')[0] + '@s.whatsapp.net' : rawSender;
           const senderNumber = cleanSender.split('@')[0];
-
-          let msgObj = deletedMsg.message;
-          if (!msgObj) return;
+          
+          // 🚀 IGNORE BOT'S OWN DELETES TO PREVENT LOOPS
+          if (cleanSender === myJid) return;
 
           if (msgObj.ephemeralMessage) msgObj = msgObj.ephemeralMessage.message;
           if (msgObj.viewOnceMessage) msgObj = msgObj.viewOnceMessage.message;
