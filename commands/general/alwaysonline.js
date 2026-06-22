@@ -32,7 +32,6 @@ module.exports = {
         
         const replyTxt = `❖ ── ✦ 𝐒𝐓𝐀𝐓𝐔𝐒 ✦ ── ❖\n\n` +
                          `🟢 *Always Online:* ON\n` +
-                         `_You will look online 24/7._\n` +
                          `╰━━━━━━━━━━━━━━━━━━━━━`;
         return extra.reply(replyTxt);
         
@@ -49,7 +48,6 @@ module.exports = {
 
         const replyTxt = `❖ ── ✦ 𝐒𝐓𝐀𝐓𝐔𝐒 ✦ ── ❖\n\n` +
                          `🔴 *Always Online:* OFF\n` +
-                         `_Bot will not show you online._\n` +
                          `╰━━━━━━━━━━━━━━━━━━━━━`;
         return extra.reply(replyTxt);
 
