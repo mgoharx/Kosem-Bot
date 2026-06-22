@@ -9,6 +9,9 @@ if (typeof global.isAlwaysOnline === 'undefined') {
     global.isAlwaysOnline = false;
 }
 
+// 🚀 IGNITION LOCK (Traffic Controller for Offline Messages)
+global.acceptCommands = false; 
+
 // ==========================================
 // 💎 PREMIUM CONSOLE LOGS (1-Line Clean Format)
 // ==========================================
@@ -76,7 +79,7 @@ function cleanupPuppeteerCache() {
   } catch (err) {}
 }
 
-// 🚀 ORIGINAL MEMORY STORE (Lag-Free)
+// 🚀 ORIGINAL MEMORY STORE (Anti-Delete keeps working without lagging the bot)
 const store = {
   messages: new Map(),
   maxPerChat: 20, 
@@ -186,7 +189,6 @@ async function startBot() {
     }
   }, 5 * 60 * 1000); 
 
-  // Background Presence Enforcer
   setInterval(async () => {
     if (!sock) return;
     try { await sock.sendPresenceUpdate(global.isAlwaysOnline ? 'available' : 'unavailable'); } catch(e) {}
@@ -204,6 +206,7 @@ async function startBot() {
     if (qr) qrcode.generate(qr, { small: true });
 
     if (connection === 'close') {
+      global.acceptCommands = false; // Lock commands on disconnect
       const statusCode = lastDisconnect?.error?.output?.statusCode;
       const shouldReconnect = statusCode !== DisconnectReason.loggedOut;
 
@@ -220,8 +223,17 @@ async function startBot() {
       handler.initializeAntiCall(sock);
       try { await sock.sendPresenceUpdate('unavailable'); } catch(e) {}
 
-      // REAL START: Direct Boot Message
-      sendPremiumBootMessage(sock);
+      // ==========================================
+      // 🚀 THE MAGIC FIX: OFFLINE MESSAGE DRAINER
+      // ==========================================
+      console.log('Draining old offline messages to prevent lag...');
+      
+      // Bot 6 seconds tak puranay messages ko drain karega, uske baad unlock hoga
+      setTimeout(() => {
+          global.acceptCommands = true; // UNLOCK SYSTEM
+          console.log('✅ System Unlocked! Ready to receive new commands instantly.');
+          sendPremiumBootMessage(sock);
+      }, 6000); 
     }
   });
 
@@ -233,7 +245,7 @@ async function startBot() {
   };
 
   // ==========================================
-  // 🚀 YOUR ORIGINAL FAST COMMAND HANDLER
+  // 🚀 FAST COMMAND HANDLER
   // ==========================================
   sock.ev.on('messages.upsert', ({ messages, type }) => {
     if (type !== 'notify') return;
@@ -248,11 +260,12 @@ async function startBot() {
       if (processedMessages.has(msgId)) continue;
       processedMessages.add(msgId);
 
-      // ❌ THE FIX: Age Limit / Timestamp Checking has been COMPLETELY REMOVED!
-      // Pehlay yahan 5-minute wala code tha jo server delay ki wajah se command rokay khara tha.
-      // Ab command aate hi foran handler ko bhej di jayegi.
+      // 🛑 TRAFFIC CONTROLLER: 
+      // Agar bot boot hone ke 6 seconds ke andar hai, toh is message ko command handler mein mat bhejo!
+      // (Kyunke yeh offline flood hai jo bot ko hang karta tha)
+      if (!global.acceptCommands) continue;
 
-      // Process command IMMEDIATELY
+      // Agar system unlocked hai, toh foran command process karo
       handler.handleMessage(sock, msg).catch(err => {
         if (!err.message?.includes('rate-overlimit') && !err.message?.includes('not-authorized')) {
           console.error(`Error handling message: ${err.message}`);
@@ -277,7 +290,7 @@ async function startBot() {
   sock.ev.on('message-receipt.update', () => { });
 
   // ==========================================
-  // 🔴 SAFE ANTI-DELETE SYSTEM (Optimized)
+  // 🔴 SAFE ANTI-DELETE SYSTEM
   // ==========================================
   sock.ev.on('messages.update', async (chatUpdate) => {
     for (const { key, update } of chatUpdate) {
