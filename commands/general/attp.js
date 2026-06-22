@@ -29,7 +29,7 @@ module.exports = {
 
       try {
         const webmBuffer = await renderBlinkingVideoWithFfmpeg(text);
-        const webpBuffer = await writeExifVid(webmBuffer, { packname: 'Knight Bot', author: 'Gohar' });
+        const webpBuffer = await writeExifVid(webmBuffer, { packname: 'Kosem Bot', author: 'Gohar' });
         
         await sock.sendMessage(extra.from, { sticker: webpBuffer }, { quoted: msg });
         if (extra.react) await extra.react('✅');
