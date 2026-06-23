@@ -72,7 +72,6 @@ module.exports = {
       
     } catch (error) {
       console.error('Error in uptime command:', error);
-      // FIXED: Added the missing backtick (`) right before the closing bracket!
       await extra.reply(`❖ ━━━ ✦ 𝐄𝐑𝐑𝐎𝐑 ✦ ━━━ ❖\n\n❌ Failed to fetch uptime.\n╰━━━━━━━━━━━━━━━┈⊷`); 
     }
   }
