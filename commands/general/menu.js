@@ -36,7 +36,7 @@ module.exports = {
       menuText += `👋🏻 *Hello:* @${extra.sender.split('@')[0]}\n`;
       menuText += `👑 *Owner:* ${displayOwner}\n`;
       menuText += `🤖 *Total Commands:* ${commands.size}\n`;
-      menuText += `╰━━━━━━━━━━━━━━━━━━┈⊷\n\n`;
+      menuText += `╰━━━━━━━━━━━━━━━━┈⊷\n\n`;
       
       // 🤖 Bot Commands
       if (categories.bot) {
