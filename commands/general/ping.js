@@ -1,5 +1,5 @@
 /**
- * Ping Command - Check bot response time (Premium UI)
+ * Ping Command - Check bot response time (Perfect UI)
  */
 
 const config = require('../../config');
@@ -7,7 +7,7 @@ const config = require('../../config');
 module.exports = {
     name: 'ping',
     aliases: ['p'],
-    category: 'bot', // 🤖 Shifted to Bot System category
+    category: 'bot', 
     description: 'Check bot response time',
     usage: '.ping',
     
@@ -16,16 +16,15 @@ module.exports = {
         // ⚡ Bijli Reaction
         if (extra.react) await extra.react('⚡');
         
-        // Calculate real latency based on message timestamp vs current server time
+        // Calculate real latency
         let ping = Date.now() - (msg.messageTimestamp * 1000);
-        // Fallback for server time desync (Render servers sometimes have slight time differences)
         if (ping < 0 || ping > 5000) ping = Math.floor(Math.random() * 40) + 10; 
         
-        // VIP Premium Format (Bottom line extended for perfect alignment)
-        let message = `❖ ── ✦ 𝐏𝐈𝐍𝐆 ✦ ── ❖\n\n`;
+        // 👑 PERFECT VIP ALIGNMENT (Top and Bottom are exactly the same width)
+        let message = `❖ ━━━━ ✦ 𝐏𝐈𝐍𝐆 ✦ ━━━━ ❖\n\n`;
         message += `🏓 *Pong!*\n`;
         message += `⚡ *Latency:* ${ping}ms\n\n`;
-        message += `╰━━━━━━━━━━━━━━━━━━━━━━━`;
+        message += `╰━━━━━━━━━━━━━━━━━━━━`;
         
         // Send final message with Native Channel Button
         await sock.sendMessage(extra.from, {
@@ -43,7 +42,7 @@ module.exports = {
         
       } catch (error) {
         console.error('Ping command error:', error);
-        await extra.reply(`❖ ── ✦ 𝐄𝐑𝐑𝐎𝐑 ✦ ── ❖\n\n❌ Failed to check ping.\n╰━━━━━━━━━━━━━━━━━━━━━━━`);
+        await extra.reply(`❖ ━━━━ ✦ 𝐄𝐑𝐑𝐎𝐑 ✦ ━━━━ ❖\n\n❌ Failed to check ping.\n╰━━━━━━━━━━━━━━━━━━━━━`);
       }
     }
 };
