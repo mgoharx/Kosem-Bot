@@ -46,7 +46,7 @@ module.exports = {
       let menu = `❖ ─ ✦ 𝐂𝐎𝐌𝐌𝐀𝐍𝐃𝐒 ✦ ─ ❖\n\n`;
       menu += `🤖 *Bot:* ${botName}\n`;
       menu += `⚡ *Prefix:* [ ${prefix} ]\n`;
-      menu += `╰━━━━━━━━━━━━━━━\n\n`;
+      menu += `╰━━━━━━━━━━━━━━━┈⊷\n\n`;
       
       const orderedCats = Object.keys(categories).sort();
       
@@ -63,7 +63,7 @@ module.exports = {
           menu += `│ ⟐ *${mainCmd}*${aliasesText}\n`;
           menu += `│   ↳ ${entry.label}\n`;
         }
-        menu += `└───────────\n\n`;
+        menu += `└───────────┈⊷\n\n`;
       }
       
       // Clean & Premium Footer 
@@ -90,7 +90,7 @@ module.exports = {
       
     } catch (err) {
       console.error('allcmds.js error:', err);
-      await extra.reply(`❖ ─ ✦ 𝐄𝐑𝐑𝐎𝐑 ✦ ─ ❖\n\n❌ Failed to load commands list.\n╰━━━━━━━━━━━━━━━`);
+      await extra.reply(`❖ ─ ✦ 𝐄𝐑𝐑𝐎𝐑 ✦ ─ ❖\n\n❌ Failed to load commands list.\n╰━━━━━━━━━━━━━━━┈⊷);
     }
   }
 };
