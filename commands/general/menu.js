@@ -8,7 +8,7 @@ const { loadCommands } = require('../../utils/commandLoader');
 module.exports = {
   name: 'menu',
   aliases: ['help', 'commands'],
-  category: 'general',
+  category: 'bot',
   description: 'Show all available commands',
   usage: '.menu',
   
@@ -137,7 +137,6 @@ module.exports = {
         menuText += `└──────────────\n\n`;
       }
       
-      menuText += `> 💡 _Type ${config.prefix}help <command> for details_\n`;
       menuText += `> 🌟 _Powered by ${config.botName}_\n`;
       
       // Send menu with image
