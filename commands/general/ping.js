@@ -24,7 +24,7 @@ module.exports = {
         let message = `❖ ━━━━ ✦ 𝐏𝐈𝐍𝐆 ✦ ━━━━ ❖\n\n`;
         message += `🏓 *Pong!*\n`;
         message += `⚡ *Latency:* ${ping}ms\n\n`;
-        message += `╰━━━━━━━━━━━━━━━━━━━━`;
+        message += `╰━━━━━━━━━━━━━━━━━━`;
         
         // Send final message with Native Channel Button
         await sock.sendMessage(extra.from, {
@@ -42,7 +42,7 @@ module.exports = {
         
       } catch (error) {
         console.error('Ping command error:', error);
-        await extra.reply(`❖ ━━━━ ✦ 𝐄𝐑𝐑𝐎𝐑 ✦ ━━━━ ❖\n\n❌ Failed to check ping.\n╰━━━━━━━━━━━━━━━━━━━━━`);
+        await extra.reply(`❖ ━━━━ ✦ 𝐄𝐑𝐑𝐎𝐑 ✦ ━━━━ ❖\n\n❌ Failed to check ping.\n╰━━━━━━━━━━━━━━━━━━`);
       }
     }
 };
