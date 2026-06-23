@@ -44,9 +44,10 @@ module.exports = {
       
       // 👑 MOBILE-PERFECT VIP ALIGNMENT 
       let menu = `❖ ─ ✦ 𝐂𝐎𝐌𝐌𝐀𝐍𝐃𝐒 ✦ ─ ❖\n\n`;
-      menu += `🤖 *Bot:* ${botName}\n`;
+      menu += `🤖 *Bot:* ${botName}\n`;|
+      menu += `👑 *Developer:* ${ownerNames}\n`;
       menu += `⚡ *Prefix:* [ ${prefix} ]\n`;
-      menu += `╰━━━━━━━━━━━━━━━┈⊷\n\n`;
+      menu += `╰━━━━━━━━━━━━━━┈⊷\n\n`;
       
       const orderedCats = Object.keys(categories).sort();
       
