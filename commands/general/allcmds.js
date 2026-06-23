@@ -90,7 +90,8 @@ module.exports = {
       
     } catch (err) {
       console.error('allcmds.js error:', err);
-      await extra.reply(`❖ ─ ✦ 𝐄𝐑𝐑𝐎𝐑 ✦ ─ ❖\n\n❌ Failed to load commands list.\n╰━━━━━━━━━━━━━━━┈⊷);
+      // FIXED: Added the missing closing backtick below!
+      await extra.reply(`❖ ─ ✦ 𝐄𝐑𝐑𝐎𝐑 ✦ ─ ❖\n\n❌ Failed to load commands list.\n╰━━━━━━━━━━━━━━━┈⊷`);
     }
   }
 };
