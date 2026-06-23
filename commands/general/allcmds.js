@@ -10,8 +10,8 @@ const { loadCommands } = require('../../utils/commandLoader');
 const { sendButtons } = require('gifted-btns');
 
 module.exports = {
-  name: 'allcmds', // Main command ka naam badal kar allcmds kar diya hai
-  aliases: ['list', 'commandlist', 'cmds'], // 'list' ko ab alias bana diya hai
+  name: 'allcmds', 
+  aliases: ['list', 'commandlist', 'cmds'], 
   description: 'List all commands with their aliases and descriptions',
   usage: '.allcmds',
   category: 'bot', 
@@ -41,13 +41,14 @@ module.exports = {
       });
       
       const botName = config.botName || 'Kosem Bot';
+      const ownerNames = Array.isArray(config.ownerName) ? config.ownerName.join(', ') : (config.ownerName || 'Muhammad Gohar');
       
       // 👑 MOBILE-PERFECT VIP ALIGNMENT 
       let menu = `❖ ─ ✦ 𝐂𝐎𝐌𝐌𝐀𝐍𝐃𝐒 ✦ ─ ❖\n\n`;
-      menu += `🤖 *Bot:* ${botName}\n`;|
+      menu += `🤖 *Bot:* ${botName}\n`;
       menu += `👑 *Developer:* ${ownerNames}\n`;
       menu += `⚡ *Prefix:* [ ${prefix} ]\n`;
-      menu += `╰━━━━━━━━━━━━━━┈⊷\n\n`;
+      menu += `╰━━━━━━━━━━━━━━━┈⊷\n\n`;
       
       const orderedCats = Object.keys(categories).sort();
       
@@ -91,7 +92,6 @@ module.exports = {
       
     } catch (err) {
       console.error('allcmds.js error:', err);
-      // FIXED: Added the missing closing backtick below!
       await extra.reply(`❖ ─ ✦ 𝐄𝐑𝐑𝐎𝐑 ✦ ─ ❖\n\n❌ Failed to load commands list.\n╰━━━━━━━━━━━━━━━┈⊷`);
     }
   }
