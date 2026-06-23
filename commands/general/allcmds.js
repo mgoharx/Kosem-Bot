@@ -48,7 +48,7 @@ module.exports = {
       menu += `🤖 *Bot:* ${botName}\n`;
       menu += `👑 *Developer:* ${ownerNames}\n`;
       menu += `⚡ *Prefix:* [ ${prefix} ]\n`;
-      menu += `╰━━━━━━━━━━━━━━━┈⊷\n\n`;
+      menu += `╰━━━━━━━━━━━━━━┈⊷\n\n`;
       
       const orderedCats = Object.keys(categories).sort();
       
