@@ -1,5 +1,5 @@
 /**
- * List Command
+ * All Commands
  * Show all commands with descriptions & aliases (Premium UI)
  */
 
@@ -10,11 +10,11 @@ const { loadCommands } = require('../../utils/commandLoader');
 const { sendButtons } = require('gifted-btns');
 
 module.exports = {
-  name: 'addcmds,
-  aliases: ['allcmds', 'commandlist'],
+  name: 'allcmds', // Main command ka naam badal kar allcmds kar diya hai
+  aliases: ['list', 'commandlist', 'cmds'], // 'list' ko ab alias bana diya hai
   description: 'List all commands with their aliases and descriptions',
-  usage: '.list',
-  category: 'bot', // 🤖 Shifted to Bot System category
+  usage: '.allcmds',
+  category: 'bot', 
   
   async execute(sock, msg, args, extra) {
     try {
@@ -42,7 +42,7 @@ module.exports = {
       
       const botName = config.botName || 'Kosem Bot';
       
-      // 👑 MOBILE-PERFECT VIP ALIGNMENT (Shortened to prevent text wrapping)
+      // 👑 MOBILE-PERFECT VIP ALIGNMENT 
       let menu = `❖ ─ ✦ 𝐂𝐎𝐌𝐌𝐀𝐍𝐃𝐒 ✦ ─ ❖\n\n`;
       menu += `🤖 *Bot:* ${botName}\n`;
       menu += `⚡ *Prefix:* [ ${prefix} ]\n`;
@@ -66,20 +66,20 @@ module.exports = {
         menu += `└───────────\n\n`;
       }
       
-      // Clean & Premium Footer (Emoji Removed)
+      // Clean & Premium Footer 
       menu += `> Powered by ${botName}`;
       
       // Send message with Clean Buttons
       await sendButtons(sock, extra.from, {
         title: '',
         text: menu,
-        footer: '', // Footer is empty because text includes it perfectly
+        footer: '', 
         buttons: [
           {
             name: 'cta_url',
             buttonParamsJson: JSON.stringify({
               display_text: '✨ Official Channel',
-              url: 'https://whatsapp.com/channel/0029Va90zAnIHphOuO8Msp3A' // Aapka Channel Link
+              url: 'https://whatsapp.com/channel/0029Va90zAnIHphOuO8Msp3A'
             })
           }
         ]
@@ -89,7 +89,7 @@ module.exports = {
       if (extra.react) await extra.react('✅');
       
     } catch (err) {
-      console.error('list.js error:', err);
+      console.error('allcmds.js error:', err);
       await extra.reply(`❖ ─ ✦ 𝐄𝐑𝐑𝐎𝐑 ✦ ─ ❖\n\n❌ Failed to load commands list.\n╰━━━━━━━━━━━━━━━`);
     }
   }
