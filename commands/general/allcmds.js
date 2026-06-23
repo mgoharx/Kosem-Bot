@@ -10,7 +10,7 @@ const { loadCommands } = require('../../utils/commandLoader');
 const { sendButtons } = require('gifted-btns');
 
 module.exports = {
-  name: 'allcmds',
+  name: 'addcmds,
   aliases: ['allcmds', 'commandlist'],
   description: 'List all commands with their aliases and descriptions',
   usage: '.list',
@@ -42,11 +42,11 @@ module.exports = {
       
       const botName = config.botName || 'Kosem Bot';
       
-      // 👑 PERFECT VIP ALIGNMENT 
-      let menu = `❖ ━━━ ✦ 𝐂𝐎𝐌𝐌𝐀𝐍𝐃 𝐋𝐈𝐒𝐓 ✦ ━━━ ❖\n\n`;
+      // 👑 MOBILE-PERFECT VIP ALIGNMENT (Shortened to prevent text wrapping)
+      let menu = `❖ ─ ✦ 𝐂𝐎𝐌𝐌𝐀𝐍𝐃𝐒 ✦ ─ ❖\n\n`;
       menu += `🤖 *Bot:* ${botName}\n`;
       menu += `⚡ *Prefix:* [ ${prefix} ]\n`;
-      menu += `╰━━━━━━━━━━━━━━━━━━━━━\n\n`;
+      menu += `╰━━━━━━━━━━━━━━━\n\n`;
       
       const orderedCats = Object.keys(categories).sort();
       
@@ -63,16 +63,17 @@ module.exports = {
           menu += `│ ⟐ *${mainCmd}*${aliasesText}\n`;
           menu += `│   ↳ ${entry.label}\n`;
         }
-        menu += `└──────────────\n\n`;
+        menu += `└───────────\n\n`;
       }
       
-      menu += `> 🌟 _Powered by ${botName}_`;
+      // Clean & Premium Footer (Emoji Removed)
+      menu += `> Powered by ${botName}`;
       
       // Send message with Clean Buttons
       await sendButtons(sock, extra.from, {
         title: '',
         text: menu,
-        footer: '', // Footer empty rakha hai kyunke text mein hi sab set kar diya hai
+        footer: '', // Footer is empty because text includes it perfectly
         buttons: [
           {
             name: 'cta_url',
@@ -89,7 +90,7 @@ module.exports = {
       
     } catch (err) {
       console.error('list.js error:', err);
-      await extra.reply(`❖ ━━━ ✦ 𝐄𝐑𝐑𝐎𝐑 ✦ ━━━ ❖\n\n❌ Failed to load commands list.\n╰━━━━━━━━━━━━━━━━━━━━━`);
+      await extra.reply(`❖ ─ ✦ 𝐄𝐑𝐑𝐎𝐑 ✦ ─ ❖\n\n❌ Failed to load commands list.\n╰━━━━━━━━━━━━━━━`);
     }
   }
 };
