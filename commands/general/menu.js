@@ -35,16 +35,16 @@ module.exports = {
       let menuText = `❖ ── ✦ ${config.botName.toUpperCase()} ✦ ── ❖\n\n`;
       menuText += `👋🏻 *Hello:* @${extra.sender.split('@')[0]}\n`;
       menuText += `👑 *Owner:* ${displayOwner}\n`;
-      menuText += `📦 *Total Commands:* ${commands.size}\n`;
-      menuText += `╰━━━━━━━━━━━━━━━━━━\n\n`;
+      menuText += `🤖 *Total Commands:* ${commands.size}\n`;
+      menuText += `╰━━━━━━━━━━━━━━━━━━┈⊷\n\n`;
       
-      // 🤖 Bot Commands (New Category Added)
+      // 🤖 Bot Commands
       if (categories.bot) {
         menuText += `┌──『 *🤖 Bot System* 』\n`;
         categories.bot.forEach(cmd => {
           menuText += `│ ⟐ ${config.prefix}${cmd.name}\n`;
         });
-        menuText += `└──────────────\n\n`;
+        menuText += `└──────────────┈⊷\n\n`;
       }
 
       // 🧭 General Commands
@@ -53,7 +53,7 @@ module.exports = {
         categories.general.forEach(cmd => {
           menuText += `│ ⟐ ${config.prefix}${cmd.name}\n`;
         });
-        menuText += `└──────────────\n\n`;
+        menuText += `└──────────────┈⊷\n\n`;
       }
       
       // 🧠 AI Commands
@@ -62,7 +62,7 @@ module.exports = {
         categories.ai.forEach(cmd => {
           menuText += `│ ⟐ ${config.prefix}${cmd.name}\n`;
         });
-        menuText += `└──────────────\n\n`;
+        menuText += `└──────────────┈⊷\n\n`;
       }
       
       // 🔵 Group Commands
@@ -71,7 +71,7 @@ module.exports = {
         categories.group.forEach(cmd => {
           menuText += `│ ⟐ ${config.prefix}${cmd.name}\n`;
         });
-        menuText += `└──────────────\n\n`;
+        menuText += `└──────────────┈⊷\n\n`;
       }
       
       // 🛡️ Admin Commands
@@ -80,7 +80,7 @@ module.exports = {
         categories.admin.forEach(cmd => {
           menuText += `│ ⟐ ${config.prefix}${cmd.name}\n`;
         });
-        menuText += `└──────────────\n\n`;
+        menuText += `└──────────────┈⊷\n\n`;
       }
       
       // 👑 Owner Commands
@@ -89,7 +89,7 @@ module.exports = {
         categories.owner.forEach(cmd => {
           menuText += `│ ⟐ ${config.prefix}${cmd.name}\n`;
         });
-        menuText += `└──────────────\n\n`;
+        menuText += `└──────────────┈⊷\n\n`;
       }
       
       // 🎞️ Media Commands
@@ -98,7 +98,7 @@ module.exports = {
         categories.media.forEach(cmd => {
           menuText += `│ ⟐ ${config.prefix}${cmd.name}\n`;
         });
-        menuText += `└──────────────\n\n`;
+        menuText += `└──────────────┈⊷\n\n`;
       }
       
       // 🎭 Fun Commands
@@ -107,7 +107,7 @@ module.exports = {
         categories.fun.forEach(cmd => {
           menuText += `│ ⟐ ${config.prefix}${cmd.name}\n`;
         });
-        menuText += `└──────────────\n\n`;
+        menuText += `└──────────────┈⊷\n\n`;
       }
       
       // 🔧 Utility Commands
@@ -116,7 +116,7 @@ module.exports = {
         categories.utility.forEach(cmd => {
           menuText += `│ ⟐ ${config.prefix}${cmd.name}\n`;
         });
-        menuText += `└──────────────\n\n`;
+        menuText += `└──────────────┈⊷\n\n`;
       }
 
       // 👾 Anime Commands
@@ -125,7 +125,7 @@ module.exports = {
         categories.anime.forEach(cmd => {
           menuText += `│ ⟐ ${config.prefix}${cmd.name}\n`;
         });
-        menuText += `└──────────────\n\n`;
+        menuText += `└──────────────┈⊷\n\n`;
       }
 
       // 🖋️ Textmaker Commands
@@ -134,10 +134,11 @@ module.exports = {
         categories.textmaker.forEach(cmd => {
           menuText += `│ ⟐ ${config.prefix}${cmd.name}\n`;
         });
-        menuText += `└──────────────\n\n`;
+        menuText += `└──────────────┈⊷\n\n`;
       }
       
-      menuText += `> 🌟 _Powered by ${config.botName}_\n`;
+      // Clean Footer without emojis and italics
+      menuText += `> Powered by ${config.botName}`;
       
       // Send menu with image
       const fs = require('fs');
@@ -168,7 +169,7 @@ module.exports = {
       await sock.sendMessage(extra.from, messageOptions, { quoted: msg });
       
     } catch (error) {
-      await extra.reply(`❖ ── ✦ 𝐄𝐑𝐑𝐎𝐑 ✦ ── ❖\n\n❌ ${error.message}\n╰━━━━━━━━━━━━━━━━━━`);
+      await extra.reply(`❖ ── ✦ 𝐄𝐑𝐑𝐎𝐑 ✦ ── ❖\n\n❌ ${error.message}\n╰━━━━━━━━━━━━━━━━━━┈⊷`);
     }
   }
 };
