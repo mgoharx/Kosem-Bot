@@ -10,7 +10,7 @@ const { loadCommands } = require('../../utils/commandLoader');
 const { sendButtons } = require('gifted-btns');
 
 module.exports = {
-  name: 'list',
+  name: 'allcmds',
   aliases: ['allcmds', 'commandlist'],
   description: 'List all commands with their aliases and descriptions',
   usage: '.list',
