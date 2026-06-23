@@ -199,6 +199,13 @@ async function startBot() {
         if (shouldReconnect) setTimeout(() => startBot(), 3000);
       }
     } else if (connection === 'open') {
+      
+      // ==========================================
+      // 🔴 THE FIX: FREEZE LAST SEEN (Offline Mode)
+      // ==========================================
+      await sock.sendPresenceUpdate('unavailable');
+      // ==========================================
+
       const ownerNames = Array.isArray(config.ownerName) ? config.ownerName.join(', ') : config.ownerName;
       
       console.log('\n[✅] CONNECTION ESTABLISHED SUCCESSFULLY');
