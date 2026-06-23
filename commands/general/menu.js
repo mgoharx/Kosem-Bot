@@ -1,5 +1,5 @@
 /**
- * Menu Command - Display all available commands
+ * Menu Command - Display all available commands (Premium UI)
  */
 
 const config = require('../../config');
@@ -17,27 +17,37 @@ module.exports = {
       const commands = loadCommands();
       const categories = {};
       
-      // Group commands by category
+      // Group commands by category dynamically
       commands.forEach((cmd, name) => {
         if (cmd.name === name) { // Only count main command names, not aliases
-          if (!categories[cmd.category]) {
-            categories[cmd.category] = [];
+          let cat = cmd.category || 'general';
+          if (!categories[cat]) {
+            categories[cat] = [];
           }
-          categories[cmd.category].push(cmd);
+          categories[cat].push(cmd);
         }
       });
       
       const ownerNames = Array.isArray(config.ownerName) ? config.ownerName : [config.ownerName];
-      const displayOwner = ownerNames[0] || config.ownerName || 'Bot Owner';
+      const displayOwner = ownerNames[0] || config.ownerName || 'Muhammad Gohar';
       
       // 👑 PREMIUM KOSEM HEADER (CLEAN & MINIMAL)
-      let menuText = `*✦ ━━━『 ${config.botName.toUpperCase()} 』━━━ ✦*\n\n`;
-      menuText += `👋🏻 Hello *@${extra.sender.split('@')[0]}*\n`;
-      menuText += `👑 Owner: ${displayOwner}\n`;
-      menuText += `📦 Commands: ${commands.size} Commands\n`;
-      menuText += `──────────────────\n\n`;
+      let menuText = `❖ ── ✦ ${config.botName.toUpperCase()} ✦ ── ❖\n\n`;
+      menuText += `👋🏻 *Hello:* @${extra.sender.split('@')[0]}\n`;
+      menuText += `👑 *Owner:* ${displayOwner}\n`;
+      menuText += `📦 *Total Commands:* ${commands.size}\n`;
+      menuText += `╰━━━━━━━━━━━━━━━━━━\n\n`;
       
-      // General Commands
+      // 🤖 Bot Commands (New Category Added)
+      if (categories.bot) {
+        menuText += `┌──『 *🤖 Bot System* 』\n`;
+        categories.bot.forEach(cmd => {
+          menuText += `│ ⟐ ${config.prefix}${cmd.name}\n`;
+        });
+        menuText += `└──────────────\n\n`;
+      }
+
+      // 🧭 General Commands
       if (categories.general) {
         menuText += `┌──『 *🧭 General* 』\n`;
         categories.general.forEach(cmd => {
@@ -46,16 +56,16 @@ module.exports = {
         menuText += `└──────────────\n\n`;
       }
       
-      // AI Commands
+      // 🧠 AI Commands
       if (categories.ai) {
-        menuText += `┌──『 *🤖 AI System* 』\n`;
+        menuText += `┌──『 *🧠 AI System* 』\n`;
         categories.ai.forEach(cmd => {
           menuText += `│ ⟐ ${config.prefix}${cmd.name}\n`;
         });
         menuText += `└──────────────\n\n`;
       }
       
-      // Group Commands
+      // 🔵 Group Commands
       if (categories.group) {
         menuText += `┌──『 *🔵 Group* 』\n`;
         categories.group.forEach(cmd => {
@@ -64,7 +74,7 @@ module.exports = {
         menuText += `└──────────────\n\n`;
       }
       
-      // Admin Commands
+      // 🛡️ Admin Commands
       if (categories.admin) {
         menuText += `┌──『 *🛡️ Admin* 』\n`;
         categories.admin.forEach(cmd => {
@@ -73,7 +83,7 @@ module.exports = {
         menuText += `└──────────────\n\n`;
       }
       
-      // Owner Commands
+      // 👑 Owner Commands
       if (categories.owner) {
         menuText += `┌──『 *👑 Owner* 』\n`;
         categories.owner.forEach(cmd => {
@@ -82,7 +92,7 @@ module.exports = {
         menuText += `└──────────────\n\n`;
       }
       
-      // Media Commands
+      // 🎞️ Media Commands
       if (categories.media) {
         menuText += `┌──『 *🎞️ Media* 』\n`;
         categories.media.forEach(cmd => {
@@ -91,7 +101,7 @@ module.exports = {
         menuText += `└──────────────\n\n`;
       }
       
-      // Fun Commands
+      // 🎭 Fun Commands
       if (categories.fun) {
         menuText += `┌──『 *🎭 Fun & Games* 』\n`;
         categories.fun.forEach(cmd => {
@@ -100,7 +110,7 @@ module.exports = {
         menuText += `└──────────────\n\n`;
       }
       
-      // Utility Commands
+      // 🔧 Utility Commands
       if (categories.utility) {
         menuText += `┌──『 *🔧 Utility* 』\n`;
         categories.utility.forEach(cmd => {
@@ -109,7 +119,7 @@ module.exports = {
         menuText += `└──────────────\n\n`;
       }
 
-      // Anime Commands
+      // 👾 Anime Commands
       if (categories.anime) {
         menuText += `┌──『 *👾 Anime* 』\n`;
         categories.anime.forEach(cmd => {
@@ -118,7 +128,7 @@ module.exports = {
         menuText += `└──────────────\n\n`;
       }
 
-      // Textmaker Commands
+      // 🖋️ Textmaker Commands
       if (categories.textmaker) {
         menuText += `┌──『 *🖋️ Textmaker* 』\n`;
         categories.textmaker.forEach(cmd => {
@@ -128,39 +138,38 @@ module.exports = {
       }
       
       menuText += `> 💡 _Type ${config.prefix}help <command> for details_\n`;
-      menuText += `> 🌟 _Bot Version: 1.0.0_\n`;
+      menuText += `> 🌟 _Powered by ${config.botName}_\n`;
       
       // Send menu with image
       const fs = require('fs');
       const path = require('path');
       const imagePath = path.join(__dirname, '../../utils/bot_image.jpg');
       
-      if (fs.existsSync(imagePath)) {
-        // Send image with newsletter forwarding context
-        const imageBuffer = fs.readFileSync(imagePath);
-        await sock.sendMessage(extra.from, {
-          image: imageBuffer,
-          caption: menuText,
-          mentions: [extra.sender],
-          contextInfo: {
-            forwardingScore: 1,
-            isForwarded: true,
-            forwardedNewsletterMessageInfo: {
-              newsletterJid: config.newsletterJid || '120363161513685998@newsletter',
-              newsletterName: config.botName,
-              serverMessageId: -1
-            }
+      const messageOptions = {
+        caption: menuText,
+        mentions: [extra.sender],
+        contextInfo: {
+          forwardingScore: 999,
+          isForwarded: true,
+          forwardedNewsletterMessageInfo: {
+            newsletterJid: '120363427491383372@newsletter', // Aapke Channel ki ID
+            newsletterName: `✨ ${config.botName} Official`,
+            serverMessageId: -1
           }
-        }, { quoted: msg });
+        }
+      };
+
+      if (fs.existsSync(imagePath)) {
+        messageOptions.image = fs.readFileSync(imagePath);
       } else {
-        await sock.sendMessage(extra.from, {
-          text: menuText,
-          mentions: [extra.sender]
-        }, { quoted: msg });
+        messageOptions.text = menuText;
+        delete messageOptions.caption; // Since there is no image, use text instead of caption
       }
       
+      await sock.sendMessage(extra.from, messageOptions, { quoted: msg });
+      
     } catch (error) {
-      await extra.reply(`❌ Error: ${error.message}`);
+      await extra.reply(`❖ ── ✦ 𝐄𝐑𝐑𝐎𝐑 ✦ ── ❖\n\n❌ ${error.message}\n╰━━━━━━━━━━━━━━━━━━`);
     }
   }
 };
