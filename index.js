@@ -13,10 +13,10 @@ const originalConsoleError = console.error;
 const originalConsoleWarn = console.warn;
 
 const noisyLogs = [
-    'Bad MAC', 'Failed to decrypt', 'Session error', 
-    'Closing open session', 'prekey bundle', 'SessionEntry', 
-    '_chains', 'registrationId', 'currentRatchet', 'indexInfo',
-    'ephemeralKeyPair', 'rootKey', 'baseKey'
+  'Bad MAC', 'Failed to decrypt', 'Session error', 
+  'Closing open session', 'prekey bundle', 'SessionEntry', 
+  '_chains', 'registrationId', 'currentRatchet', 'indexInfo',
+  'ephemeralKeyPair', 'rootKey', 'baseKey'
 ];
 
 console.log = (...args) => {
@@ -113,13 +113,7 @@ setInterval(() => processedMessages.clear(), 5 * 60 * 1000);
 async function startBot() {
   const sessionFolder = `./${config.sessionName}`;
   const sessionFile = path.join(sessionFolder, 'creds.json');
-  
-  // ==========================================
-  // 🧹 MOBILE GLITCH FIX: Auto-remove invisible enters and spaces
-  // ==========================================
-  const rawSession = process.env.SESSION_ID || config.sessionID || '';
-  const botSessionID = rawSession.replace(/[\r\n\s]+/g, '').trim();
-  // ==========================================
+  const botSessionID = process.env.SESSION_ID || config.sessionID;
 
   if (botSessionID && botSessionID.startsWith('Kosem!') && !fs.existsSync(sessionFile)) {
     try {
