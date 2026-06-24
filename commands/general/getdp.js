@@ -35,18 +35,21 @@ module.exports = {
       let deliveryMode = settings[senderJid] || 'inbox'; // Default is always Inbox
 
       // =========================================================
-      // 🧹 DELETE COMMAND FUNCTION
+      // 🧹 UNIVERSAL DELETE COMMAND FUNCTION
       // =========================================================
       const deleteCommand = async () => {
         if (isGroup) {
           try {
-            // Delete the message from the group
+            // Delete the message from the group chat instantly
             await sock.sendMessage(extra.from, { delete: msg.key });
           } catch (e) {
-            // Silently ignore (happens if bot is not group admin)
+            // Silently ignore if bot is not group admin
           }
         }
       };
+
+      // 🔥 ALWAYS DELETE COMMAND (Chat ho ya Inbox, command urra do)
+      deleteCommand();
 
       // ==========================================
       // ⚙️ SETTINGS CONFIGURATION (Inbox vs Chat)
@@ -58,15 +61,13 @@ module.exports = {
           settings[senderJid] = 'inbox';
           saveSettings(settings);
           
-          // 🔥 Command ko delete karo kyunki Inbox mode activate ho gaya
-          deleteCommand();
-          
           let inboxText = `❖ ──── ✦ 𝐒𝐄𝐓𝐓𝐈𝐍𝐆𝐒 ✦ ──── ❖\n\n` +
                           `🎯 *Mode:* Inbox\n` +
                           `✅ *Status:* Successfully Updated\n` +
                           `💡 *Info:* Profile pictures & all errors will now be sent to your inbox.\n` +
                           `╰━━━━━━━━━━━━━━━━━━┈⊷`;
-          return extra.reply(inboxText);
+          // Bina quote ke send karega kyun ke command delete ho chuki hai
+          return await sock.sendMessage(extra.from, { text: inboxText });
         } 
         else if (option === 'chat') {
           settings[senderJid] = 'chat';
@@ -77,17 +78,11 @@ module.exports = {
                          `✅ *Status:* Successfully Updated\n` +
                          `💡 *Info:* Profile pictures will now be sent here in the chat.\n` +
                          `╰━━━━━━━━━━━━━━━━━━┈⊷`;
-          return extra.reply(chatText);
+          return await sock.sendMessage(extra.from, { text: chatText });
         }
       }
 
-      // =========================================================
-      // 🚀 QUICK AUTO-DELETE (If Inbox mode is ON)
-      // =========================================================
       const isInbox = (deliveryMode === 'inbox');
-      if (isInbox) {
-        deleteCommand(); // Command run hote hi delete maro (instantly)
-      }
 
       // =========================================================
       // 🚀 MASTER DISPATCHER (Sari cheezein yahan se route hongi)
@@ -97,8 +92,8 @@ module.exports = {
           // 📩 Step 2: Jo bhi text/DP/Error hai, seedha Inbox fenko
           return await sock.sendMessage(senderJid, contentObj);
         } else {
-          // Normal public chat reply
-          return await sock.sendMessage(extra.from, contentObj, { quoted: msg });
+          // Normal public chat send (Bina quote ke kyunki original delete ho chuka hai)
+          return await sock.sendMessage(extra.from, contentObj);
         }
       };
 
@@ -178,7 +173,7 @@ module.exports = {
         if (mode === 'inbox') {
           sock.sendMessage(extra.sender || msg.key.remoteJid, { text: failText }).catch(()=>{});
         } else {
-          extra.reply(failText);
+          sock.sendMessage(extra.from, { text: failText }).catch(()=>{});
         }
       } catch (e) {}
     }
