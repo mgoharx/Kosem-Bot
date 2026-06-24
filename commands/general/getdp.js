@@ -40,14 +40,26 @@ module.exports = {
           settings[senderJid] = 'inbox';
           saveSettings(settings);
           
-          return extra.reply('❖ ── ✦ 𝐒𝐄𝐓𝐓𝐈𝐍𝐆𝐒 ✦ ── ❖\n\n✅ Target set to: *INBOX*\nNow profile pictures will be sent to your DMs.\n╰━━━━━━━━━━━━━━━━━━');
+          let inboxText = `❖ ── ✦ 𝐒𝐄𝐓𝐓𝐈𝐍𝐆𝐒 ✦ ── ❖\n\n`;
+          inboxText += `🎯 *Mode:* INBOX\n`;
+          inboxText += `✅ *Status:* Successfully Updated\n`;
+          inboxText += `💡 *Info:* Profile pictures will now be delivered directly to your private messages.\n`;
+          inboxText += `╰━━━━━━━━━━━━━━━━━━┈⊷`;
+          
+          return extra.reply(inboxText);
         } 
         else if (option === 'chat') {
           const settings = loadSettings();
           settings[senderJid] = 'chat';
           saveSettings(settings);
           
-          return extra.reply('❖ ── ✦ 𝐒𝐄𝐓𝐓𝐈𝐍𝐆𝐒 ✦ ── ❖\n\n✅ Target set to: *CHAT*\nNow profile pictures will be sent here in the group.\n╰━━━━━━━━━━━━━━━━━━');
+          let chatText = `❖ ── ✦ 𝐒𝐄𝐓𝐓𝐈𝐍𝐆𝐒 ✦ ── ❖\n\n`;
+          chatText += `🎯 *Mode:* CHAT\n`;
+          chatText += `✅ *Status:* Successfully Updated\n`;
+          chatText += `💡 *Info:* Profile pictures will now be sent here in the group chat.\n`;
+          chatText += `╰━━━━━━━━━━━━━━━━━━┈⊷`;
+          
+          return extra.reply(chatText);
         }
       }
 
@@ -65,12 +77,16 @@ module.exports = {
         // Tag kiye hue banday ki DP
         targetUser = mentionedJid[0];
       } else {
-        // Agar khali .getdp likha hai, toh Group/Chat ki DP nikalo!
+        // Agar khali command likhi hai, toh Group/Chat ki DP nikalo
         targetUser = extra.from;
       }
       
       if (!targetUser) {
-        return extra.reply('❖ ── ✦ 𝐄𝐑𝐑𝐎𝐑 ✦ ── ❖\n\n❌ Could not identify the target.\n╰━━━━━━━━━━━━━━━━━━');
+        let errText = `❖ ── ✦ 𝐄𝐑𝐑𝐎𝐑 ✦ ── ❖\n\n`;
+        errText += `❌ Could not identify the target.\n`;
+        errText += `💡 *Tip:* Reply to a message or tag someone.\n`;
+        errText += `╰━━━━━━━━━━━━━━━━━━┈⊷`;
+        return extra.reply(errText);
       }
 
       isGroupTarget = targetUser.endsWith('@g.us');
@@ -80,7 +96,11 @@ module.exports = {
         const ppUrl = await sock.profilePictureUrl(targetUser, 'image');
         
         if (!ppUrl) {
-          return extra.reply('❖ ── ✦ 𝐀𝐕𝐀𝐓𝐀𝐑 ✦ ── ❖\n\n❌ Profile picture not found or is private.\n╰━━━━━━━━━━━━━━━━━━');
+          let notFoundText = `❖ ── ✦ 𝐀𝐕𝐀𝐓𝐀𝐑 ✦ ── ❖\n\n`;
+          notFoundText += `❌ Profile picture not found.\n`;
+          notFoundText += `🔒 *Reason:* It might be deleted or set to private.\n`;
+          notFoundText += `╰━━━━━━━━━━━━━━━━━━┈⊷`;
+          return extra.reply(notFoundText);
         }
         
         // Download the profile picture
@@ -116,23 +136,32 @@ module.exports = {
         if (destination === extra.from) {
           await sock.sendMessage(destination, sendOptions, { quoted: msg });
         } else {
-          // Agar Inbox mein bhejna hai toh direct send (bina quote ke)
+          // Agar Inbox mein bhejna hai toh direct send
           await sock.sendMessage(destination, sendOptions);
           
-          // Agar group mein command di thi, toh wahan inform kar do ke inbox mein bhej di hai
-          if (extra.from.endsWith('@g.us')) {
-            await extra.reply('❖ ── ✦ 𝐒𝐔𝐂𝐂𝐄𝐒𝐒 ✦ ── ❖\n\n✅ Profile picture has been sent to your *Inbox*!\n╰━━━━━━━━━━━━━━━━━━');
+          // 🔥 Automatically delete the command message from the chat
+          try {
+            await sock.sendMessage(extra.from, { delete: msg.key });
+          } catch (delErr) {
+            // Silently ignore if bot lacks admin rights to delete the message
           }
         }
 
       } catch (profileError) {
         // Handle all profile errors silently and cleanly
-        return extra.reply('❖ ── ✦ 𝐀𝐕𝐀𝐓𝐀𝐑 ✦ ── ❖\n\n❌ Profile picture not found.\n(It might be private or deleted)\n╰━━━━━━━━━━━━━━━━━━');
+        let privateText = `❖ ── ✦ 𝐀𝐕𝐀𝐓𝐀𝐑 ✦ ── ❖\n\n`;
+        privateText += `❌ Profile picture not found.\n`;
+        privateText += `🔒 *Reason:* It might be deleted or set to private.\n`;
+        privateText += `╰━━━━━━━━━━━━━━━━━━┈⊷`;
+        return extra.reply(privateText);
       }
       
     } catch (error) {
       console.error(error);
-      extra.reply('❖ ── ✦ 𝐄𝐑𝐑𝐎𝐑 ✦ ── ❖\n\n❌ An error occurred while fetching the picture.\n╰━━━━━━━━━━━━━━━━━━');
+      let failText = `❖ ── ✦ 𝐄𝐑𝐑𝐎𝐑 ✦ ── ❖\n\n`;
+      failText += `❌ An unexpected error occurred while fetching the picture.\n`;
+      failText += `╰━━━━━━━━━━━━━━━━━━┈⊷`;
+      extra.reply(failText);
     }
   }
 };
