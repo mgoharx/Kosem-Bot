@@ -136,6 +136,15 @@ module.exports = {
         });
         menuText += `└──────────────┈⊷\n\n`;
       }
+
+      // ℹ️ About Commands (New Category Added at Bottom)
+      if (categories.about) {
+        menuText += `┌──『 *ℹ️ About* 』\n`;
+        categories.about.forEach(cmd => {
+          menuText += `│ ⟐ ${config.prefix}${cmd.name}\n`;
+        });
+        menuText += `└──────────────┈⊷\n\n`;
+      }
       
       // Clean Footer without emojis and italics
       menuText += `> Powered by ${config.botName}`;
