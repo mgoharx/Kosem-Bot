@@ -41,9 +41,9 @@ module.exports = {
             // VIP Premium Format Text
             let replyText = `❖ ── ✦ 𝐎𝐖𝐍𝐄𝐑 𝐈𝐍𝐅𝐎 ✦ ── ❖\n\n`;
             replyText += `👑 *Name:* ${displayName}\n`;
-            replyText += `🛡️ *Role:* Lead Developer\n`;
+            replyText += `🛡️ *Role:* Developer\n`;
             replyText += `📱 *Action:* Tap the contact card above to send a direct message.\n\n`;
-            replyText += `╰━━━━━━━━━━━━━━━━━━┈⊷`;
+            replyText += `╰━━━━━━━━━━━━━━━━━┈⊷`;
 
             // Send Final Premium Text with Channel Button
             await sock.sendMessage(chatId, {
