@@ -7,7 +7,7 @@ const config = require('../../config');
 module.exports = {
     name: 'github',
     aliases: ['repo', 'git', 'source', 'sc', 'script'],
-    category: 'general',
+    category: 'about',
     description: 'Show bot source code info',
     usage: '.script',
     ownerOnly: false,
@@ -28,7 +28,7 @@ module.exports = {
             message += `🔒 *Status:* Private & Exclusive\n\n`;
             
             message += `⚠️ *Note:* The GitHub repository and source code for this bot are strictly *Private* and are not available to the public.\n\n`;
-            message += `╰━━━━━━━━━━━━━━━━━━`;
+            message += `╰━━━━━━━━━━━━━━━┈⊷`;
             
             // Send final message with Channel Button
             await sock.sendMessage(chatId, {
@@ -49,7 +49,7 @@ module.exports = {
             
         } catch (error) {
             console.error('Source code command error:', error);
-            await extra.reply('❖ ── ✦ 𝐄𝐑𝐑𝐎𝐑 ✦ ── ❖\n\n❌ Failed to fetch info.\n╰━━━━━━━━━━━━━━━━━━');
+            await extra.reply('❖ ── ✦ 𝐄𝐑𝐑𝐎𝐑 ✦ ── ❖\n\n❌ Failed to fetch info.\n╰━━━━━━━━━━━━━━━┈⊷');
         }
     }
 };
