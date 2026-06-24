@@ -43,16 +43,14 @@ module.exports = {
           settings[senderJid] = 'inbox';
           saveSettings(settings);
           
-          // 🔥 Mode 'Inbox' hua hai toh command foran delete kar do
-          try { await sock.sendMessage(extra.from, { delete: msg.key }); } catch (e) {}
+          // 🔥 Yahan se Delete hata diya. Ab ".gp inbox" delete nahi hoga!
           
           let inboxText = `❖ ──── ✦ 𝐒𝐄𝐓𝐓𝐈𝐍𝐆𝐒 ✦ ──── ❖\n\n` +
                           `🎯 *Mode:* Inbox\n` +
                           `✅ *Status:* Successfully Updated\n` +
                           `💡 *Info:* Profile pictures & all errors will now be sent to your inbox.\n` +
                           `╰━━━━━━━━━━━━━━━━━━┈⊷`;
-          // Command delete ho chuki hai, isliye without quote send karega
-          return await sock.sendMessage(extra.from, { text: inboxText });
+          return extra.reply(inboxText);
         } 
         else if (option === 'chat') {
           settings[senderJid] = 'chat';
@@ -63,7 +61,6 @@ module.exports = {
                          `✅ *Status:* Successfully Updated\n` +
                          `💡 *Info:* Profile pictures will now be sent here in the chat.\n` +
                          `╰━━━━━━━━━━━━━━━━━━┈⊷`;
-          // Mode 'Chat' hai, isliye command delete NAHI hogi aur normal reply aayega
           return extra.reply(chatText);
         }
       }
@@ -71,7 +68,7 @@ module.exports = {
       const isInbox = (deliveryMode === 'inbox');
 
       // =========================================================
-      // 🧹 CONDITIONAL COMMAND DELETE (Sirf Inbox Mode mein delete)
+      // 🧹 CONDITIONAL COMMAND DELETE (Sirf DP nikalte waqt, Inbox Mode mein delete)
       // =========================================================
       if (isInbox) {
         try {
