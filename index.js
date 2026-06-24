@@ -225,7 +225,7 @@ async function startBot() {
         const myJid = sock.user.id.split(':')[0] + '@s.whatsapp.net'; // Aapka apna chat "You"
         const botName = config.botName || 'Kosem Bot';
         
-        const bootText = `❖ ── ✦ 𝐁𝐎𝐓 𝐀𝐂𝐓𝐈𝐕𝐄 ✦ ── ❖\n\n` +
+        const bootText = `❖ ─── ✦ 𝐁𝐎𝐓 𝐀𝐂𝐓𝐈𝐕𝐄 ✦ ─── ❖\n\n` +
                          `✨ *${botName} is successfully connected and Online!*\n\n` +
                          `👑 *Owner:* ${ownerNames}\n` +
                          `🟢 *Status:* Active\n\n` +
