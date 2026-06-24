@@ -28,6 +28,30 @@ module.exports = {
   async execute(sock, msg, args, extra) {
     try {
       const senderJid = extra.sender || msg.key.participant || msg.key.remoteJid;
+      const isGroup = extra.from.endsWith('@g.us');
+
+      // Load user delivery preference
+      const settings = loadSettings();
+      let deliveryMode = settings[senderJid] || 'inbox'; // Default is always Inbox
+
+      // =========================================================
+      // 🚀 MASTER DISPATCHER (Sari cheezein yahan se route hongi)
+      // =========================================================
+      const sendSmart = async (contentObj) => {
+        const isInbox = (deliveryMode === 'inbox');
+        
+        if (isInbox) {
+          // ⚡ Step 1: Foran background mein command delete maro (Bina wait kiye)
+          if (isGroup) {
+            sock.sendMessage(extra.from, { delete: msg.key }).catch(() => {});
+          }
+          // 📩 Step 2: Jo bhi text/DP/Error hai, seedha Inbox fenko
+          return await sock.sendMessage(senderJid, contentObj);
+        } else {
+          // Normal public chat reply
+          return await sock.sendMessage(extra.from, contentObj, { quoted: msg });
+        }
+      };
 
       // ==========================================
       // ⚙️ SETTINGS CONFIGURATION (Inbox vs Chat)
@@ -36,78 +60,68 @@ module.exports = {
         const option = args[0].toLowerCase();
         
         if (option === 'inbox') {
-          const settings = loadSettings();
           settings[senderJid] = 'inbox';
           saveSettings(settings);
+          deliveryMode = 'inbox'; // Local state update foran
           
-          let inboxText = `❖ ── ✦ 𝐒𝐄𝐓𝐓𝐈𝐍𝐆𝐒 ✦ ── ❖\n\n`;
-          inboxText += `🎯 *Mode:* INBOX\n`;
-          inboxText += `✅ *Status:* Successfully Updated\n`;
-          inboxText += `💡 *Info:* Profile pictures will now be delivered directly to your private messages.\n`;
-          inboxText += `╰━━━━━━━━━━━━━━━━━━┈⊷`;
-          
-          return extra.reply(inboxText);
+          let inboxText = `❖ ─── ✦ 𝐒𝐄𝐓𝐓𝐈𝐍𝐆𝐒 ✦ ─── ❖\n\n` +
+                          `🎯 *Mode:* INBOX\n` +
+                          `✅ *Status:* Successfully Updated\n` +
+                          `💡 *Info:* Profile pictures & all errors will now be sent to your inbox.\n` +
+                          `╰━━━━━━━━━━━━━━━━━━┈⊷`;
+          return await sendSmart({ text: inboxText });
         } 
         else if (option === 'chat') {
-          const settings = loadSettings();
           settings[senderJid] = 'chat';
           saveSettings(settings);
+          deliveryMode = 'chat';
           
-          let chatText = `❖ ── ✦ 𝐒𝐄𝐓𝐓𝐈𝐍𝐆𝐒 ✦ ── ❖\n\n`;
-          chatText += `🎯 *Mode:* CHAT\n`;
-          chatText += `✅ *Status:* Successfully Updated\n`;
-          chatText += `💡 *Info:* Profile pictures will now be sent here in the group chat.\n`;
-          chatText += `╰━━━━━━━━━━━━━━━━━━┈⊷`;
-          
-          return extra.reply(chatText);
+          let chatText = `❖ ─── ✦ 𝐒𝐄𝐓𝐓𝐈𝐍𝐆𝐒 ✦ ─── ❖\n\n` +
+                         `🎯 *Mode:* CHAT\n` +
+                         `✅ *Status:* Successfully Updated\n` +
+                         `💡 *Info:* Profile pictures will now be sent here in the group chat.\n` +
+                         `╰━━━━━━━━━━━━━━━━━━┈⊷`;
+          return await sendSmart({ text: chatText });
         }
       }
 
+      // Target pakro
       let targetUser = null;
-      let isGroupTarget = false;
-      
-      // Check if it's a reply
       const quotedMessage = msg.message?.extendedTextMessage?.contextInfo?.quotedMessage;
       const mentionedJid = msg.message?.extendedTextMessage?.contextInfo?.mentionedJid;
 
       if (quotedMessage) {
-        // Reply wale ki DP
         targetUser = msg.message.extendedTextMessage.contextInfo.participant;
       } else if (mentionedJid && mentionedJid.length > 0) {
-        // Tag kiye hue banday ki DP
         targetUser = mentionedJid[0];
       } else {
-        // Agar khali command likhi hai, toh Group/Chat ki DP nikalo
         targetUser = extra.from;
       }
       
       if (!targetUser) {
-        let errText = `❖ ── ✦ 𝐄𝐑𝐑𝐎𝐑 ✦ ── ❖\n\n`;
-        errText += `❌ Could not identify the target.\n`;
-        errText += `💡 *Tip:* Reply to a message or tag someone.\n`;
-        errText += `╰━━━━━━━━━━━━━━━━━━┈⊷`;
-        return extra.reply(errText);
+        let errText = `❖ ─── ✦ 𝐄𝐑𝐑𝐎𝐑 ✦ ─── ❖\n\n` +
+                      `❌ Could not identify the target.\n` +
+                      `💡 *Tip:* Reply to a message or tag someone.\n` +
+                      `╰━━━━━━━━━━━━━━━━━━┈⊷`;
+        return await sendSmart({ text: errText });
       }
 
-      isGroupTarget = targetUser.endsWith('@g.us');
+      const isGroupTarget = targetUser.endsWith('@g.us');
       
       try {
-        // Try to get the profile picture in High Resolution ('image')
         const ppUrl = await sock.profilePictureUrl(targetUser, 'image');
         
         if (!ppUrl) {
-          let notFoundText = `❖ ── ✦ 𝐀𝐕𝐀𝐓𝐀𝐑 ✦ ── ❖\n\n`;
-          notFoundText += `❌ Profile picture not found.\n`;
-          notFoundText += `🔒 *Reason:* It might be deleted or set to private.\n`;
-          notFoundText += `╰━━━━━━━━━━━━━━━━━━┈⊷`;
-          return extra.reply(notFoundText);
+          let notFoundText = `❖ ─── ✦ 𝐀𝐕𝐀𝐓𝐀𝐑 ✦ ─── ❖\n\n` +
+                             `❌ Profile picture not found.\n` +
+                             `🔒 *Reason:* It might be deleted or set to private.\n` +
+                             `╰━━━━━━━━━━━━━━━━━━┈⊷`;
+          return await sendSmart({ text: notFoundText });
         }
         
-        // Download the profile picture
         const response = await axios.get(ppUrl, { responseType: 'arraybuffer' });
         const buffer = Buffer.from(response.data);
         
-        // Premium Caption Logic
         let captionText = '';
         let mentionsInfo = [];
 
@@ -118,50 +132,39 @@ module.exports = {
           mentionsInfo = [targetUser];
         }
 
-        // ==========================================
-        // 🚀 DELIVERY LOGIC (Send to Inbox or Chat)
-        // ==========================================
-        const settings = loadSettings();
-        const deliveryMode = settings[senderJid] || 'inbox'; // Default is always Inbox
-        
-        const destination = deliveryMode === 'chat' ? extra.from : senderJid;
-
-        const sendOptions = { 
+        // DP Send to funnel
+        await sendSmart({ 
           image: buffer,
           caption: captionText,
           mentions: mentionsInfo
-        };
-
-        // Agar chat mein bhejna hai toh normal reply
-        if (destination === extra.from) {
-          await sock.sendMessage(destination, sendOptions, { quoted: msg });
-        } else {
-          // Agar Inbox mein bhejna hai toh direct send
-          await sock.sendMessage(destination, sendOptions);
-          
-          // 🔥 Automatically delete the command message from the chat
-          try {
-            await sock.sendMessage(extra.from, { delete: msg.key });
-          } catch (delErr) {
-            // Silently ignore if bot lacks admin rights to delete the message
-          }
-        }
+        });
 
       } catch (profileError) {
-        // Handle all profile errors silently and cleanly
-        let privateText = `❖ ── ✦ 𝐀𝐕𝐀𝐓𝐀𝐑 ✦ ── ❖\n\n`;
-        privateText += `❌ Profile picture not found.\n`;
-        privateText += `🔒 *Reason:* It might be deleted or set to private.\n`;
-        privateText += `╰━━━━━━━━━━━━━━━━━━┈⊷`;
-        return extra.reply(privateText);
+        // Privacy / DP not set errors go to funnel
+        let privateText = `❖ ─── ✦ 𝐀𝐕𝐀𝐓𝐀𝐑 ✦ ─── ❖\n\n` +
+                          `❌ Profile picture not found.\n` +
+                          `🔒 *Reason:* It might be deleted, hidden or no DP set.\n` +
+                          `╰━━━━━━━━━━━━━━━━━━┈⊷`;
+        return await sendSmart({ text: privateText });
       }
       
     } catch (error) {
       console.error(error);
-      let failText = `❖ ── ✦ 𝐄𝐑𝐑𝐎𝐑 ✦ ── ❖\n\n`;
-      failText += `❌ An unexpected error occurred while fetching the picture.\n`;
-      failText += `╰━━━━━━━━━━━━━━━━━━┈⊷`;
-      extra.reply(failText);
+      let failText = `❖ ── ✦ 𝐄𝐑𝐑𝐎𝐑 ✦ ── ❖\n\n` +
+                     `❌ An unexpected error occurred while fetching the picture.\n` +
+                     `╰━━━━━━━━━━━━━━━━━━┈⊷`;
+      
+      // Failsafe agar dispatcher fail ho jaye
+      try {
+        const settings = loadSettings();
+        const mode = settings[extra.sender || msg.key.remoteJid] || 'inbox';
+        if (mode === 'inbox') {
+          sock.sendMessage(extra.from, { delete: msg.key }).catch(()=>{});
+          sock.sendMessage(extra.sender || msg.key.remoteJid, { text: failText }).catch(()=>{});
+        } else {
+          extra.reply(failText);
+        }
+      } catch (e) {}
     }
   }
 };
