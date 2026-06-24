@@ -244,11 +244,10 @@ app.post('/deploy-bot', async (req, res) => {
     let { sessionId } = req.body;
     
     // ==========================================
-    // 🧹 MOBILE GLITCH FIX: Clean the Session ID
+    // ☢️ NUCLEAR CLEANER: Remove EVERYTHING except Base64/Kosem symbols
     // ==========================================
     if (sessionId) {
-        // Yeh line mobile ke extra spaces aur invisible lines delete kar degi
-        sessionId = sessionId.replace(/[\r\n\s]+/g, '').trim();
+        sessionId = sessionId.replace(/[^a-zA-Z0-9+/=!_-]/g, '');
     }
     // ==========================================
     
@@ -259,11 +258,12 @@ app.post('/deploy-bot', async (req, res) => {
     try {
         sendLog("📥 Processing Session ID...");
 
-        // 🛡️ ANTI-DUPLICATE SYSTEM: Agar purana bot chal raha hai, usay kill karo!
         if (activeBotProcess) {
             sendLog("⚠️ Stopping previous bot instance to prevent conflict...");
             try { activeBotProcess.kill(); } catch (e) {}
             activeBotProcess = null;
+            // Wait 1 second for the port/files to be freed completely
+            await new Promise(resolve => setTimeout(resolve, 1000));
         }
 
         const b64data = sessionId.split('!')[1].replace('...', '');
@@ -282,13 +282,23 @@ app.post('/deploy-bot', async (req, res) => {
 
         sendLog("⚙️ Starting Bot Process in Background...");
         
-        // Spawn naya process aur save karna global variable mein
+        // 🚀 THE FIX: DO NOT pass SESSION_ID in env! It causes memory crash!
         activeBotProcess = spawn('node', ['index.js'], { 
-            env: { ...process.env, SESSION_ID: sessionId } // Force clean ID into environment
+            env: process.env // Plain environment, no heavy Session ID
         });
         
-        activeBotProcess.stdout.on('data', data => sendLog(`[BOT] ${data.toString().trim()}`));
-        activeBotProcess.stderr.on('data', data => sendLog(`[ERROR] ${data.toString().trim()}`));
+        // 🐛 BETTER LOGGING FIX: Split logs by line so nothing gets cut off
+        activeBotProcess.stdout.on('data', data => {
+            data.toString().split('\n').forEach(line => {
+                if(line.trim()) sendLog(`[BOT] ${line.trim()}`);
+            });
+        });
+        
+        activeBotProcess.stderr.on('data', data => {
+            data.toString().split('\n').forEach(line => {
+                if(line.trim()) sendLog(`[ERROR] ${line.trim()}`);
+            });
+        });
         
         activeBotProcess.on('close', (code) => {
             sendLog(`[SYSTEM] Bot Process Exited (Code: ${code})`);
