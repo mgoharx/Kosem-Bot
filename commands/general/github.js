@@ -28,7 +28,7 @@ module.exports = {
             message += `🔒 *Status:* Private & Exclusive\n\n`;
             
             message += `⚠️ *Note:* The GitHub repository and source code for this bot are strictly *Private* and are not available to the public.\n\n`;
-            message += `╰━━━━━━━━━━━━━━━┈⊷`;
+            message += `╰━━━━━━━━━━━━━━━━┈⊷`;
             
             // Send final message with Channel Button
             await sock.sendMessage(chatId, {
