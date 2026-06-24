@@ -28,7 +28,6 @@ module.exports = {
   async execute(sock, msg, args, extra) {
     try {
       const senderJid = extra.sender || msg.key.participant || msg.key.remoteJid;
-      const isGroup = extra.from.endsWith('@g.us');
 
       // Load user delivery preference
       const settings = loadSettings();
@@ -38,13 +37,11 @@ module.exports = {
       // 🧹 UNIVERSAL DELETE COMMAND FUNCTION
       // =========================================================
       const deleteCommand = async () => {
-        if (isGroup) {
-          try {
-            // Delete the message from the group chat instantly
-            await sock.sendMessage(extra.from, { delete: msg.key });
-          } catch (e) {
-            // Silently ignore if bot is not group admin
-          }
+        try {
+          // Delete the message from anywhere (Group or Private Chat) instantly
+          await sock.sendMessage(extra.from, { delete: msg.key });
+        } catch (e) {
+          // Silently ignore if bot lacks permissions
         }
       };
 
