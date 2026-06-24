@@ -6,7 +6,7 @@ const config = require('../../config'); // Required for botName in contextInfo
 
 module.exports = {
     name: 'groupinfo',
-    aliases: ['ginfo', 'groupdetails', 'gdetails', 'groupstats', 'chatinfo'], // 'info' removed, added new aliases
+    aliases: ['ginfo', 'groupdetails', 'gdetails', 'groupstats', 'chatinfo'],
     category: 'general',
     description: 'Show group information',
     usage: '.groupinfo',
@@ -21,12 +21,11 @@ module.exports = {
         
         let text = `❖ ── ✦ 𝐆𝐑𝐎𝐔𝐏 𝐈𝐍𝐅𝐎 ✦ ── ❖\n\n`;
         text += `🏷️ *Name:* ${metadata.subject}\n`;
-        text += `🆔 *ID:* ${metadata.id.split('@')[0]}\n`;
+        text += `🆔 *ID:* ${metadata.id}\n`;
         text += `👥 *Members:* ${metadata.participants.length}\n`;
         text += `👑 *Admins:* ${admins.length}\n`;
         text += `📅 *Created:* ${new Date(metadata.creation * 1000).toLocaleDateString('en-US')}\n`;
-        text += `🔒 *Restricted:* ${metadata.restrict ? 'Yes (Admins Only)' : 'No (Everyone)'}\n`;
-        text += `📢 *Announce:* ${metadata.announce ? 'Yes (Admins Only)' : 'No (Everyone)'}\n\n`;
+        text += `🔒 *Restricted:* ${metadata.restrict ? 'Admins Only' : 'Everyone'}\n\n`;
         
         if (metadata.desc) {
             text += `📝 *Description:*\n${metadata.desc}\n\n`;
@@ -38,7 +37,7 @@ module.exports = {
         admins.forEach((admin, index) => {
           text += `│ ${index + 1}. @${admin.id.split('@')[0]}\n`;
         });
-        text += `╰━━━━━━━━━━━━━━━━━━┈⊷`;
+        text += `╰━━━━━━━━━━━━━━━━━┈⊷`;
         
         // Send Final Premium Text with Channel Button
         await sock.sendMessage(extra.from, {
@@ -57,7 +56,7 @@ module.exports = {
         
       } catch (error) {
         console.error('Group Info command error:', error);
-        await extra.reply(`❖ ── ✦ 𝐄𝐑𝐑𝐎𝐑 ✦ ── ❖\n\n❌ ${error.message}\n╰━━━━━━━━━━━━━━━━━━┈⊷`);
+        await extra.reply(`❖ ── ✦ 𝐄𝐑𝐑𝐎𝐑 ✦ ── ❖\n\n❌ ${error.message}\n╰━━━━━━━━━━━━━━━━━┈⊷`);
       }
     }
 };
