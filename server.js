@@ -13,7 +13,9 @@ process.on('unhandledRejection', (err) => console.error('Unhandled Rejection:', 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-app.use(express.json());
+// 📦 INCREASED LIMITS FOR MOBILE BROWSERS
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
 // 📝 LIVE LOGS SYSTEM
 const clients = [];
@@ -68,7 +70,7 @@ app.get('/', (req, res) => {
                 .error { color: #ff5555; font-weight: 500; }
                 .success { color: #50fa7b; font-weight: 600; font-size: 16px; }
                 
-                #live-logs { display: none; margin-top: 20px; background: rgba(0, 0, 0, 0.5); padding: 15px; border-radius: 12px; border: 1px solid rgba(255, 255, 255, 0.1); height: 160px; overflow-y: auto; font-family: monospace; font-size: 12px; color: #50fa7b; text-align: left; box-shadow: inset 0 2px 10px rgba(0,0,0,0.5); }
+                #live-logs { display: none; margin-top: 20px; background: rgba(0, 0, 0, 0.5); padding: 15px; border-radius: 12px; border: 1px solid rgba(255, 255, 255, 0.1); height: 160px; overflow-y: auto; font-family: monospace; font-size: 12px; color: #50fa7b; text-align: left; box-shadow: inset 0 2px 10px rgba(0,0,0,0.5); white-space: pre-wrap; }
                 #live-logs.show { display: block; }
                 @keyframes pulse { 0%, 100% { opacity: 0.5; } 50% { opacity: 1; } }
             </style>
@@ -100,7 +102,7 @@ app.get('/', (req, res) => {
                     <input type="text" id="session-id" placeholder="Paste Session ID (Kosem!...)">
                     <button class="action-btn" onclick="deployBot()">Start Bot</button>
                     <div id="deploy-result"></div>
-                    <div id="live-logs">Waiting for deployment...\\n</div>
+                    <div id="live-logs">Waiting for deployment...\n</div>
                 </div>
             </div>
 
@@ -234,7 +236,7 @@ app.get('/logs', (req, res) => {
     });
 });
 
-// 🚀 GLOBAL BOT PROCESS (To prevent duplicates)
+// 🚀 GLOBAL BOT PROCESS
 let activeBotProcess = null;
 
 // ==========================================
@@ -243,13 +245,9 @@ let activeBotProcess = null;
 app.post('/deploy-bot', async (req, res) => {
     let { sessionId } = req.body;
     
-    // ==========================================
-    // ☢️ NUCLEAR CLEANER: Remove EVERYTHING except Base64/Kosem symbols
-    // ==========================================
     if (sessionId) {
         sessionId = sessionId.replace(/[^a-zA-Z0-9+/=!_-]/g, '');
     }
-    // ==========================================
     
     if (!sessionId || !sessionId.startsWith('Kosem!')) {
         return res.json({ success: false, message: "Invalid Session ID. Must start with Kosem!" });
@@ -262,8 +260,7 @@ app.post('/deploy-bot', async (req, res) => {
             sendLog("⚠️ Stopping previous bot instance to prevent conflict...");
             try { activeBotProcess.kill(); } catch (e) {}
             activeBotProcess = null;
-            // Wait 1 second for the port/files to be freed completely
-            await new Promise(resolve => setTimeout(resolve, 1000));
+            await new Promise(resolve => setTimeout(resolve, 1500)); // Thora extra wait diya
         }
 
         const b64data = sessionId.split('!')[1].replace('...', '');
@@ -282,23 +279,18 @@ app.post('/deploy-bot', async (req, res) => {
 
         sendLog("⚙️ Starting Bot Process in Background...");
         
-        // 🚀 THE FIX: DO NOT pass SESSION_ID in env! It causes memory crash!
-        activeBotProcess = spawn('node', ['index.js'], { 
-            env: process.env // Plain environment, no heavy Session ID
+        // 📍 THE FIX: Direct Path taake Mobile ya PC kisi par bhi error na aaye
+        const botMainFile = path.join(__dirname, 'index.js');
+        
+        activeBotProcess = spawn('node', [botMainFile], { 
+            cwd: __dirname, // Working Directory lazmi __dirname rakhi hai
+            env: process.env 
         });
         
-        // 🐛 BETTER LOGGING FIX: Split logs by line so nothing gets cut off
-        activeBotProcess.stdout.on('data', data => {
-            data.toString().split('\n').forEach(line => {
-                if(line.trim()) sendLog(`[BOT] ${line.trim()}`);
-            });
-        });
+        activeBotProcess.stdout.on('data', data => sendLog(`[BOT] ${data.toString()}`));
         
-        activeBotProcess.stderr.on('data', data => {
-            data.toString().split('\n').forEach(line => {
-                if(line.trim()) sendLog(`[ERROR] ${line.trim()}`);
-            });
-        });
+        // 🔍 RAW ERROR LOGS (Ab agar error aayega toh exact wahi line show hogi jo masla kar rahi hai)
+        activeBotProcess.stderr.on('data', data => sendLog(`[CRITICAL] ${data.toString()}`));
         
         activeBotProcess.on('close', (code) => {
             sendLog(`[SYSTEM] Bot Process Exited (Code: ${code})`);
