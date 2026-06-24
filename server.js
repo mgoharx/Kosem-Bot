@@ -241,7 +241,16 @@ let activeBotProcess = null;
 // 🚀 API: DEPLOY BOT
 // ==========================================
 app.post('/deploy-bot', async (req, res) => {
-    const { sessionId } = req.body;
+    let { sessionId } = req.body;
+    
+    // ==========================================
+    // 🧹 MOBILE GLITCH FIX: Clean the Session ID
+    // ==========================================
+    if (sessionId) {
+        // Yeh line mobile ke extra spaces aur invisible lines delete kar degi
+        sessionId = sessionId.replace(/[\r\n\s]+/g, '').trim();
+    }
+    // ==========================================
     
     if (!sessionId || !sessionId.startsWith('Kosem!')) {
         return res.json({ success: false, message: "Invalid Session ID. Must start with Kosem!" });
@@ -275,7 +284,7 @@ app.post('/deploy-bot', async (req, res) => {
         
         // Spawn naya process aur save karna global variable mein
         activeBotProcess = spawn('node', ['index.js'], { 
-            env: { ...process.env }
+            env: { ...process.env, SESSION_ID: sessionId } // Force clean ID into environment
         });
         
         activeBotProcess.stdout.on('data', data => sendLog(`[BOT] ${data.toString().trim()}`));
