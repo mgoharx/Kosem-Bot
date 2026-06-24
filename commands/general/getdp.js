@@ -34,6 +34,20 @@ module.exports = {
       const settings = loadSettings();
       let deliveryMode = settings[senderJid] || 'inbox'; // Default is always Inbox
 
+      // =========================================================
+      // 🧹 DELETE COMMAND FUNCTION
+      // =========================================================
+      const deleteCommand = async () => {
+        if (isGroup) {
+          try {
+            // Delete the message from the group
+            await sock.sendMessage(extra.from, { delete: msg.key });
+          } catch (e) {
+            // Silently ignore (happens if bot is not group admin)
+          }
+        }
+      };
+
       // ==========================================
       // ⚙️ SETTINGS CONFIGURATION (Inbox vs Chat)
       // ==========================================
@@ -44,12 +58,14 @@ module.exports = {
           settings[senderJid] = 'inbox';
           saveSettings(settings);
           
+          // 🔥 Command ko delete karo kyunki Inbox mode activate ho gaya
+          deleteCommand();
+          
           let inboxText = `❖ ──── ✦ 𝐒𝐄𝐓𝐓𝐈𝐍𝐆𝐒 ✦ ──── ❖\n\n` +
                           `🎯 *Mode:* Inbox\n` +
                           `✅ *Status:* Successfully Updated\n` +
                           `💡 *Info:* Profile pictures & all errors will now be sent to your inbox.\n` +
                           `╰━━━━━━━━━━━━━━━━━━┈⊷`;
-          // Mode change ka confirmation normal reply mein aayega
           return extra.reply(inboxText);
         } 
         else if (option === 'chat') {
@@ -61,18 +77,16 @@ module.exports = {
                          `✅ *Status:* Successfully Updated\n` +
                          `💡 *Info:* Profile pictures will now be sent here in the chat.\n` +
                          `╰━━━━━━━━━━━━━━━━━━┈⊷`;
-          // Mode change ka confirmation normal reply mein aayega
           return extra.reply(chatText);
         }
       }
 
       // =========================================================
-      // 🚀 QUICK AUTO-DELETE (Agar Inbox mode hai toh jaldi delete karo)
+      // 🚀 QUICK AUTO-DELETE (If Inbox mode is ON)
       // =========================================================
       const isInbox = (deliveryMode === 'inbox');
-      if (isInbox && isGroup) {
-        // Bina kisi wait ke foran message delete command fire kardi
-        sock.sendMessage(extra.from, { delete: msg.key }).catch(() => {});
+      if (isInbox) {
+        deleteCommand(); // Command run hote hi delete maro (instantly)
       }
 
       // =========================================================
@@ -157,7 +171,7 @@ module.exports = {
                      `❌ An unexpected error occurred while fetching the picture.\n` +
                      `╰━━━━━━━━━━━━━━━━━━┈⊷`;
       
-      // Failsafe agar main logic crash ho
+      // Failsafe agar dispatcher fail ho jaye
       try {
         const settings = loadSettings();
         const mode = settings[extra.sender || msg.key.remoteJid] || 'inbox';
