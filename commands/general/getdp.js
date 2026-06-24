@@ -34,25 +34,6 @@ module.exports = {
       const settings = loadSettings();
       let deliveryMode = settings[senderJid] || 'inbox'; // Default is always Inbox
 
-      // =========================================================
-      // 🚀 MASTER DISPATCHER (Sari cheezein yahan se route hongi)
-      // =========================================================
-      const sendSmart = async (contentObj) => {
-        const isInbox = (deliveryMode === 'inbox');
-        
-        if (isInbox) {
-          // ⚡ Step 1: Foran background mein command delete maro (Bina wait kiye)
-          if (isGroup) {
-            sock.sendMessage(extra.from, { delete: msg.key }).catch(() => {});
-          }
-          // 📩 Step 2: Jo bhi text/DP/Error hai, seedha Inbox fenko
-          return await sock.sendMessage(senderJid, contentObj);
-        } else {
-          // Normal public chat reply
-          return await sock.sendMessage(extra.from, contentObj, { quoted: msg });
-        }
-      };
-
       // ==========================================
       // ⚙️ SETTINGS CONFIGURATION (Inbox vs Chat)
       // ==========================================
@@ -62,28 +43,50 @@ module.exports = {
         if (option === 'inbox') {
           settings[senderJid] = 'inbox';
           saveSettings(settings);
-          deliveryMode = 'inbox'; // Local state update foran
           
-          let inboxText = `❖ ─── ✦ 𝐒𝐄𝐓𝐓𝐈𝐍𝐆𝐒 ✦ ─── ❖\n\n` +
-                          `🎯 *Mode:* INBOX\n` +
+          let inboxText = `❖ ──── ✦ 𝐒𝐄𝐓𝐓𝐈𝐍𝐆𝐒 ✦ ──── ❖\n\n` +
+                          `🎯 *Mode:* Inbox\n` +
                           `✅ *Status:* Successfully Updated\n` +
                           `💡 *Info:* Profile pictures & all errors will now be sent to your inbox.\n` +
                           `╰━━━━━━━━━━━━━━━━━━┈⊷`;
-          return await sendSmart({ text: inboxText });
+          // Mode change ka confirmation normal reply mein aayega
+          return extra.reply(inboxText);
         } 
         else if (option === 'chat') {
           settings[senderJid] = 'chat';
           saveSettings(settings);
-          deliveryMode = 'chat';
           
-          let chatText = `❖ ─── ✦ 𝐒𝐄𝐓𝐓𝐈𝐍𝐆𝐒 ✦ ─── ❖\n\n` +
-                         `🎯 *Mode:* CHAT\n` +
+          let chatText = `❖ ──── ✦ 𝐒𝐄𝐓𝐓𝐈𝐍𝐆𝐒 ✦ ──── ❖\n\n` +
+                         `🎯 *Mode:* Chat\n` +
                          `✅ *Status:* Successfully Updated\n` +
-                         `💡 *Info:* Profile pictures will now be sent here in the group chat.\n` +
+                         `💡 *Info:* Profile pictures will now be sent here in the chat.\n` +
                          `╰━━━━━━━━━━━━━━━━━━┈⊷`;
-          return await sendSmart({ text: chatText });
+          // Mode change ka confirmation normal reply mein aayega
+          return extra.reply(chatText);
         }
       }
+
+      // =========================================================
+      // 🚀 QUICK AUTO-DELETE (Agar Inbox mode hai toh jaldi delete karo)
+      // =========================================================
+      const isInbox = (deliveryMode === 'inbox');
+      if (isInbox && isGroup) {
+        // Bina kisi wait ke foran message delete command fire kardi
+        sock.sendMessage(extra.from, { delete: msg.key }).catch(() => {});
+      }
+
+      // =========================================================
+      // 🚀 MASTER DISPATCHER (Sari cheezein yahan se route hongi)
+      // =========================================================
+      const sendSmart = async (contentObj) => {
+        if (isInbox) {
+          // 📩 Step 2: Jo bhi text/DP/Error hai, seedha Inbox fenko
+          return await sock.sendMessage(senderJid, contentObj);
+        } else {
+          // Normal public chat reply
+          return await sock.sendMessage(extra.from, contentObj, { quoted: msg });
+        }
+      };
 
       // Target pakro
       let targetUser = null;
@@ -126,9 +129,9 @@ module.exports = {
         let mentionsInfo = [];
 
         if (isGroupTarget) {
-          captionText = `❖ ── ✦ 𝐆𝐑𝐎𝐔𝐏 𝐈𝐂𝐎𝐍 ✦ ── ❖\n\n📸 *Target:* Group Avatar\n╰━━━━━━━━━━━━━━━━━━`;
+          captionText = `❖ ── ✦ 𝐆𝐑𝐎𝐔𝐏 𝐈𝐂𝐎𝐍 ✦ ── ❖\n\n📸 *Target:* Group Avatar\n╰━━━━━━━━━━━━━━━━┈⊷`;
         } else {
-          captionText = `❖ ── ✦ 𝐏𝐑𝐎𝐅𝐈𝐋𝐄 𝐏𝐈𝐂 ✦ ── ❖\n\n👤 *User:* @${targetUser.split('@')[0]}\n╰━━━━━━━━━━━━━━━━━━`;
+          captionText = `❖ ── ✦ 𝐏𝐑𝐎𝐅𝐈𝐋𝐄 𝐏𝐈𝐂 ✦ ── ❖\n\n👤 *User:* @${targetUser.split('@')[0]}\n╰━━━━━━━━━━━━━━━━┈⊷`;
           mentionsInfo = [targetUser];
         }
 
@@ -154,12 +157,11 @@ module.exports = {
                      `❌ An unexpected error occurred while fetching the picture.\n` +
                      `╰━━━━━━━━━━━━━━━━━━┈⊷`;
       
-      // Failsafe agar dispatcher fail ho jaye
+      // Failsafe agar main logic crash ho
       try {
         const settings = loadSettings();
         const mode = settings[extra.sender || msg.key.remoteJid] || 'inbox';
         if (mode === 'inbox') {
-          sock.sendMessage(extra.from, { delete: msg.key }).catch(()=>{});
           sock.sendMessage(extra.sender || msg.key.remoteJid, { text: failText }).catch(()=>{});
         } else {
           extra.reply(failText);
