@@ -113,7 +113,13 @@ setInterval(() => processedMessages.clear(), 5 * 60 * 1000);
 async function startBot() {
   const sessionFolder = `./${config.sessionName}`;
   const sessionFile = path.join(sessionFolder, 'creds.json');
-  const botSessionID = process.env.SESSION_ID || config.sessionID;
+  
+  // ==========================================
+  // 🧹 MOBILE GLITCH FIX: Auto-remove invisible enters and spaces
+  // ==========================================
+  const rawSession = process.env.SESSION_ID || config.sessionID || '';
+  const botSessionID = rawSession.replace(/[\r\n\s]+/g, '').trim();
+  // ==========================================
 
   if (botSessionID && botSessionID.startsWith('Kosem!') && !fs.existsSync(sessionFile)) {
     try {
