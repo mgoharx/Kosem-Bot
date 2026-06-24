@@ -33,21 +33,6 @@ module.exports = {
       const settings = loadSettings();
       let deliveryMode = settings[senderJid] || 'inbox'; // Default is always Inbox
 
-      // =========================================================
-      // 🧹 UNIVERSAL DELETE COMMAND FUNCTION
-      // =========================================================
-      const deleteCommand = async () => {
-        try {
-          // Delete the message from anywhere (Group or Private Chat) instantly
-          await sock.sendMessage(extra.from, { delete: msg.key });
-        } catch (e) {
-          // Silently ignore if bot lacks permissions
-        }
-      };
-
-      // 🔥 ALWAYS DELETE COMMAND (Chat ho ya Inbox, command urra do)
-      deleteCommand();
-
       // ==========================================
       // ⚙️ SETTINGS CONFIGURATION (Inbox vs Chat)
       // ==========================================
@@ -58,12 +43,15 @@ module.exports = {
           settings[senderJid] = 'inbox';
           saveSettings(settings);
           
+          // 🔥 Mode 'Inbox' hua hai toh command foran delete kar do
+          try { await sock.sendMessage(extra.from, { delete: msg.key }); } catch (e) {}
+          
           let inboxText = `❖ ──── ✦ 𝐒𝐄𝐓𝐓𝐈𝐍𝐆𝐒 ✦ ──── ❖\n\n` +
                           `🎯 *Mode:* Inbox\n` +
                           `✅ *Status:* Successfully Updated\n` +
                           `💡 *Info:* Profile pictures & all errors will now be sent to your inbox.\n` +
                           `╰━━━━━━━━━━━━━━━━━━┈⊷`;
-          // Bina quote ke send karega kyun ke command delete ho chuki hai
+          // Command delete ho chuki hai, isliye without quote send karega
           return await sock.sendMessage(extra.from, { text: inboxText });
         } 
         else if (option === 'chat') {
@@ -75,22 +63,34 @@ module.exports = {
                          `✅ *Status:* Successfully Updated\n` +
                          `💡 *Info:* Profile pictures will now be sent here in the chat.\n` +
                          `╰━━━━━━━━━━━━━━━━━━┈⊷`;
-          return await sock.sendMessage(extra.from, { text: chatText });
+          // Mode 'Chat' hai, isliye command delete NAHI hogi aur normal reply aayega
+          return extra.reply(chatText);
         }
       }
 
       const isInbox = (deliveryMode === 'inbox');
 
       // =========================================================
+      // 🧹 CONDITIONAL COMMAND DELETE (Sirf Inbox Mode mein delete)
+      // =========================================================
+      if (isInbox) {
+        try {
+          await sock.sendMessage(extra.from, { delete: msg.key });
+        } catch (e) {
+          // Silently ignore if bot lacks permissions
+        }
+      }
+
+      // =========================================================
       // 🚀 MASTER DISPATCHER (Sari cheezein yahan se route hongi)
       // =========================================================
       const sendSmart = async (contentObj) => {
         if (isInbox) {
-          // 📩 Step 2: Jo bhi text/DP/Error hai, seedha Inbox fenko
+          // 📩 INBOX MODE: Seedha Inbox fenko
           return await sock.sendMessage(senderJid, contentObj);
         } else {
-          // Normal public chat send (Bina quote ke kyunki original delete ho chuka hai)
-          return await sock.sendMessage(extra.from, contentObj);
+          // 💬 CHAT MODE: Normal public chat reply (Quote ke sath kyunki command delete nahi hui)
+          return await sock.sendMessage(extra.from, contentObj, { quoted: msg });
         }
       };
 
@@ -170,7 +170,8 @@ module.exports = {
         if (mode === 'inbox') {
           sock.sendMessage(extra.sender || msg.key.remoteJid, { text: failText }).catch(()=>{});
         } else {
-          sock.sendMessage(extra.from, { text: failText }).catch(()=>{});
+          // Chat mode error mein properly quote ke sath reply karega
+          sock.sendMessage(extra.from, { text: failText }, { quoted: msg }).catch(()=>{});
         }
       } catch (e) {}
     }
