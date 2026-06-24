@@ -13,9 +13,7 @@ process.on('unhandledRejection', (err) => console.error('Unhandled Rejection:', 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// 📦 INCREASED LIMITS FOR MOBILE BROWSERS
-app.use(express.json({ limit: '100mb' }));
-app.use(express.urlencoded({ extended: true, limit: '100mb' }));
+app.use(express.json());
 
 // 📝 LIVE LOGS SYSTEM
 const clients = [];
@@ -57,7 +55,6 @@ app.get('/', (req, res) => {
                 .action-btn { width: 100%; padding: 16px; background: #ffffff; color: #000000; border: none; border-radius: 12px; font-size: 16px; font-weight: 600; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.15); transition: all 0.3s ease; }
                 .action-btn:hover { background: #f0f0f0; transform: translateY(-1px); box-shadow: 0 6px 15px rgba(0,0,0,0.3); }
                 .action-btn:active { transform: translateY(1px); box-shadow: 0 2px 4px rgba(0,0,0,0.2); }
-                .action-btn:disabled { background: #555; color: #aaa; cursor: not-allowed; transform: none; box-shadow: none; }
                 
                 .tab-content { display: none; opacity: 0; transform: translateY(15px); transition: opacity 0.35s ease, transform 0.4s cubic-bezier(0.25, 0.8, 0.25, 1); }
                 .tab-content.active { display: block; }
@@ -71,7 +68,7 @@ app.get('/', (req, res) => {
                 .error { color: #ff5555; font-weight: 500; }
                 .success { color: #50fa7b; font-weight: 600; font-size: 16px; }
                 
-                #live-logs { display: none; margin-top: 20px; background: rgba(0, 0, 0, 0.5); padding: 15px; border-radius: 12px; border: 1px solid rgba(255, 255, 255, 0.1); height: 160px; overflow-y: auto; font-family: monospace; font-size: 12px; color: #50fa7b; text-align: left; box-shadow: inset 0 2px 10px rgba(0,0,0,0.5); white-space: pre-wrap; }
+                #live-logs { display: none; margin-top: 20px; background: rgba(0, 0, 0, 0.5); padding: 15px; border-radius: 12px; border: 1px solid rgba(255, 255, 255, 0.1); height: 160px; overflow-y: auto; font-family: monospace; font-size: 12px; color: #50fa7b; text-align: left; box-shadow: inset 0 2px 10px rgba(0,0,0,0.5); }
                 #live-logs.show { display: block; }
                 @keyframes pulse { 0%, 100% { opacity: 0.5; } 50% { opacity: 1; } }
             </style>
@@ -101,9 +98,9 @@ app.get('/', (req, res) => {
 
                 <div id="section-deploy" class="tab-content">
                     <input type="text" id="session-id" placeholder="Paste Session ID (Kosem!...)">
-                    <button class="action-btn" id="btn-start" onclick="deployBot()">Start Bot</button>
+                    <button class="action-btn" onclick="deployBot()">Start Bot</button>
                     <div id="deploy-result"></div>
-                    <div id="live-logs">Waiting for deployment...\n</div>
+                    <div id="live-logs">Waiting for deployment...\\n</div>
                 </div>
             </div>
 
@@ -191,13 +188,7 @@ app.get('/', (req, res) => {
                     const sid = document.getElementById('session-id').value;
                     const container = document.getElementById('deploy-result');
                     const logs = document.getElementById('live-logs');
-                    const startBtn = document.getElementById('btn-start');
-                    
                     if(!sid) return animateHTMLChange(container, '<span class="error">Please paste the Session ID.</span>');
-                    
-                    // 🛡️ ANTI DOUBLE-CLICK LOCK (Prevents mobile ghost touches from crashing server)
-                    startBtn.disabled = true;
-                    startBtn.innerText = "Deploying...";
                     
                     animateHTMLChange(container, '<span class="loading">Deploying Bot in Background...</span>');
                     try {
@@ -213,16 +204,8 @@ app.get('/', (req, res) => {
                                 logs.classList.add('show');
                                 document.getElementById('main-card').style.height = 'auto';
                             }, 500);
-                        } else { 
-                            animateHTMLChange(container, \`<span class="error">❌ \${data.message}</span>\`); 
-                            startBtn.disabled = false;
-                            startBtn.innerText = "Start Bot";
-                        }
-                    } catch(e) { 
-                        animateHTMLChange(container, '<span class="error">Server error. Try again.</span>'); 
-                        startBtn.disabled = false;
-                        startBtn.innerText = "Start Bot";
-                    }
+                        } else { animateHTMLChange(container, \`<span class="error">❌ \${data.message}</span>\`); }
+                    } catch(e) { animateHTMLChange(container, '<span class="error">Server error. Try again.</span>'); }
                 }
 
                 const es = new EventSource('/logs');
@@ -251,18 +234,14 @@ app.get('/logs', (req, res) => {
     });
 });
 
-// 🚀 GLOBAL BOT PROCESS
+// 🚀 GLOBAL BOT PROCESS (To prevent duplicates)
 let activeBotProcess = null;
 
 // ==========================================
 // 🚀 API: DEPLOY BOT
 // ==========================================
 app.post('/deploy-bot', async (req, res) => {
-    let { sessionId } = req.body;
-    
-    if (sessionId) {
-        sessionId = sessionId.replace(/[^a-zA-Z0-9+/=!_-]/g, '');
-    }
+    const { sessionId } = req.body;
     
     if (!sessionId || !sessionId.startsWith('Kosem!')) {
         return res.json({ success: false, message: "Invalid Session ID. Must start with Kosem!" });
@@ -271,23 +250,16 @@ app.post('/deploy-bot', async (req, res) => {
     try {
         sendLog("📥 Processing Session ID...");
 
+        // 🛡️ ANTI-DUPLICATE SYSTEM: Agar purana bot chal raha hai, usay kill karo!
         if (activeBotProcess) {
             sendLog("⚠️ Stopping previous bot instance to prevent conflict...");
             try { activeBotProcess.kill(); } catch (e) {}
             activeBotProcess = null;
-            await new Promise(resolve => setTimeout(resolve, 2000)); // Safe wait time for port clearance
         }
 
         const b64data = sessionId.split('!')[1].replace('...', '');
         const compressedData = Buffer.from(b64data, 'base64');
         const decompressedData = zlib.gunzipSync(compressedData);
-
-        // 🛡️ VERIFY JSON STRUCTURE (If mobile broke the payload, this will catch it!)
-        try {
-            JSON.parse(decompressedData.toString('utf8'));
-        } catch (jsonError) {
-            return res.json({ success: false, message: "Mobile Payload Corrupted! JSON Parse Failed." });
-        }
 
         const sessionFolder = path.join(__dirname, 'session');
         
@@ -301,17 +273,13 @@ app.post('/deploy-bot', async (req, res) => {
 
         sendLog("⚙️ Starting Bot Process in Background...");
         
-        const botMainFile = path.join(__dirname, 'index.js');
-        
-        activeBotProcess = spawn('node', [botMainFile], { 
-            cwd: __dirname,
-            env: process.env 
+        // Spawn naya process aur save karna global variable mein
+        activeBotProcess = spawn('node', ['index.js'], { 
+            env: { ...process.env }
         });
         
-        activeBotProcess.stdout.on('data', data => sendLog(`[BOT] ${data.toString()}`));
-        
-        // 🔴 RAW UNTOUCHED ERROR LOGGING (To reveal exactly which file is missing if it crashes)
-        activeBotProcess.stderr.on('data', data => sendLog(`\n🔴 RAW SYSTEM ERROR:\n${data.toString()}\n`));
+        activeBotProcess.stdout.on('data', data => sendLog(`[BOT] ${data.toString().trim()}`));
+        activeBotProcess.stderr.on('data', data => sendLog(`[ERROR] ${data.toString().trim()}`));
         
         activeBotProcess.on('close', (code) => {
             sendLog(`[SYSTEM] Bot Process Exited (Code: ${code})`);
