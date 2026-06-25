@@ -17,7 +17,7 @@ module.exports = {
       // Check if message is a reply
       const ctxInfo = msg.message?.extendedTextMessage?.contextInfo;
       if (!ctxInfo?.quotedMessage) {
-        let errText = `❖ ── ✦ 𝐄𝐑𝐑𝐎𝐑 ✦ ── ❖\n\n`;
+        let errText = `❖ ───── ✦ 𝐄𝐑𝐑𝐎𝐑 ✦ ───── ❖\n\n`;
         errText += `❌ *Target Missing!*\n`;
         errText += `💡 Please reply to a sticker to convert it.\n`;
         errText += `╰━━━━━━━━━━━━━━━━━━┈⊷`;
@@ -36,7 +36,7 @@ module.exports = {
       // Check if quoted message is a sticker
       const stickerMessage = targetMessage.message?.stickerMessage;
       if (!stickerMessage) {
-        let errText = `❖ ── ✦ 𝐄𝐑𝐑𝐎𝐑 ✦ ── ❖\n\n`;
+        let errText = `❖ ───── ✦ 𝐄𝐑𝐑𝐎𝐑 ✦ ───── ❖\n\n`;
         errText += `❌ *Invalid Media*\n`;
         errText += `💡 You can only convert stickers. Please reply to a valid sticker.\n`;
         errText += `╰━━━━━━━━━━━━━━━━━━┈⊷`;
@@ -55,7 +55,7 @@ module.exports = {
       );
       
       if (!stickerBuffer) {
-        let errText = `❖ ── ✦ 𝐄𝐑𝐑𝐎𝐑 ✦ ── ❖\n\n`;
+        let errText = `❖ ───── ✦ 𝐄𝐑𝐑𝐎𝐑 ✦ ───── ❖\n\n`;
         errText += `❌ *Download Failed*\n`;
         errText += `💡 Could not fetch the sticker data. Please try again.\n`;
         errText += `╰━━━━━━━━━━━━━━━━━━┈⊷`;
@@ -101,7 +101,7 @@ module.exports = {
       
     } catch (error) {
       console.error('Error in simage command:', error);
-      let errText = `❖ ── ✦ 𝐄𝐑𝐑𝐎𝐑 ✦ ── ❖\n\n`;
+      let errText = `❖ ───── ✦ 𝐄𝐑𝐑𝐎𝐑 ✦ ───── ❖\n\n`;
       errText += `❌ *Conversion Failed*\n`;
       errText += `💡 ${error.message || 'Something went wrong during conversion.'}\n`;
       errText += `╰━━━━━━━━━━━━━━━━━━┈⊷`;
