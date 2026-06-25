@@ -3,8 +3,6 @@
  * Powered by Unlimited Multi-API Fallback System (Gemini + ChatGPT)
  */
 
-const axios = require('axios');
-
 module.exports = {
   name: 'ai',
   aliases: ['gpt', 'chatgpt', 'ask', 'gemini', 'bot'],
@@ -14,6 +12,9 @@ module.exports = {
   
   async execute(sock, msg, args, extra) {
     try {
+      // 🚀 FIX: Require axios inside the function so it DOES NOT crash the command loader
+      const axios = require('axios');
+
       if (args.length === 0) {
         let usageText = `❖ ───── ✦ 𝐄𝐑𝐑𝐎𝐑 ✦ ───── ❖\n\n`;
         usageText += `❌ *Question Missing*\n`;
@@ -24,11 +25,9 @@ module.exports = {
       }
       
       const question = args.join(' ');
-      
       let answer = '';
 
       // 🚀 ADVANCED UNLIMITED FREE AI (Gemini APIs Fallback System)
-      // Bot will try multiple servers. If one fails, it instantly switches to the next!
       try {
         // 🥇 Primary API: Free Gemini API (Fastest)
         const res1 = await axios.get(`https://bk9.site/ai/gemini?q=${encodeURIComponent(question)}`);
@@ -60,11 +59,17 @@ module.exports = {
       // Clean up the answer (Removes any API branding if present)
       answer = answer.replace(/BK9/ig, 'AI').trim();
 
-      // Reply with ONLY the natural AI answer (No annoying labels or borders)
+      // Reply with ONLY the natural AI answer
       await extra.reply(answer);
       
     } catch (error) {
       console.error('AI command error:', error);
+      
+      // Agar axios install nahi hai toh ye specific error dega
+      if (error.code === 'MODULE_NOT_FOUND') {
+        return extra.reply('⚠️ Developer Note: Please run `npm install axios` in your terminal to use this command.');
+      }
+
       let errText = `❖ ───── ✦ 𝐄𝐑𝐑𝐎𝐑 ✦ ───── ❖\n\n`;
       errText += `❌ *AI Unreachable*\n`;
       errText += `💡 All AI servers are currently busy. Please try again in a moment.\n`;
