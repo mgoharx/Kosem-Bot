@@ -15,8 +15,17 @@ module.exports = {
   async execute(sock, msg, args, extra) {
     try {
       if (!args[0]) {
-        return extra.reply('❌ *Number Missing!*\nCorrect usage:\nNormal: `.sendvc 923001234567`\nView Once: `.sendvc onetime 923001234567`');
+        let usageText = `❖ ── ✦ 𝐄𝐑𝐑𝐎𝐑 ✦ ── ❖\n\n`;
+        usageText += `❌ *Number Missing!*\n`;
+        usageText += `💡 *Correct usage:*\n`;
+        usageText += `Normal: \`.sendvc 923001234567\`\n`;
+        usageText += `View Once: \`.sendvc onetime 923001234567\`\n`;
+        usageText += `╰━━━━━━━━━━━━━━━━━━┈⊷`;
+        return extra.reply(usageText);
       }
+
+      // 👑 Crown Reaction for processing
+      if (extra.react) await extra.react('👑');
 
       // 1. Check if "onetime" parameter is provided
       let isOneTime = false;
@@ -28,7 +37,12 @@ module.exports = {
       }
 
       if (!targetNumberStr) {
-        return extra.reply('❌ *Number Missing!*\nYou used the "onetime" parameter but did not provide a number. Example: `.sendvc onetime 923001234567`');
+        let errText = `❖ ── ✦ 𝐄𝐑𝐑𝐎𝐑 ✦ ── ❖\n\n`;
+        errText += `❌ *Number Missing!*\n`;
+        errText += `💡 You used the "onetime" parameter but did not provide a number.\n`;
+        errText += `*Example:* \`.sendvc onetime 923001234567\`\n`;
+        errText += `╰━━━━━━━━━━━━━━━━━━┈⊷`;
+        return extra.reply(errText);
       }
 
       // 2. Clean the target number
@@ -38,18 +52,21 @@ module.exports = {
       // 3. Verify the replied audio file
       const quoted = msg.message?.extendedTextMessage?.contextInfo?.quotedMessage;
       if (!quoted || (!quoted.audioMessage && !quoted.documentMessage)) {
-        return extra.reply('❌ Please reply to an Audio or MP3 file!');
+        let errText = `❖ ── ✦ 𝐄𝐑𝐑𝐎𝐑 ✦ ── ❖\n\n`;
+        errText += `❌ Please reply to an Audio or MP3 file!\n`;
+        errText += `╰━━━━━━━━━━━━━━━━━━┈⊷`;
+        return extra.reply(errText);
       }
 
       const messageType = quoted.audioMessage ? 'audio' : 'document';
       const actualMessage = quoted.audioMessage || quoted.documentMessage;
 
       if (messageType === 'document' && !actualMessage.mimetype?.includes('audio')) {
-         return extra.reply('❌ The replied document is not a valid audio file!');
+         let errText = `❖ ── ✦ 𝐄𝐑𝐑𝐎𝐑 ✦ ── ❖\n\n`;
+         errText += `❌ The replied document is not a valid audio file!\n`;
+         errText += `╰━━━━━━━━━━━━━━━━━━┈⊷`;
+         return extra.reply(errText);
       }
-
-      let statusMsg = isOneTime ? '⏳ *Processing View Once Voice Note...*' : '⏳ *Processing Voice Note...*';
-      extra.reply(statusMsg);
 
       // 4. Download audio stream
       const stream = await downloadContentFromMessage(actualMessage, messageType);
@@ -72,7 +89,10 @@ module.exports = {
         if (err) {
           console.error('FFmpeg Native Conversion Error:', err);
           if (fs.existsSync(tmpIn)) fs.unlinkSync(tmpIn);
-          return extra.reply('❌ An error occurred while processing the audio!');
+          let errText = `❖ ── ✦ 𝐄𝐑𝐑𝐎𝐑 ✦ ── ❖\n\n`;
+          errText += `❌ An error occurred while processing the audio!\n`;
+          errText += `╰━━━━━━━━━━━━━━━━━━┈⊷`;
+          return extra.reply(errText);
         }
 
         try {
@@ -86,15 +106,29 @@ module.exports = {
             viewOnce: isOneTime 
           });
 
-          let successMsg = isOneTime 
-            ? `✅ *Success!*\n*View Once (1-Time)* Voice Note has been sent to +${targetNumber}! 🤫🎙️`
-            : `✅ *Success!*\nVoice Note has been successfully sent to +${targetNumber}! 🎙️`;
-
+          // 8. Premium Success Message
+          let successMsg = `❖ ── ✦ 𝐒𝐔𝐂𝐂𝐄𝐒𝐒 ✦ ── ❖\n\n`;
+          if (isOneTime) {
+            successMsg += `✅ *Type:* View Once (1-Time) 🤫\n`;
+            successMsg += `🎙️ *Delivered To:* +${targetNumber}\n`;
+          } else {
+            successMsg += `✅ *Type:* Normal Voice Note 🎙️\n`;
+            successMsg += `🎙️ *Delivered To:* +${targetNumber}\n`;
+          }
+          successMsg += `╰━━━━━━━━━━━━━━━━━━┈⊷`;
+          
           extra.reply(successMsg);
+          
+          // ✅ Success Reaction
+          if (extra.react) await extra.react('✅');
 
         } catch (sendErr) {
           console.error('Send Error:', sendErr);
-          extra.reply('❌ Failed to send Voice Note. Please ensure the number is correct and registered on WhatsApp.');
+          let errText = `❖ ── ✦ 𝐄𝐑𝐑𝐎𝐑 ✦ ── ❖\n\n`;
+          errText += `❌ Failed to send Voice Note.\n`;
+          errText += `💡 Please ensure the number is correct and registered on WhatsApp.\n`;
+          errText += `╰━━━━━━━━━━━━━━━━━━┈⊷`;
+          extra.reply(errText);
         } finally {
           if (fs.existsSync(tmpIn)) fs.unlinkSync(tmpIn);
           if (fs.existsSync(tmpOut)) fs.unlinkSync(tmpOut);
@@ -103,7 +137,10 @@ module.exports = {
 
     } catch (err) {
       console.error('Error in sendvc command:', err);
-      return extra.reply('❌ Error: Something went wrong.');
+      let errText = `❖ ── ✦ 𝐄𝐑𝐑𝐎𝐑 ✦ ── ❖\n\n`;
+      errText += `❌ Error: Something went wrong.\n`;
+      errText += `╰━━━━━━━━━━━━━━━━━━┈⊷`;
+      return extra.reply(errText);
     }
   }
 };
