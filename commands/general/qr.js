@@ -14,7 +14,7 @@ module.exports = {
   async execute(sock, msg, args, extra) {
     try {
       if (args.length === 0) {
-        let usageText = `❖ ─── ✦ 𝐄𝐑𝐑𝐎𝐑 ✦ ─── ❖\n\n`;
+        let usageText = `❖ ──── ✦ 𝐄𝐑𝐑𝐎𝐑 ✦ ──── ❖\n\n`;
         usageText += `❌ Please provide text or a link.\n`;
         usageText += `💡 *Example:* .qr https://google.com\n`;
         usageText += `╰━━━━━━━━━━━━━━━━┈⊷`;
@@ -38,7 +38,7 @@ module.exports = {
       });
       
       // Premium Caption Logic
-      let captionText = `❖ ── ✦ 𝐐𝐑 𝐂𝐎𝐃𝐄 ✦ ── ❖\n\n`;
+      let captionText = `❖ ─── ✦ 𝐐𝐑 𝐂𝐎𝐃𝐄 ✦ ─── ❖\n\n`;
       captionText += `✅ *Status:* Generated Successfully\n`;
       captionText += `📝 *Content:* ${text}\n`;
       captionText += `╰━━━━━━━━━━━━━━━┈⊷`;
