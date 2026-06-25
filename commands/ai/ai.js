@@ -1,8 +1,3 @@
-/**
- * Advanced AI Chat Command (Premium UI)
- * Powered by 100% Native HTTPS (Zero Crashes, No Packages Needed)
- */
-
 const https = require('https');
 
 module.exports = {
@@ -14,7 +9,7 @@ module.exports = {
   
   async execute(sock, msg, args, extra) {
     try {
-      if (args.length === 0) {
+      if (!args[0]) {
         let usageText = `❖ ───── ✦ 𝐄𝐑𝐑𝐎𝐑 ✦ ───── ❖\n\n`;
         usageText += `❌ *Question Missing*\n`;
         usageText += `💡 Please ask something.\n`;
@@ -24,53 +19,45 @@ module.exports = {
       }
       
       const question = args.join(' ');
-
-      // Native Promise wrapper for HTTPS API Request (Bulletproof)
-      const fetchAI = (q) => {
-        return new Promise((resolve, reject) => {
-          // Using highly stable free API
-          const url = `https://api.popcat.xyz/chatbot?msg=${encodeURIComponent(q)}`;
-          
-          https.get(url, (res) => {
-            let data = '';
-            res.on('data', chunk => data += chunk);
-            res.on('end', () => {
-              try {
-                const json = JSON.parse(data);
-                if (json && json.response) {
-                  resolve(json.response);
-                } else {
-                  reject('Invalid API Data');
-                }
-              } catch (e) {
-                reject('Parse Error');
-              }
-            });
-          }).on('error', (e) => {
-            reject(e.message);
-          });
-        });
-      };
-
-      try {
-        // AI se answer fetch karega
-        let answer = await fetchAI(question);
+      
+      // Super stable free Gemini API
+      const url = `https://api.joshweb.click/api/gemini?q=${encodeURIComponent(question)}`;
+      
+      // Using native https to guarantee zero crashes
+      https.get(url, (res) => {
+        let data = '';
         
-        // Clean and send the answer
-        answer = answer.replace(/Popcat/ig, 'AI').trim();
-        await extra.reply(answer);
-
-      } catch (apiError) {
-        console.error('AI Fetch Error:', apiError);
-        let errText = `❖ ───── ✦ 𝐄𝐑𝐑𝐎𝐑 ✦ ───── ❖\n\n`;
-        errText += `❌ *AI Server Busy*\n`;
-        errText += `💡 The AI system is not responding right now. Please try again in a few minutes.\n`;
-        errText += `╰━━━━━━━━━━━━━━━━━━┈⊷`;
-        await extra.reply(errText);
-      }
+        res.on('data', chunk => {
+          data += chunk;
+        });
+        
+        res.on('end', async () => {
+          try {
+            const json = JSON.parse(data);
+            if (json && json.result) {
+              // Clean natural text format
+              await extra.reply(json.result);
+            } else {
+              await extra.reply('❌ AI is currently taking a break. Please try again.');
+            }
+          } catch (e) {
+            console.error('AI JSON Parse Error:', e);
+            await extra.reply('❌ Could not understand the AI server response.');
+          }
+        });
+      }).on('error', async (err) => {
+        console.error('AI Network Error:', err);
+        await extra.reply('❌ AI Server is unreachable at the moment.');
+      });
       
     } catch (error) {
-      console.error('AI command execution error:', error);
+      console.error('Critical AI Error:', error);
+      // Failsafe to prevent bot crash
+      try {
+        await extra.reply('❌ An unexpected error occurred in the AI command.');
+      } catch (e) {
+        // Ignore if reply also fails
+      }
     }
   }
 };
