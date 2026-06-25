@@ -7,7 +7,7 @@ const ffmpegPath = require('ffmpeg-static');
 
 module.exports = {
   name: 'sendvc',
-  aliases: ['svc', 'sendvoice'],
+  aliases: ['svc', 'sendvoice', 'sendvn', 'svn', 'voice', 'vc', 'sendaudio']
   category: 'utility',
   description: 'Send replied audio/mp3 naturally as a Voice Note (Normal or View Once)',
   usage: '.sendvc [onetime] <number> (reply to an audio)',
@@ -15,17 +15,17 @@ module.exports = {
   async execute(sock, msg, args, extra) {
     try {
       if (!args[0]) {
-        let usageText = `❖ ── ✦ 𝐄𝐑𝐑𝐎𝐑 ✦ ── ❖\n\n`;
+        let usageText = `❖ ───── ✦ 𝐄𝐑𝐑𝐎𝐑 ✦ ───── ❖\n\n`;
         usageText += `❌ *Number Missing!*\n`;
-        usageText += `💡 *Correct usage:*\n`;
+        usageText += `*Correct usage:*\n`;
         usageText += `Normal: \`.sendvc 923001234567\`\n`;
         usageText += `View Once: \`.sendvc onetime 923001234567\`\n`;
         usageText += `╰━━━━━━━━━━━━━━━━━━┈⊷`;
         return extra.reply(usageText);
       }
 
-      // 👑 Crown Reaction for processing
-      if (extra.react) await extra.react('👑');
+      // ⏳ Crown Reaction for processing
+      if (extra.react) await extra.react('⏳');
 
       // 1. Check if "onetime" parameter is provided
       let isOneTime = false;
@@ -37,9 +37,9 @@ module.exports = {
       }
 
       if (!targetNumberStr) {
-        let errText = `❖ ── ✦ 𝐄𝐑𝐑𝐎𝐑 ✦ ── ❖\n\n`;
+        let errText = `❖ ──── ✦ 𝐄𝐑𝐑𝐎𝐑 ✦ ──── ❖\n\n`;
         errText += `❌ *Number Missing!*\n`;
-        errText += `💡 You used the "onetime" parameter but did not provide a number.\n`;
+        errText += `You used the "onetime" parameter but did not provide a number.\n`;
         errText += `*Example:* \`.sendvc onetime 923001234567\`\n`;
         errText += `╰━━━━━━━━━━━━━━━━━━┈⊷`;
         return extra.reply(errText);
@@ -52,8 +52,8 @@ module.exports = {
       // 3. Verify the replied audio file
       const quoted = msg.message?.extendedTextMessage?.contextInfo?.quotedMessage;
       if (!quoted || (!quoted.audioMessage && !quoted.documentMessage)) {
-        let errText = `❖ ── ✦ 𝐄𝐑𝐑𝐎𝐑 ✦ ── ❖\n\n`;
-        errText += `❌ Please reply to an Audio or MP3 file!\n`;
+        let errText = `❖ ──── ✦ 𝐄𝐑𝐑𝐎𝐑 ✦ ──── ❖\n\n`;
+        errText += `❌ Please reply to an Audio file!\n`;
         errText += `╰━━━━━━━━━━━━━━━━━━┈⊷`;
         return extra.reply(errText);
       }
@@ -62,7 +62,7 @@ module.exports = {
       const actualMessage = quoted.audioMessage || quoted.documentMessage;
 
       if (messageType === 'document' && !actualMessage.mimetype?.includes('audio')) {
-         let errText = `❖ ── ✦ 𝐄𝐑𝐑𝐎𝐑 ✦ ── ❖\n\n`;
+         let errText = `❖ ──── ✦ 𝐄𝐑𝐑𝐎𝐑 ✦ ──── ❖\n\n`;
          errText += `❌ The replied document is not a valid audio file!\n`;
          errText += `╰━━━━━━━━━━━━━━━━━━┈⊷`;
          return extra.reply(errText);
@@ -89,7 +89,7 @@ module.exports = {
         if (err) {
           console.error('FFmpeg Native Conversion Error:', err);
           if (fs.existsSync(tmpIn)) fs.unlinkSync(tmpIn);
-          let errText = `❖ ── ✦ 𝐄𝐑𝐑𝐎𝐑 ✦ ── ❖\n\n`;
+          let errText = `❖ ──── ✦ 𝐄𝐑𝐑𝐎𝐑 ✦ ──── ❖\n\n`;
           errText += `❌ An error occurred while processing the audio!\n`;
           errText += `╰━━━━━━━━━━━━━━━━━━┈⊷`;
           return extra.reply(errText);
@@ -107,7 +107,7 @@ module.exports = {
           });
 
           // 8. Premium Success Message
-          let successMsg = `❖ ── ✦ 𝐒𝐔𝐂𝐂𝐄𝐒𝐒 ✦ ── ❖\n\n`;
+          let successMsg = `❖ ─── ✦ 𝐒𝐔𝐂𝐂𝐄𝐒𝐒 ✦ ─── ❖\n\n`;
           if (isOneTime) {
             successMsg += `✅ *Type:* View Once (1-Time) 🤫\n`;
             successMsg += `🎙️ *Delivered To:* +${targetNumber}\n`;
@@ -115,7 +115,7 @@ module.exports = {
             successMsg += `✅ *Type:* Normal Voice Note 🎙️\n`;
             successMsg += `🎙️ *Delivered To:* +${targetNumber}\n`;
           }
-          successMsg += `╰━━━━━━━━━━━━━━━━━━┈⊷`;
+          successMsg += `╰━━━━━━━━━━━━━━━━┈⊷`;
           
           extra.reply(successMsg);
           
@@ -124,7 +124,7 @@ module.exports = {
 
         } catch (sendErr) {
           console.error('Send Error:', sendErr);
-          let errText = `❖ ── ✦ 𝐄𝐑𝐑𝐎𝐑 ✦ ── ❖\n\n`;
+          let errText = `❖ ──── ✦ 𝐄𝐑𝐑𝐎𝐑 ✦ ──── ❖\n\n`;
           errText += `❌ Failed to send Voice Note.\n`;
           errText += `💡 Please ensure the number is correct and registered on WhatsApp.\n`;
           errText += `╰━━━━━━━━━━━━━━━━━━┈⊷`;
@@ -137,7 +137,7 @@ module.exports = {
 
     } catch (err) {
       console.error('Error in sendvc command:', err);
-      let errText = `❖ ── ✦ 𝐄𝐑𝐑𝐎𝐑 ✦ ── ❖\n\n`;
+      let errText = `❖ ──── ✦ 𝐄𝐑𝐑𝐎𝐑 ✦ ──── ❖\n\n`;
       errText += `❌ Error: Something went wrong.\n`;
       errText += `╰━━━━━━━━━━━━━━━━━━┈⊷`;
       return extra.reply(errText);
