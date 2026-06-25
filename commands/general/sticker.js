@@ -1,6 +1,6 @@
 /**
  * Sticker Command
- * Uses ffmpeg + webpmux-style EXIF metadata to always embed packname
+ * Uses ffmpeg + webpmux-style EXIF metadata to always embed packname (Premium UI)
  */
 
 const fs = require('fs');
@@ -18,7 +18,7 @@ const MAX_FILE_SIZE = 50 * 1024 * 1024;
 
 module.exports = {
   name: 'sticker',
-  aliases: ['s', 'stiker', 'stc'],
+  aliases: ['s', 'stiker', 'stc', 'makesticker'],
   description: 'Convert image or video to sticker (auto compression)',
   usage: '.sticker (reply to media)',
   category: 'general',
@@ -46,9 +46,16 @@ module.exports = {
       targetMessage.message?.documentMessage;
     
     if (!mediaMessage) {
-      return extra.reply('📎 Reply to an *image* / *video* with .sticker or send media with .sticker as caption.');
+      let errText = `❖ ───── ✦ 𝐄𝐑𝐑𝐎𝐑 ✦ ───── ❖\n\n`;
+      errText += `❌ *Target Missing*\n`;
+      errText += `💡 Please reply to an image/video.\n`;
+      errText += `╰━━━━━━━━━━━━━━━━━━┈⊷`;
+      return extra.reply(errText);
     }
     
+    // ⏳ Reaction for processing
+    if (extra.react) await extra.react('⏳');
+
     const tempDir = getTempDir();
     const timestamp = Date.now();
     const tempInput = path.join(tempDir, `in_${timestamp}`);
@@ -64,14 +71,21 @@ module.exports = {
       );
       
       if (!mediaBuffer) {
-        await extra.reply('❌ Failed to download media. Please try again.');
-        return;
+        let errText = `❖ ───── ✦ 𝐄𝐑𝐑𝐎𝐑 ✦ ───── ❖\n\n`;
+        errText += `❌ *Download Failed*\n`;
+        errText += `💡 Could not fetch the media. Please try again.\n`;
+        errText += `╰━━━━━━━━━━━━━━━━━━┈⊷`;
+        return await extra.reply(errText);
       }
       
       // Check file size
       if (mediaBuffer.length > MAX_FILE_SIZE) {
-        await extra.reply(`❌ File too large: ${(mediaBuffer.length / 1024 / 1024).toFixed(2)}MB (max: ${MAX_FILE_SIZE / 1024 / 1024}MB)`);
-        return;
+        let errText = `❖ ───── ✦ 𝐄𝐑𝐑𝐎𝐑 ✦ ───── ❖\n\n`;
+        errText += `❌ *File Too Large*\n`;
+        errText += `💡 Size: ${(mediaBuffer.length / 1024 / 1024).toFixed(2)}MB\n`;
+        errText += `Limit: ${MAX_FILE_SIZE / 1024 / 1024}MB\n`;
+        errText += `╰━━━━━━━━━━━━━━━━━━┈⊷`;
+        return await extra.reply(errText);
       }
       
       fs.writeFileSync(tempInput, mediaBuffer);
@@ -114,7 +128,7 @@ module.exports = {
       
       const json = {
         'sticker-pack-id': crypto.randomBytes(32).toString('hex'),
-        'sticker-pack-name': config.packname || 'Made by',
+        'sticker-pack-name': config.packname || 'Made by Kosem Bot',
         emojis: ['🤖'],
       };
       
@@ -131,11 +145,19 @@ module.exports = {
       img.exif = exif;
       const finalBuffer = await img.save(null);
       
+      // Send the sticker silently
       await sock.sendMessage(extra.from, { sticker: finalBuffer }, { quoted: msg });
+
+      // ✅ Reaction for success
+      if (extra.react) await extra.react('✅');
       
     } catch (error) {
       console.error('Sticker command error:', error);
-      await extra.reply('❌ Failed to create sticker. Make sure the media is valid.');
+      let errText = `❖ ───── ✦ 𝐄𝐑𝐑𝐎𝐑 ✦ ───── ❖\n\n`;
+      errText += `❌ *Conversion Failed*\n`;
+      errText += `💡 Ensure the media is valid. Videos should be short.\n`;
+      errText += `╰━━━━━━━━━━━━━━━━━━┈⊷`;
+      await extra.reply(errText);
     } finally {
       // Always cleanup temp files
       tempFiles.forEach(file => deleteTempFile(file));
