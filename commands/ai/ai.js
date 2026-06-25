@@ -20,10 +20,9 @@ module.exports = {
       
       const question = args.join(' ');
       
-      // Super stable free Gemini API
-      const url = `https://api.joshweb.click/api/gemini?q=${encodeURIComponent(question)}`;
+      // Changed to Popcat API - Highly Stable & Fast
+      const url = `https://api.popcat.xyz/chatbot?msg=${encodeURIComponent(question)}`;
       
-      // Using native https to guarantee zero crashes
       https.get(url, (res) => {
         let data = '';
         
@@ -34,9 +33,10 @@ module.exports = {
         res.on('end', async () => {
           try {
             const json = JSON.parse(data);
-            if (json && json.result) {
-              // Clean natural text format
-              await extra.reply(json.result);
+            if (json && json.response) {
+              // Clean the response
+              let answer = json.response.replace(/Popcat/ig, 'AI').trim();
+              await extra.reply(answer);
             } else {
               await extra.reply('❌ AI is currently taking a break. Please try again.');
             }
@@ -52,11 +52,10 @@ module.exports = {
       
     } catch (error) {
       console.error('Critical AI Error:', error);
-      // Failsafe to prevent bot crash
       try {
         await extra.reply('❌ An unexpected error occurred in the AI command.');
       } catch (e) {
-        // Ignore if reply also fails
+        // Safe fail
       }
     }
   }
