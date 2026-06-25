@@ -41,7 +41,7 @@ module.exports = {
       let captionText = `❖ ─── ✦ 𝐐𝐑 𝐂𝐎𝐃𝐄 ✦ ─── ❖\n\n`;
       captionText += `✅ *Status:* Generated Successfully\n`;
       captionText += `📝 *Content:* ${text}\n`;
-      captionText += `╰━━━━━━━━━━━━━━━┈⊷`;
+      captionText += `╰━━━━━━━━━━━━━━━━┈⊷`;
       
       // Send the QR Code Image
       await sock.sendMessage(extra.from, {
