@@ -1,15 +1,14 @@
 /**
  * TTS - Text to Speech Command (Premium UI)
- * Powered by High-Quality TTS-Nova
+ * Powered by Stable & High-Quality Google TTS (Bypassing broken local API)
  */
 
-const APIs = require('../../utils/api');
 const axios = require('axios');
 
 module.exports = {
   name: 'tts',
-  aliases: ['speak', 'say', 'voice', 'texttospeech'], // Added more aliases
-  category: 'utility', // Shifted to Utility Category
+  aliases: ['speak', 'say', 'voice', 'texttospeech'],
+  category: 'utility', 
   description: 'Convert text to highly realistic speech',
   usage: '.tts <text>',
   
@@ -30,22 +29,22 @@ module.exports = {
       // ⏳ Reaction for processing
       if (extra.react) await extra.react('⏳');
 
-      // 1. Fetch VIP Audio URL from your API (Nova Voice)
-      const audioUrl = await APIs.textToSpeech(text);
+      // 🚀 FIX: Using Google's highly stable TTS API directly (Bypasses laurine.site crash)
+      const lang = 'en'; // English (Roman Urdu bhi theek samajh leta hai)
+      const audioUrl = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(text)}&tl=${lang}&client=tw-ob`;
 
-      if (!audioUrl) {
-        throw new Error("API returned an empty response.");
-      }
-
-      // 2. Download audio smoothly as a buffer
+      // Download audio smoothly as a buffer
       const audioResponse = await axios.get(audioUrl, {
         responseType: 'arraybuffer',
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+        },
         timeout: 30000
       });
       
       const audioBuffer = Buffer.from(audioResponse.data);
 
-      // 3. Send as native WhatsApp Voice Note
+      // Send as native WhatsApp Voice Note
       await sock.sendMessage(chatId, {
         audio: audioBuffer,
         mimetype: 'audio/mpeg', // Standard format for MP3
@@ -59,7 +58,7 @@ module.exports = {
       console.error('TTS command error:', error);
       let errText = `❖ ───── ✦ 𝐄𝐑𝐑𝐎𝐑 ✦ ───── ❖\n\n`;
       errText += `❌ *Generation Failed*\n`;
-      errText += `💡 Could not convert your text to speech at the moment. Please try again later.\n`;
+      errText += `💡 The TTS server is currently busy or unreachable.\n`;
       errText += `╰━━━━━━━━━━━━━━━━━━┈⊷`;
       await extra.reply(errText);
     }
