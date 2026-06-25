@@ -7,8 +7,8 @@ const ffmpegPath = require('ffmpeg-static');
 
 module.exports = {
   name: 'sendvc',
-  aliases: ['svc', 'sendvoice', 'sendvn', 'svn', 'voice', 'vc', 'sendaudio']
-  category: 'utility',
+  aliases: ['svc', 'sendvoice', 'sendvn', 'svn', 'voice', 'vc', 'sendaudio'], // Yahan comma miss tha, add kar diya
+  category: 'general', // Category ko general kar diya
   description: 'Send replied audio/mp3 naturally as a Voice Note (Normal or View Once)',
   usage: '.sendvc [onetime] <number> (reply to an audio)',
   
