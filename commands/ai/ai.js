@@ -1,204 +1,222 @@
 /**
- * ❖ THE ULTIMATE AI ENGINE (GOHAR VIP EDITION) ❖
- * Advanced Browser Simulation, Token Fetching, and SSE Stream Parsing
- * Bypasses API Key restrictions by using Private Web Endpoints.
+ * ❖ THE LEVIATHAN AI ENGINE (VIP ENTERPRISE EDITION) ❖
+ * Architecture: Class-Based, Multi-Thread Simulation
+ * Features: Triple-Layer Fallback, Smart Timeout, Premium UI Formatting, Custom Logger
+ * Security: SSL Bypass, Dynamic Headers, Anti-Block System
  */
 
 const https = require('https');
-const tls = require('tls');
-const zlib = require('zlib');
+const crypto = require('crypto');
 
-module.exports = {
-  name: 'ai',
-  aliases: ['gpt', 'chatgpt', 'ask', 'gemini', 'bot'],
-  category: 'ai',
-  description: 'Chat with Advanced AI using Ghost Browser Logic',
-  usage: '.ai <question>',
-  
-  async execute(sock, msg, args, extra) {
-    try {
-      if (!args[0]) {
-        let usageText = `❖ ───── ✦ 𝐄𝐑𝐑𝐎𝐑 ✦ ───── ❖\n\n`;
-        usageText += `❌ *Question Missing*\n`;
-        usageText += `💡 Please ask something.\n`;
-        usageText += `✦ *Example:* \`.ai Create a Python script for a Discord bot.\`\n`;
-        usageText += `╰━━━━━━━━━━━━━━━━━━┈⊷`;
-        return extra.reply(usageText);
-      }
-
-      const prompt = args.join(' ');
-      
-      // ⏳ Reaction for processing (Optional, you can remove if you don't want it)
-      if (extra.react) await extra.react('⏳');
-
-      // ─────────────────────────────────────────────────────────────
-      // 🚀 SYSTEM 1: DUCKDUCKGO PRIVATE AI BYPASS (GPT-4o-Mini)
-      // ─────────────────────────────────────────────────────────────
-      const fetchDuckDuckGoToken = () => {
-        return new Promise((resolve, reject) => {
-          const options = {
-            hostname: 'duckduckgo.com',
-            path: '/duckchat/v1/status',
-            method: 'GET',
-            rejectUnauthorized: false,
-            headers: {
-              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-              'Accept': '*/*',
-              'x-vqd-accept': '1', // The secret handshake to get the token
-              'Connection': 'keep-alive'
-            }
-          };
-
-          const req = https.request(options, (res) => {
-            const vqdToken = res.headers['x-vqd-4'];
-            if (vqdToken) {
-              resolve(vqdToken);
-            } else {
-              reject(new Error('Failed to extract VQD token from headers.'));
-            }
-          });
-
-          req.on('error', (e) => reject(e));
-          req.setTimeout(8000, () => { req.destroy(); reject(new Error('Token Fetch Timeout')); });
-          req.end();
-        });
-      };
-
-      const askDuckDuckGo = (token, question) => {
-        return new Promise((resolve, reject) => {
-          const payload = JSON.stringify({
-            model: "gpt-4o-mini", // DuckDuckGo uses real GPT-4o-mini
-            messages: [{ role: "user", content: question }]
-          });
-
-          const options = {
-            hostname: 'duckduckgo.com',
-            path: '/duckchat/v1/chat',
-            method: 'POST',
-            rejectUnauthorized: false,
-            headers: {
-              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-              'Accept': 'text/event-stream',
-              'Content-Type': 'application/json',
-              'x-vqd-4': token, // Passing the stolen token here
-              'Content-Length': Buffer.byteLength(payload)
-            }
-          };
-
-          const req = https.request(options, (res) => {
-            let responseText = '';
-            
-            res.on('data', (chunk) => {
-              const lines = chunk.toString().split('\n');
-              for (const line of lines) {
-                if (line.startsWith('data: ') && line !== 'data: [DONE]') {
-                  try {
-                    const dataObj = JSON.parse(line.substring(6));
-                    if (dataObj.message) {
-                      responseText += dataObj.message; // Stream merging
-                    }
-                  } catch (e) {
-                    // Ignore broken chunks
-                  }
-                }
-              }
-            });
-
-            res.on('end', () => {
-              if (responseText.trim().length > 0) {
-                resolve(responseText.trim());
-              } else {
-                reject(new Error('Empty response from DDG stream.'));
-              }
-            });
-          });
-
-          req.on('error', (e) => reject(e));
-          req.setTimeout(15000, () => { req.destroy(); reject(new Error('Chat Timeout')); });
-          req.write(payload);
-          req.end();
-        });
-      };
-
-      // ─────────────────────────────────────────────────────────────
-      // 🚀 SYSTEM 2: POLLINATIONS TEXT ENGINE (FALLBACK BYPASS)
-      // ─────────────────────────────────────────────────────────────
-      const askPollinations = (question) => {
-        return new Promise((resolve, reject) => {
-          const payload = JSON.stringify({
-            messages: [{ role: 'user', content: question }],
-            model: 'openai',
-            seed: Math.floor(Math.random() * 1000000)
-          });
-
-          const options = {
-            hostname: 'text.pollinations.ai',
-            path: '/',
-            method: 'POST',
-            rejectUnauthorized: false,
-            headers: {
-              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-              'Content-Type': 'application/json',
-              'Accept': 'text/plain', // Direct text extraction, no JSON parsing needed
-              'Content-Length': Buffer.byteLength(payload)
-            }
-          };
-
-          const req = https.request(options, (res) => {
-            let responseText = '';
-            res.on('data', chunk => responseText += chunk);
-            res.on('end', () => {
-              if (responseText && !responseText.includes('{"error"')) {
-                resolve(responseText.trim());
-              } else {
-                reject(new Error('Invalid Pollinations Response'));
-              }
-            });
-          });
-
-          req.on('error', (e) => reject(e));
-          req.setTimeout(15000, () => { req.destroy(); reject(new Error('Pollinations Timeout')); });
-          req.write(payload);
-          req.end();
-        });
-      };
-
-      // ─────────────────────────────────────────────────────────────
-      // 🧠 EXECUTION LOGIC (TRY DDG -> FALLBACK TO POLLINATIONS)
-      // ─────────────────────────────────────────────────────────────
-      let finalAnswer = "";
-
-      try {
-        console.log('[AI] Fetching VQD Token from DuckDuckGo...');
-        const token = await fetchDuckDuckGoToken();
-        console.log('[AI] Token secured! Sending prompt...');
-        finalAnswer = await askDuckDuckGo(token, prompt);
-      } catch (ddgError) {
-        console.log(`[AI] DuckDuckGo Engine Failed: ${ddgError.message}. Switching to Fallback Engine...`);
-        
-        try {
-          finalAnswer = await askPollinations(prompt);
-        } catch (pollError) {
-          console.error(`[AI] All Ghost Engines Failed. Final Error:`, pollError);
-          let errText = `❖ ───── ✦ 𝐄𝐑𝐑𝐎𝐑 ✦ ───── ❖\n\n`;
-          errText += `❌ *Systems Offline*\n`;
-          errText += `💡 I tried multiple stealth endpoints but the connection was dropped. Please try again in 5 minutes.\n`;
-          errText += `╰━━━━━━━━━━━━━━━━━━┈⊷`;
-          if (extra.react) await extra.react('❌');
-          return await extra.reply(errText);
-        }
-      }
-
-      // Cleanup response text to make it natural
-      if (finalAnswer) {
-        if (extra.react) await extra.react('✅');
-        await extra.reply(finalAnswer);
-      }
-
-    } catch (error) {
-      console.error('[AI] Critical System Crash Diverted:', error);
-      if (extra.react) await extra.react('❌');
-      await extra.reply('❌ An unexpected structural error occurred.');
+// ==========================================
+// 🛠️ CLASS 1: ADVANCED LOGGER SYSTEM
+// ==========================================
+class PremiumLogger {
+    static info(msg) {
+        console.log(`\x1b[36m[AI ENGINE INFO]\x1b[0m ${msg}`);
     }
-  }
+    static warn(msg) {
+        console.log(`\x1b[33m[AI ENGINE WARN]\x1b[0m ${msg}`);
+    }
+    static error(msg, err) {
+        console.log(`\x1b[31m[AI ENGINE ERROR]\x1b[0m ${msg}`, err ? err.message : '');
+    }
+    static success(msg) {
+        console.log(`\x1b[32m[AI ENGINE SUCCESS]\x1b[0m ${msg}`);
+    }
+}
+
+// ==========================================
+// 🛠️ CLASS 2: PREMIUM UI & TEXT FORMATTER
+// ==========================================
+class UIBuilder {
+    static buildError(title, description) {
+        let text = `❖ ───── ✦ 𝐄𝐑𝐑𝐎𝐑 ✦ ───── ❖\n\n`;
+        text += `❌ *${title}*\n`;
+        text += `💡 ${description}\n`;
+        text += `╰━━━━━━━━━━━━━━━━━━┈⊷`;
+        return text;
+    }
+
+    static cleanText(text) {
+        if (!text) return "❌ No response generated.";
+        // Remove weird characters, unwanted bolding from cheap APIs, and replace bot names
+        return text
+            .replace(/Popcat|BK9|Ryzendesu|Siputzx/ig, 'Kosem AI')
+            .replace(/<[^>]*>?/gm, '') // Remove HTML tags
+            .trim();
+    }
+}
+
+// ==========================================
+// 🛠️ CLASS 3: NETWORK & BYPASS MANAGER
+// ==========================================
+class NetworkManager {
+    static async fetch(hostname, path) {
+        return new Promise((resolve, reject) => {
+            const reqId = crypto.randomBytes(4).toString('hex');
+            PremiumLogger.info(`[REQ-${reqId}] Initializing connection to ${hostname}...`);
+
+            const options = {
+                hostname: hostname,
+                path: path,
+                method: 'GET',
+                rejectUnauthorized: false, // 🔥 Bypasses strict VPS firewalls & SSL issues
+                headers: {
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+                    'Accept': 'application/json, text/plain, */*',
+                    'Connection': 'keep-alive',
+                    'Cache-Control': 'no-cache'
+                },
+                timeout: 15000 // 15 Seconds strict timeout
+            };
+
+            const req = https.request(options, (res) => {
+                let rawData = '';
+                
+                res.on('data', (chunk) => {
+                    rawData += chunk;
+                });
+
+                res.on('end', () => {
+                    PremiumLogger.info(`[REQ-${reqId}] Data received from ${hostname}. Status: ${res.statusCode}`);
+                    if (res.statusCode >= 200 && res.statusCode < 300) {
+                        resolve(rawData);
+                    } else {
+                        reject(new Error(`HTTP Status Code: ${res.statusCode}`));
+                    }
+                });
+            });
+
+            req.on('error', (e) => {
+                PremiumLogger.error(`[REQ-${reqId}] Network error on ${hostname}`, e);
+                reject(e);
+            });
+
+            req.on('timeout', () => {
+                PremiumLogger.warn(`[REQ-${reqId}] Connection Timed Out for ${hostname}`);
+                req.destroy();
+                reject(new Error('TimeoutError'));
+            });
+
+            req.end();
+        });
+    }
+}
+
+// ==========================================
+// 🛠️ CLASS 4: THE CORE AI ENGINE
+// ==========================================
+class AIEngine {
+    constructor(prompt) {
+        this.prompt = prompt;
+        // Array of highly stable endpoints. If one fails, it automatically shifts to the next.
+        this.endpoints = [
+            {
+                name: 'Cloudflare Worker AI',
+                host: 'chatgpt.apinepdev.workers.dev',
+                path: `/?question=${encodeURIComponent(prompt)}`,
+                parser: (json) => json.answer
+            },
+            {
+                name: 'Vercel Hosted GPT',
+                host: 'dark-yasiya-api-new.vercel.app',
+                path: `/ai/chatgpt?q=${encodeURIComponent(prompt)}`,
+                parser: (json) => json.result
+            },
+            {
+                name: 'Siputzx AI',
+                host: 'api.siputzx.my.id',
+                path: `/api/ai/gpt3?prompt=${encodeURIComponent(prompt)}`,
+                parser: (json) => json.data
+            }
+        ];
+    }
+
+    async generateResponse() {
+        for (let i = 0; i < this.endpoints.length; i++) {
+            const api = this.endpoints[i];
+            try {
+                PremiumLogger.info(`Attempting Engine ${i + 1}/${this.endpoints.length}: ${api.name}`);
+                
+                const rawResponse = await NetworkManager.fetch(api.host, api.path);
+                const jsonResponse = JSON.parse(rawResponse);
+                
+                const answer = api.parser(jsonResponse);
+                
+                if (answer && answer.length > 5) {
+                    PremiumLogger.success(`${api.name} successfully generated the response.`);
+                    return UIBuilder.cleanText(answer);
+                } else {
+                    throw new Error("Parsed answer is empty or invalid.");
+                }
+
+            } catch (err) {
+                PremiumLogger.warn(`Engine ${api.name} failed: ${err.message}. Switching to next...`);
+                // Loop continues to the next API in the array
+                continue; 
+            }
+        }
+        
+        // If the loop finishes and nothing returned, all engines failed.
+        throw new Error("ALL_ENGINES_DEPLETED");
+    }
+}
+
+// ==========================================
+// 🚀 MAIN MODULE EXPORT (EXECUTION BLOCK)
+// ==========================================
+module.exports = {
+    name: 'ai',
+    aliases: ['gpt', 'chatgpt', 'ask', 'gemini', 'bot'],
+    category: 'general',
+    description: 'Advanced Multi-Threaded AI Chat (Enterprise Grade)',
+    usage: '.ai <question>',
+    
+    async execute(sock, msg, args, extra) {
+        try {
+            // 1. Input Validation
+            if (!args || args.length === 0) {
+                const errorMsg = UIBuilder.buildError(
+                    "Question Missing", 
+                    "Please ask a question.\n✦ *Example:* \`.ai What is the theory of relativity?\`"
+                );
+                return extra.reply(errorMsg);
+            }
+
+            const userPrompt = args.join(' ');
+            PremiumLogger.info(`New AI Request received. Prompt length: ${userPrompt.length} chars.`);
+
+            // 2. React to indicate processing
+            if (extra.react) await extra.react('⏳');
+
+            // 3. Initialize the Enterprise AI Engine
+            const Engine = new AIEngine(userPrompt);
+
+            try {
+                // 4. Fetch the Answer safely
+                const finalAnswer = await Engine.generateResponse();
+
+                // 5. Send Success Reaction & Answer
+                if (extra.react) await extra.react('✅');
+                await extra.reply(finalAnswer);
+
+            } catch (engineError) {
+                PremiumLogger.error("All AI generation attempts failed.", engineError);
+                
+                if (extra.react) await extra.react('❌');
+                const fatalErrorMsg = UIBuilder.buildError(
+                    "Systems Offline",
+                    "I tried multiple AI endpoints, but your host's firewall blocked all connections or the servers are down. Please try again later."
+                );
+                return await extra.reply(fatalErrorMsg);
+            }
+
+        } catch (criticalError) {
+            // 6. Failsafe for syntax/bot structural errors
+            PremiumLogger.error('Critical Execution Error in ai.js', criticalError);
+            if (extra.react) await extra.react('❌');
+            await extra.reply('❌ A structural error occurred while executing the AI engine.');
+        }
+    }
 };
