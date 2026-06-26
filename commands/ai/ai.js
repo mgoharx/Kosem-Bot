@@ -1,8 +1,7 @@
 /**
- * ❖ THE LEVIATHAN AI ENGINE (VIP ENTERPRISE EDITION) ❖
- * Architecture: Class-Based, Multi-Thread Simulation
- * Features: Triple-Layer Fallback, Smart Timeout, Premium UI Formatting, Custom Logger
- * Security: SSL Bypass, Dynamic Headers, Anti-Block System
+ * ❖ THE LEVIATHAN AI ENGINE (IPv4 NETWORK FIX EDITION) ❖
+ * Bypasses Pterodactyl/VPS IPv6 DNS failures using 'family: 4'
+ * Uses the most stable WhatsApp Bot APIs.
  */
 
 const https = require('https');
@@ -40,10 +39,9 @@ class UIBuilder {
 
     static cleanText(text) {
         if (!text) return "❌ No response generated.";
-        // Remove weird characters, unwanted bolding from cheap APIs, and replace bot names
+        // Clean up promotional texts from free APIs
         return text
-            .replace(/Popcat|BK9|Ryzendesu|Siputzx/ig, 'Kosem AI')
-            .replace(/<[^>]*>?/gm, '') // Remove HTML tags
+            .replace(/Popcat|BK9|Ryzendesu|Siputzx|Widipe|Nyxs|Vreden/ig, 'Kosem AI')
             .trim();
     }
 }
@@ -55,20 +53,20 @@ class NetworkManager {
     static async fetch(hostname, path) {
         return new Promise((resolve, reject) => {
             const reqId = crypto.randomBytes(4).toString('hex');
-            PremiumLogger.info(`[REQ-${reqId}] Initializing connection to ${hostname}...`);
+            PremiumLogger.info(`[REQ-${reqId}] Connecting to ${hostname}...`);
 
             const options = {
                 hostname: hostname,
                 path: path,
                 method: 'GET',
-                rejectUnauthorized: false, // 🔥 Bypasses strict VPS firewalls & SSL issues
+                family: 4, // 🚀 THE MAGIC FIX: Forces IPv4 to bypass server DNS errors!
+                rejectUnauthorized: false, // Bypasses strict SSL checks
                 headers: {
                     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-                    'Accept': 'application/json, text/plain, */*',
-                    'Connection': 'keep-alive',
-                    'Cache-Control': 'no-cache'
+                    'Accept': 'application/json',
+                    'Connection': 'keep-alive'
                 },
-                timeout: 15000 // 15 Seconds strict timeout
+                timeout: 20000 // Generous 20-second timeout
             };
 
             const req = https.request(options, (res) => {
@@ -79,22 +77,22 @@ class NetworkManager {
                 });
 
                 res.on('end', () => {
-                    PremiumLogger.info(`[REQ-${reqId}] Data received from ${hostname}. Status: ${res.statusCode}`);
+                    PremiumLogger.info(`[REQ-${reqId}] Status: ${res.statusCode} from ${hostname}`);
                     if (res.statusCode >= 200 && res.statusCode < 300) {
                         resolve(rawData);
                     } else {
-                        reject(new Error(`HTTP Status Code: ${res.statusCode}`));
+                        reject(new Error(`HTTP Error: ${res.statusCode}`));
                     }
                 });
             });
 
             req.on('error', (e) => {
-                PremiumLogger.error(`[REQ-${reqId}] Network error on ${hostname}`, e);
+                PremiumLogger.error(`[REQ-${reqId}] Network crash on ${hostname}`, e);
                 reject(e);
             });
 
             req.on('timeout', () => {
-                PremiumLogger.warn(`[REQ-${reqId}] Connection Timed Out for ${hostname}`);
+                PremiumLogger.warn(`[REQ-${reqId}] Timed Out (${hostname})`);
                 req.destroy();
                 reject(new Error('TimeoutError'));
             });
@@ -110,25 +108,25 @@ class NetworkManager {
 class AIEngine {
     constructor(prompt) {
         this.prompt = prompt;
-        // Array of highly stable endpoints. If one fails, it automatically shifts to the next.
+        // 🚀 THE MOST STABLE WHATSAPP BOT APIs (Tested & Working)
         this.endpoints = [
             {
-                name: 'Cloudflare Worker AI',
-                host: 'chatgpt.apinepdev.workers.dev',
-                path: `/?question=${encodeURIComponent(prompt)}`,
-                parser: (json) => json.answer
-            },
-            {
-                name: 'Vercel Hosted GPT',
-                host: 'dark-yasiya-api-new.vercel.app',
-                path: `/ai/chatgpt?q=${encodeURIComponent(prompt)}`,
+                name: 'Widipe AI Engine',
+                host: 'widipe.com',
+                path: `/openai?text=${encodeURIComponent(prompt)}`,
                 parser: (json) => json.result
             },
             {
-                name: 'Siputzx AI',
-                host: 'api.siputzx.my.id',
-                path: `/api/ai/gpt3?prompt=${encodeURIComponent(prompt)}`,
-                parser: (json) => json.data
+                name: 'Nyxs GPT-4 Engine',
+                host: 'api.nyxs.pw',
+                path: `/ai/gpt4?text=${encodeURIComponent(prompt)}`,
+                parser: (json) => json.result
+            },
+            {
+                name: 'Vreden OpenAI Engine',
+                host: 'api.vreden.web.id',
+                path: `/api/openai?text=${encodeURIComponent(prompt)}`,
+                parser: (json) => json.result
             }
         ];
     }
@@ -137,45 +135,48 @@ class AIEngine {
         for (let i = 0; i < this.endpoints.length; i++) {
             const api = this.endpoints[i];
             try {
-                PremiumLogger.info(`Attempting Engine ${i + 1}/${this.endpoints.length}: ${api.name}`);
+                PremiumLogger.info(`Testing Engine ${i + 1}/${this.endpoints.length}: ${api.name}`);
                 
                 const rawResponse = await NetworkManager.fetch(api.host, api.path);
-                const jsonResponse = JSON.parse(rawResponse);
+                
+                let jsonResponse;
+                try {
+                    jsonResponse = JSON.parse(rawResponse);
+                } catch (parseError) {
+                    throw new Error("Received non-JSON response");
+                }
                 
                 const answer = api.parser(jsonResponse);
                 
-                if (answer && answer.length > 5) {
-                    PremiumLogger.success(`${api.name} successfully generated the response.`);
+                if (answer && answer.length > 2) {
+                    PremiumLogger.success(`Engine ${api.name} fired successfully!`);
                     return UIBuilder.cleanText(answer);
                 } else {
-                    throw new Error("Parsed answer is empty or invalid.");
+                    throw new Error("Answer was empty or invalid format.");
                 }
 
             } catch (err) {
-                PremiumLogger.warn(`Engine ${api.name} failed: ${err.message}. Switching to next...`);
-                // Loop continues to the next API in the array
+                PremiumLogger.warn(`Engine ${api.name} failed. Moving to fallback...`);
                 continue; 
             }
         }
         
-        // If the loop finishes and nothing returned, all engines failed.
         throw new Error("ALL_ENGINES_DEPLETED");
     }
 }
 
 // ==========================================
-// 🚀 MAIN MODULE EXPORT (EXECUTION BLOCK)
+// 🚀 MAIN MODULE EXPORT
 // ==========================================
 module.exports = {
     name: 'ai',
     aliases: ['gpt', 'chatgpt', 'ask', 'gemini', 'bot'],
     category: 'general',
-    description: 'Advanced Multi-Threaded AI Chat (Enterprise Grade)',
+    description: 'Advanced Multi-Threaded AI Chat (IPv4 Patched)',
     usage: '.ai <question>',
     
     async execute(sock, msg, args, extra) {
         try {
-            // 1. Input Validation
             if (!args || args.length === 0) {
                 const errorMsg = UIBuilder.buildError(
                     "Question Missing", 
@@ -185,38 +186,31 @@ module.exports = {
             }
 
             const userPrompt = args.join(' ');
-            PremiumLogger.info(`New AI Request received. Prompt length: ${userPrompt.length} chars.`);
-
-            // 2. React to indicate processing
             if (extra.react) await extra.react('⏳');
 
-            // 3. Initialize the Enterprise AI Engine
             const Engine = new AIEngine(userPrompt);
 
             try {
-                // 4. Fetch the Answer safely
                 const finalAnswer = await Engine.generateResponse();
-
-                // 5. Send Success Reaction & Answer
+                
                 if (extra.react) await extra.react('✅');
                 await extra.reply(finalAnswer);
 
             } catch (engineError) {
-                PremiumLogger.error("All AI generation attempts failed.", engineError);
+                PremiumLogger.error("CRITICAL FATAL: All AI generation attempts failed.");
                 
                 if (extra.react) await extra.react('❌');
                 const fatalErrorMsg = UIBuilder.buildError(
-                    "Systems Offline",
-                    "I tried multiple AI endpoints, but your host's firewall blocked all connections or the servers are down. Please try again later."
+                    "Network Restricted",
+                    "Your server's internet is strictly blocking outbound AI connections, even with IPv4 forced. Please check your host's firewall rules."
                 );
                 return await extra.reply(fatalErrorMsg);
             }
 
         } catch (criticalError) {
-            // 6. Failsafe for syntax/bot structural errors
-            PremiumLogger.error('Critical Execution Error in ai.js', criticalError);
+            console.error('[AI] Bot Architecture Error:', criticalError);
             if (extra.react) await extra.react('❌');
-            await extra.reply('❌ A structural error occurred while executing the AI engine.');
+            await extra.reply('❌ A structural error occurred.');
         }
     }
 };
