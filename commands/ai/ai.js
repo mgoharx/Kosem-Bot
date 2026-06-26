@@ -1,216 +1,154 @@
 /**
- * ❖ THE LEVIATHAN AI ENGINE (IPv4 NETWORK FIX EDITION) ❖
- * Bypasses Pterodactyl/VPS IPv6 DNS failures using 'family: 4'
- * Uses the most stable WhatsApp Bot APIs.
+ * ❖ THE DNS-BYPASS AI ENGINE ❖
+ * Bypasses broken Panel/VPS DNS systems (getaddrinfo ENOTFOUND).
+ * Fetches IPs directly via Google DNS over HTTPS (8.8.8.8).
  */
 
 const https = require('https');
-const crypto = require('crypto');
 
-// ==========================================
-// 🛠️ CLASS 1: ADVANCED LOGGER SYSTEM
-// ==========================================
-class PremiumLogger {
-    static info(msg) {
-        console.log(`\x1b[36m[AI ENGINE INFO]\x1b[0m ${msg}`);
-    }
-    static warn(msg) {
-        console.log(`\x1b[33m[AI ENGINE WARN]\x1b[0m ${msg}`);
-    }
-    static error(msg, err) {
-        console.log(`\x1b[31m[AI ENGINE ERROR]\x1b[0m ${msg}`, err ? err.message : '');
-    }
-    static success(msg) {
-        console.log(`\x1b[32m[AI ENGINE SUCCESS]\x1b[0m ${msg}`);
-    }
-}
-
-// ==========================================
-// 🛠️ CLASS 2: PREMIUM UI & TEXT FORMATTER
-// ==========================================
-class UIBuilder {
-    static buildError(title, description) {
-        let text = `❖ ───── ✦ 𝐄𝐑𝐑𝐎𝐑 ✦ ───── ❖\n\n`;
-        text += `❌ *${title}*\n`;
-        text += `💡 ${description}\n`;
-        text += `╰━━━━━━━━━━━━━━━━━━┈⊷`;
-        return text;
-    }
-
-    static cleanText(text) {
-        if (!text) return "❌ No response generated.";
-        // Clean up promotional texts from free APIs
-        return text
-            .replace(/Popcat|BK9|Ryzendesu|Siputzx|Widipe|Nyxs|Vreden/ig, 'Kosem AI')
-            .trim();
-    }
-}
-
-// ==========================================
-// 🛠️ CLASS 3: NETWORK & BYPASS MANAGER
-// ==========================================
-class NetworkManager {
-    static async fetch(hostname, path) {
-        return new Promise((resolve, reject) => {
-            const reqId = crypto.randomBytes(4).toString('hex');
-            PremiumLogger.info(`[REQ-${reqId}] Connecting to ${hostname}...`);
-
-            const options = {
-                hostname: hostname,
-                path: path,
-                method: 'GET',
-                family: 4, // 🚀 THE MAGIC FIX: Forces IPv4 to bypass server DNS errors!
-                rejectUnauthorized: false, // Bypasses strict SSL checks
-                headers: {
-                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-                    'Accept': 'application/json',
-                    'Connection': 'keep-alive'
-                },
-                timeout: 20000 // Generous 20-second timeout
-            };
-
-            const req = https.request(options, (res) => {
-                let rawData = '';
-                
-                res.on('data', (chunk) => {
-                    rawData += chunk;
-                });
-
-                res.on('end', () => {
-                    PremiumLogger.info(`[REQ-${reqId}] Status: ${res.statusCode} from ${hostname}`);
-                    if (res.statusCode >= 200 && res.statusCode < 300) {
-                        resolve(rawData);
-                    } else {
-                        reject(new Error(`HTTP Error: ${res.statusCode}`));
-                    }
-                });
-            });
-
-            req.on('error', (e) => {
-                PremiumLogger.error(`[REQ-${reqId}] Network crash on ${hostname}`, e);
-                reject(e);
-            });
-
-            req.on('timeout', () => {
-                PremiumLogger.warn(`[REQ-${reqId}] Timed Out (${hostname})`);
-                req.destroy();
-                reject(new Error('TimeoutError'));
-            });
-
-            req.end();
-        });
-    }
-}
-
-// ==========================================
-// 🛠️ CLASS 4: THE CORE AI ENGINE
-// ==========================================
-class AIEngine {
-    constructor(prompt) {
-        this.prompt = prompt;
-        // 🚀 THE MOST STABLE WHATSAPP BOT APIs (Tested & Working)
-        this.endpoints = [
-            {
-                name: 'Widipe AI Engine',
-                host: 'widipe.com',
-                path: `/openai?text=${encodeURIComponent(prompt)}`,
-                parser: (json) => json.result
-            },
-            {
-                name: 'Nyxs GPT-4 Engine',
-                host: 'api.nyxs.pw',
-                path: `/ai/gpt4?text=${encodeURIComponent(prompt)}`,
-                parser: (json) => json.result
-            },
-            {
-                name: 'Vreden OpenAI Engine',
-                host: 'api.vreden.web.id',
-                path: `/api/openai?text=${encodeURIComponent(prompt)}`,
-                parser: (json) => json.result
-            }
-        ];
-    }
-
-    async generateResponse() {
-        for (let i = 0; i < this.endpoints.length; i++) {
-            const api = this.endpoints[i];
-            try {
-                PremiumLogger.info(`Testing Engine ${i + 1}/${this.endpoints.length}: ${api.name}`);
-                
-                const rawResponse = await NetworkManager.fetch(api.host, api.path);
-                
-                let jsonResponse;
-                try {
-                    jsonResponse = JSON.parse(rawResponse);
-                } catch (parseError) {
-                    throw new Error("Received non-JSON response");
-                }
-                
-                const answer = api.parser(jsonResponse);
-                
-                if (answer && answer.length > 2) {
-                    PremiumLogger.success(`Engine ${api.name} fired successfully!`);
-                    return UIBuilder.cleanText(answer);
-                } else {
-                    throw new Error("Answer was empty or invalid format.");
-                }
-
-            } catch (err) {
-                PremiumLogger.warn(`Engine ${api.name} failed. Moving to fallback...`);
-                continue; 
-            }
-        }
-        
-        throw new Error("ALL_ENGINES_DEPLETED");
-    }
-}
-
-// ==========================================
-// 🚀 MAIN MODULE EXPORT
-// ==========================================
 module.exports = {
     name: 'ai',
     aliases: ['gpt', 'chatgpt', 'ask', 'gemini', 'bot'],
     category: 'general',
-    description: 'Advanced Multi-Threaded AI Chat (IPv4 Patched)',
+    description: 'DNS-Bypass AI (Super Edition)',
     usage: '.ai <question>',
     
     async execute(sock, msg, args, extra) {
         try {
-            if (!args || args.length === 0) {
-                const errorMsg = UIBuilder.buildError(
-                    "Question Missing", 
-                    "Please ask a question.\n✦ *Example:* \`.ai What is the theory of relativity?\`"
-                );
-                return extra.reply(errorMsg);
+            if (!args[0]) {
+                let errText = `❖ ───── ✦ 𝐄𝐑𝐑𝐎𝐑 ✦ ───── ❖\n\n`;
+                errText += `❌ *Question Missing*\n`;
+                errText += `💡 Please ask something.\n`;
+                errText += `✦ *Example:* \`.ai Who is the founder of Pakistan?\`\n`;
+                errText += `╰━━━━━━━━━━━━━━━━━━┈⊷`;
+                return extra.reply(errText);
             }
 
-            const userPrompt = args.join(' ');
+            const question = args.join(' ');
             if (extra.react) await extra.react('⏳');
 
-            const Engine = new AIEngine(userPrompt);
+            console.log(`\x1b[36m[AI ENGINE]\x1b[0m Starting DNS-Over-HTTPS Bypass for prompt...`);
 
+            // 🚀 STEP 1: Custom DNS Resolver (Bypasses ENOTFOUND)
+            // Connects directly to Google's 8.8.8.8 IP to bypass broken host DNS
+            const resolveDNS = (domain) => {
+                return new Promise((resolve, reject) => {
+                    const opts = {
+                        hostname: '8.8.8.8',
+                        path: `/resolve?name=${domain}`,
+                        method: 'GET',
+                        headers: { 'Host': 'dns.google', 'Accept': 'application/json' },
+                        servername: 'dns.google',
+                        rejectUnauthorized: false,
+                        timeout: 10000
+                    };
+                    const req = https.request(opts, (res) => {
+                        let data = '';
+                        res.on('data', c => data += c);
+                        res.on('end', () => {
+                            try {
+                                const json = JSON.parse(data);
+                                if (json.Answer) {
+                                    // Find the IPv4 address (Type 1)
+                                    const ipRecord = json.Answer.find(a => a.type === 1);
+                                    if (ipRecord) {
+                                        console.log(`\x1b[32m[DNS SUCCESS]\x1b[0m Resolved ${domain} -> ${ipRecord.data}`);
+                                        resolve(ipRecord.data);
+                                    } else {
+                                        reject(new Error(`No IPv4 for ${domain}`));
+                                    }
+                                } else {
+                                    reject(new Error(`DNS resolution failed for ${domain}`));
+                                }
+                            } catch(e) { reject(e); }
+                        });
+                    });
+                    req.on('error', reject);
+                    req.on('timeout', () => { req.destroy(); reject(new Error('DNS Timeout')); });
+                    req.end();
+                });
+            };
+
+            // 🚀 STEP 2: Direct-IP Fetcher (Bypasses getaddrinfo completely)
+            const fetchAI = async (domain, path) => {
+                const ip = await resolveDNS(domain);
+                return new Promise((resolve, reject) => {
+                    const opts = {
+                        hostname: ip, // Connecting strictly via raw IP
+                        path: path,
+                        method: 'GET',
+                        headers: {
+                            'Host': domain, // SNI Header routing
+                            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+                        },
+                        servername: domain, // Crucial for SSL/TLS to work on direct IPs
+                        rejectUnauthorized: false,
+                        timeout: 15000
+                    };
+                    const req = https.request(opts, (res) => {
+                        let data = '';
+                        res.on('data', c => data += c);
+                        res.on('end', () => resolve(data));
+                    });
+                    req.on('error', reject);
+                    req.on('timeout', () => { req.destroy(); reject(new Error('API Timeout')); });
+                    req.end();
+                });
+            };
+
+            let finalAnswer = '';
+
+            // 🚀 STEP 3: Multi-Engine Execution
             try {
-                const finalAnswer = await Engine.generateResponse();
+                // Engine 1: Popcat AI (Super Fast)
+                console.log(`\x1b[33m[AI ENGINE]\x1b[0m Trying Engine 1 (Popcat)...`);
+                const res1 = await fetchAI('api.popcat.xyz', `/chatbot?msg=${encodeURIComponent(question)}`);
+                const json1 = JSON.parse(res1);
+                if (json1.response) finalAnswer = json1.response;
+                else throw new Error("Empty Response");
+            } catch (e1) {
+                console.log(`\x1b[31m[AI ENGINE ERROR]\x1b[0m Engine 1 Failed:`, e1.message);
                 
-                if (extra.react) await extra.react('✅');
-                await extra.reply(finalAnswer);
-
-            } catch (engineError) {
-                PremiumLogger.error("CRITICAL FATAL: All AI generation attempts failed.");
-                
-                if (extra.react) await extra.react('❌');
-                const fatalErrorMsg = UIBuilder.buildError(
-                    "Network Restricted",
-                    "Your server's internet is strictly blocking outbound AI connections, even with IPv4 forced. Please check your host's firewall rules."
-                );
-                return await extra.reply(fatalErrorMsg);
+                try {
+                    // Engine 2: Nyxs GPT-4
+                    console.log(`\x1b[33m[AI ENGINE]\x1b[0m Trying Engine 2 (Nyxs)...`);
+                    const res2 = await fetchAI('api.nyxs.pw', `/ai/gpt4?text=${encodeURIComponent(question)}`);
+                    const json2 = JSON.parse(res2);
+                    if (json2.result) finalAnswer = json2.result;
+                    else throw new Error("Empty Response");
+                } catch (e2) {
+                    console.log(`\x1b[31m[AI ENGINE ERROR]\x1b[0m Engine 2 Failed:`, e2.message);
+                    
+                    try {
+                        // Engine 3: Vreden
+                        console.log(`\x1b[33m[AI ENGINE]\x1b[0m Trying Engine 3 (Vreden)...`);
+                        const res3 = await fetchAI('api.vreden.web.id', `/api/openai?text=${encodeURIComponent(question)}`);
+                        const json3 = JSON.parse(res3);
+                        if (json3.result) finalAnswer = json3.result;
+                        else throw new Error("Empty Response");
+                    } catch (e3) {
+                        throw new Error("All endpoints depleted.");
+                    }
+                }
             }
 
-        } catch (criticalError) {
-            console.error('[AI] Bot Architecture Error:', criticalError);
+            // 🚀 STEP 4: Output Delivery
+            if (finalAnswer) {
+                finalAnswer = finalAnswer.replace(/Popcat|Nyxs|Vreden/ig, 'Kosem AI').trim();
+                if (extra.react) await extra.react('✅');
+                await extra.reply(finalAnswer);
+            } else {
+                throw new Error("Final answer was blank.");
+            }
+
+        } catch (error) {
+            console.error('\x1b[31m[CRITICAL ERROR]\x1b[0m', error);
             if (extra.react) await extra.react('❌');
-            await extra.reply('❌ A structural error occurred.');
+            let errText = `❖ ───── ✦ 𝐄𝐑𝐑𝐎𝐑 ✦ ───── ❖\n\n`;
+            errText += `❌ *Terminal Network Failure*\n`;
+            errText += `💡 Server failed to connect even with Direct IP routing.\n`;
+            errText += `╰━━━━━━━━━━━━━━━━━━┈⊷`;
+            await extra.reply(errText);
         }
     }
 };
