@@ -20,64 +20,73 @@ module.exports = {
       
       const question = args.join(' ');
 
-      // 🚀 Timeout & Fetch Handler (Prevents Bot from Freezing)
-      const fetchAI = (url) => {
+      // Advanced Fetch Handler with strict 10-second timeout
+      const fetchAI = (host, path) => {
         return new Promise((resolve, reject) => {
-          const req = https.get(url, { headers: { 'User-Agent': 'Mozilla/5.0' } }, (res) => {
+          const options = {
+            hostname: host,
+            path: path,
+            method: 'GET',
+            headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' },
+            timeout: 10000 // 10 seconds max wait
+          };
+
+          const req = https.request(options, (res) => {
             let data = '';
             res.on('data', chunk => data += chunk);
             res.on('end', () => resolve(data));
           });
+
+          req.on('error', (e) => reject(e));
           
-          req.on('error', (err) => reject(err));
-          
-          // Agar server 8 second mein reply na de, toh request cancel kardo
-          req.setTimeout(8000, () => {
+          req.on('timeout', () => {
             req.destroy();
             reject(new Error('Timeout'));
           });
+          
+          req.end();
         });
       };
 
-      let answer = '';
-
-      // 🥇 Primary API: Free Gemini API (Super Fast)
       try {
-        const res1 = await fetchAI(`https://bk9.site/ai/gemini?q=${encodeURIComponent(question)}`);
-        const json1 = JSON.parse(res1);
-        if (json1 && json1.status && json1.BK9) {
-          answer = json1.BK9;
+        // 🥇 Primary API: Ryzendesu (Highly Stable & Fast)
+        const data1 = await fetchAI('api.ryzendesu.vip', `/api/ai/chatgpt?text=${encodeURIComponent(question)}`);
+        const json1 = JSON.parse(data1);
+        
+        if (json1 && json1.response) {
+          return await extra.reply(json1.response.trim());
         } else {
-          throw new Error('Invalid Data API 1');
+          throw new Error('API 1 Empty');
         }
-      } catch (e1) {
-        // 🥈 Secondary API: Popcat ChatGPT Fallback (If Primary fails or times out)
+      } catch (err1) {
+        console.log('Primary AI failed, trying backup...', err1.message);
+        
         try {
-          const res2 = await fetchAI(`https://api.popcat.xyz/chatbot?msg=${encodeURIComponent(question)}`);
-          const json2 = JSON.parse(res2);
-          if (json2 && json2.response) {
-            answer = json2.response;
+          // 🥈 Secondary API: Siputzx (Fast Backup)
+          const data2 = await fetchAI('api.siputzx.my.id', `/api/ai/gpt3?prompt=${encodeURIComponent(question)}`);
+          const json2 = JSON.parse(data2);
+          
+          if (json2 && json2.data) {
+            return await extra.reply(json2.data.trim());
           } else {
-            throw new Error('Invalid Data API 2');
+            throw new Error('API 2 Empty');
           }
-        } catch (e2) {
-          // Agar donon server timeout ho jayen, bot gracefully error dega, crash nahi hoga.
-          return await extra.reply('❌ AI Servers are currently overloaded. Please try again in a few seconds.');
+        } catch (err2) {
+          console.error('All AI Servers failed or timed out.');
+          let errText = `❖ ───── ✦ 𝐄𝐑𝐑𝐎𝐑 ✦ ───── ❖\n\n`;
+          errText += `❌ *AI Servers Offline*\n`;
+          errText += `💡 All AI servers are currently busy or blocked by your network. Please try again later.\n`;
+          errText += `╰━━━━━━━━━━━━━━━━━━┈⊷`;
+          return await extra.reply(errText);
         }
-      }
-
-      // Agar AI ne answer de diya toh clean kar ke send karega
-      if (answer) {
-        answer = answer.replace(/BK9/ig, 'AI').replace(/Popcat/ig, 'AI').trim();
-        await extra.reply(answer);
       }
 
     } catch (error) {
       console.error('Critical AI Error:', error);
       try {
-        await extra.reply('❌ An unexpected error occurred. Please try again.');
+        await extra.reply('❌ An unexpected system error occurred.');
       } catch (e) {
-        // Safe fail
+        // Ignore if replying also fails
       }
     }
   }
