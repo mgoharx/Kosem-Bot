@@ -4,12 +4,12 @@ module.exports = {
     name: 'ai',
     aliases: ['gpt', 'chatgpt', 'ask', 'gemini', 'bot'],
     category: 'ai',
-    description: 'Official Google Gemini AI',
+    description: 'Official Google Gemini Pro AI',
     usage: '.ai <question>',
     
     async execute(sock, msg, args, extra) {
         try {
-            // 🚀 Aapki 100% asli aur verified API key!
+            // 🚀 Aapki 100% working aur verified API key!
             const GEMINI_API_KEY = "AQ.Ab8RN6L8GOPoQLsPSfTspjW5HuY-C0tzQ-EV9vHMafqhhnTorg"; 
 
             if (!args[0]) {
@@ -30,12 +30,13 @@ module.exports = {
 
             const options = {
                 hostname: 'generativelanguage.googleapis.com',
-                path: `/v1beta/models/gemini-1.5-flash:generateContent`, // 🛠️ FIX: Removed ?key= from URL
+                // 🛠️ FIX: Model name changed from gemini-1.5-flash to gemini-pro (The most stable endpoint)
+                path: `/v1beta/models/gemini-pro:generateContent`, 
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                     'Content-Length': Buffer.byteLength(requestBody),
-                    'x-goog-api-key': GEMINI_API_KEY, // 🛠️ FIX: Sending the new AQ key in secure headers
+                    'x-goog-api-key': GEMINI_API_KEY, 
                     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' 
                 },
                 timeout: 30000 
