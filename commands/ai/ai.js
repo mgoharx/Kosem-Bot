@@ -1,10 +1,11 @@
 const https = require('https');
+const url = require('url');
 
 module.exports = {
     name: 'ai',
     aliases: ['gpt', 'chatgpt', 'ask', 'gemini', 'bot'],
     category: 'ai',
-    description: '100% Free Keyless AI (Direct IP Bypass)',
+    description: '100% Free Auto-Redirecting AI',
     usage: '.ai <question>',
     
     async execute(sock, msg, args, extra) {
@@ -13,7 +14,7 @@ module.exports = {
                 let errText = `❖ ───── ✦ 𝐄𝐑𝐑𝐎𝐑 ✦ ───── ❖\n\n`;
                 errText += `❌ *Sawal Missing*\n`;
                 errText += `💡 Bhai, koi sawal likhein.\n`;
-                errText += `✦ *Example:* \`.ai what is programming?\`\n`;
+                errText += `✦ *Example:* \`.ai who is the founder of Pakistan?\`\n`;
                 errText += `╰━━━━━━━━━━━━━━━━━━┈⊷`;
                 return extra.reply(errText);
             }
@@ -21,61 +22,48 @@ module.exports = {
             const prompt = args.join(' ');
             if (extra.react) await extra.react('⏳');
 
-            // 🚀 ARRAY OF 100% FREE APIs (NO KEYS REQUIRED)
-            // Hardcoded Direct IPs to completely bypass "ENOTFOUND" and DNS issues!
-            const freeAPIs = [
-                {
-                    name: "Pollinations AI",
-                    ip: "104.21.23.208", // Direct Cloudflare IP
-                    host: "text.pollinations.ai",
-                    path: `/${encodeURIComponent(prompt)}`,
-                    parse: (raw) => raw // Returns plain text directly
-                },
-                {
-                    name: "Siputzx GPT",
-                    ip: "104.21.65.176", // Direct Cloudflare IP
-                    host: "api.siputzx.my.id",
-                    path: `/api/ai/gpt3?prompt=${encodeURIComponent(prompt)}`,
-                    parse: (raw) => JSON.parse(raw).data
-                },
-                {
-                    name: "Worker AI",
-                    ip: "104.21.84.237", // Direct Cloudflare IP
-                    host: "chatgpt.apinepdev.workers.dev",
-                    path: `/?question=${encodeURIComponent(prompt)}`,
-                    parse: (raw) => JSON.parse(raw).answer
-                }
-            ];
-
-            const fetchAI = (api) => {
+            // 🚀 BROWSER ENGINE: Yeh function 301/302 Redirects ko khud follow karta hai!
+            const fetchWithRedirect = (requestUrl, redirectCount = 0) => {
                 return new Promise((resolve, reject) => {
+                    // Agar website 5 baar se zyada redirect kare, toh loop rok do
+                    if (redirectCount > 5) {
+                        return reject(new Error('Too many redirects (Loop detected)'));
+                    }
+
+                    const parsedUrl = url.parse(requestUrl);
+                    
                     const options = {
-                        hostname: api.ip, 
-                        port: 443,
-                        path: api.path,
+                        hostname: parsedUrl.hostname,
+                        path: parsedUrl.path,
                         method: 'GET',
+                        rejectUnauthorized: false, // Bypasses strict SSL checks
                         headers: {
-                            'Host': api.host, 
-                            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/124.0.0.0 Safari/537.36'
+                            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+                            'Accept': 'application/json'
                         },
-                        servername: api.host, // 🔥 Crucial for bypassing VPS SSL Blocks
-                        rejectUnauthorized: false, // 🔥 Ignores strict panel security
-                        timeout: 15000 // 15 seconds wait time
+                        timeout: 15000 
                     };
 
                     const req = https.request(options, (res) => {
+                        // 🛠️ THE MAGIC: Agar 301 ya 302 aaye, toh nayi location par jao!
+                        if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+                            let newUrl = res.headers.location;
+                            // Fix relative URLs
+                            if (!newUrl.startsWith('http')) {
+                                newUrl = `https://${parsedUrl.hostname}${newUrl}`;
+                            }
+                            console.log(`[AI] Redirecting to: ${newUrl}`);
+                            return resolve(fetchWithRedirect(newUrl, redirectCount + 1));
+                        }
+
                         let data = '';
                         res.on('data', chunk => data += chunk);
+                        
                         res.on('end', () => {
-                            try {
-                                const answer = api.parse(data);
-                                if (answer && answer.length > 2) {
-                                    resolve(answer);
-                                } else {
-                                    reject(new Error("Empty response from API"));
-                                }
-                            } catch (e) {
-                                reject(new Error("Failed to parse AI response"));
+                            if (res.statusCode === 200) {
+                                resolve(data);
+                            } else {
+                                reject(new Error(`HTTP Status ${res.statusCode}`));
                             }
                         });
                     });
@@ -83,46 +71,73 @@ module.exports = {
                     req.on('error', reject);
                     req.on('timeout', () => {
                         req.destroy();
-                        reject(new Error("API Timeout"));
+                        reject(new Error('API Timeout'));
                     });
                     req.end();
                 });
             };
 
+            // 🚀 100% FREE APIs (No Keys Required)
+            const freeAPIs = [
+                {
+                    name: "Ryzendesu AI",
+                    url: `https://api.ryzendesu.vip/api/ai/chatgpt?text=${encodeURIComponent(prompt)}`,
+                    parse: (raw) => JSON.parse(raw).response
+                },
+                {
+                    name: "Vreden AI",
+                    url: `https://api.vreden.web.id/api/openai?text=${encodeURIComponent(prompt)}`,
+                    parse: (raw) => JSON.parse(raw).result
+                },
+                {
+                    name: "Nyxs GPT",
+                    url: `https://api.nyxs.pw/ai/gpt4?text=${encodeURIComponent(prompt)}`,
+                    parse: (raw) => JSON.parse(raw).result
+                }
+            ];
+
             let finalAnswer = null;
 
-            // ⚙️ LOOP: Ek fail hua toh doosra khud try karega!
+            // ⚙️ THE LOOP: Tries APIs one by one silently
             for (let api of freeAPIs) {
                 try {
-                    console.log(`[AI] Attempting ${api.name} via Direct IP...`);
-                    finalAnswer = await fetchAI(api);
+                    console.log(`[AI ENGINE] Trying ${api.name}...`);
+                    const rawData = await fetchWithRedirect(api.url);
                     
-                    if (finalAnswer) {
-                        console.log(`[AI] Success! Answer provided by ${api.name}`);
-                        break; // Stop the loop if answer is found
+                    // Agar galti se HTML aa jaye, toh reject kar do
+                    if (rawData.includes('<html') || rawData.includes('CloudFront')) {
+                        throw new Error("Received HTML instead of JSON");
+                    }
+
+                    const answer = api.parse(rawData);
+                    
+                    if (answer && answer.length > 2) {
+                        finalAnswer = answer;
+                        console.log(`[AI ENGINE] Success from ${api.name}!`);
+                        break; // Answer mil gaya, loop rok do
                     }
                 } catch (err) {
-                    console.log(`[AI] ${api.name} failed (${err.message}). Trying next...`);
+                    console.log(`[AI ENGINE] ${api.name} failed: ${err.message}. Shifting to next...`);
                     continue; 
                 }
             }
 
-            // 🚀 Final Result Delivery
+            // 🚀 Final Delivery
             if (finalAnswer) {
-                // Remove promotional texts from free APIs
-                finalAnswer = finalAnswer.replace(/Siputzx|Worker|Nyxs|BK9/ig, 'AI').trim();
+                // Remove promotional text from free APIs
+                finalAnswer = finalAnswer.replace(/Ryzendesu|Vreden|Nyxs/ig, 'Kosem AI').trim();
                 
                 if (extra.react) await extra.react('✅');
                 await extra.reply(finalAnswer);
             } else {
                 if (extra.react) await extra.react('❌');
-                await extra.reply("❌ *Network Error:* Bhai, maine 3 alag AI servers par direct IP se connect karne ki koshish ki, lekin aapke hosting panel ne bahar jane wali sari traffic sakhti se block ki hui hai.");
+                await extra.reply("❌ *API Error:* Sorry bhai, saari free APIs is waqt down hain ya VPS unko block kar raha hai.");
             }
 
         } catch (error) {
             console.error('\x1b[31m[CRITICAL ERROR]\x1b[0m', error);
             if (extra.react) await extra.react('❌');
-            await extra.reply('❌ Bot command crashed due to an internal error.');
+            await extra.reply('❌ Bot system crashed during execution.');
         }
     }
 };
