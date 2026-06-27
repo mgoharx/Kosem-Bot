@@ -71,11 +71,11 @@ module.exports = {
                     
                     if (buffer && buffer.length > 10240) {
                         imageBuffer = buffer;
-                        console.log(`[KOSEM BOT] 🟢 Image generated successfully!`);
+                        console.log(`[KOSEM AI] 🟢 Image generated successfully!`);
                         break; 
                     }
                 } catch (err) {
-                    console.log(`[KOSEM BOT] 🔴 Endpoint failed: ${err.message}. Trying backup...`);
+                    console.log(`[KOSEM AI] 🔴 Endpoint failed: ${err.message}. Trying backup...`);
                     continue; 
                 }
             }
