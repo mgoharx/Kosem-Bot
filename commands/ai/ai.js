@@ -1,11 +1,8 @@
-const https = require('https');
-const url = require('url');
-
 module.exports = {
     name: 'ai',
     aliases: ['gpt', 'chatgpt', 'ask', 'gemini', 'bot'],
     category: 'ai',
-    description: '100% Free Auto-Redirecting AI',
+    description: '100% Free AI (Native Fetch - Anti Cloudflare)',
     usage: '.ai <question>',
     
     async execute(sock, msg, args, extra) {
@@ -22,122 +19,99 @@ module.exports = {
             const prompt = args.join(' ');
             if (extra.react) await extra.react('⏳');
 
-            // 🚀 BROWSER ENGINE: Yeh function 301/302 Redirects ko khud follow karta hai!
-            const fetchWithRedirect = (requestUrl, redirectCount = 0) => {
-                return new Promise((resolve, reject) => {
-                    // Agar website 5 baar se zyada redirect kare, toh loop rok do
-                    if (redirectCount > 5) {
-                        return reject(new Error('Too many redirects (Loop detected)'));
+            // 🚀 BROWSER SIMULATION: Native fetch looks exactly like a real browser
+            const fetchFromAI = async (url, isJson = true) => {
+                const response = await fetch(url, {
+                    method: 'GET',
+                    redirect: 'follow', // Automatically follows redirects
+                    headers: {
+                        // The ultimate anti-block headers
+                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+                        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+                        'Accept-Language': 'en-US,en;q=0.5',
+                        'Connection': 'keep-alive',
+                        'Upgrade-Insecure-Requests': '1'
                     }
-
-                    const parsedUrl = url.parse(requestUrl);
-                    
-                    const options = {
-                        hostname: parsedUrl.hostname,
-                        path: parsedUrl.path,
-                        method: 'GET',
-                        rejectUnauthorized: false, // Bypasses strict SSL checks
-                        headers: {
-                            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-                            'Accept': 'application/json'
-                        },
-                        timeout: 15000 
-                    };
-
-                    const req = https.request(options, (res) => {
-                        // 🛠️ THE MAGIC: Agar 301 ya 302 aaye, toh nayi location par jao!
-                        if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
-                            let newUrl = res.headers.location;
-                            // Fix relative URLs
-                            if (!newUrl.startsWith('http')) {
-                                newUrl = `https://${parsedUrl.hostname}${newUrl}`;
-                            }
-                            console.log(`[AI] Redirecting to: ${newUrl}`);
-                            return resolve(fetchWithRedirect(newUrl, redirectCount + 1));
-                        }
-
-                        let data = '';
-                        res.on('data', chunk => data += chunk);
-                        
-                        res.on('end', () => {
-                            if (res.statusCode === 200) {
-                                resolve(data);
-                            } else {
-                                reject(new Error(`HTTP Status ${res.statusCode}`));
-                            }
-                        });
-                    });
-
-                    req.on('error', reject);
-                    req.on('timeout', () => {
-                        req.destroy();
-                        reject(new Error('API Timeout'));
-                    });
-                    req.end();
                 });
+
+                if (!response.ok) {
+                    throw new Error(`Cloudflare blocked with status: ${response.status}`);
+                }
+
+                const data = await (isJson ? response.json() : response.text());
+                return data;
             };
 
-            // 🚀 100% FREE APIs (No Keys Required)
-            const freeAPIs = [
+            // 🚀 THE FREE API LIST (Highly Stable endpoints)
+            const apis = [
                 {
-                    name: "Ryzendesu AI",
-                    url: `https://api.ryzendesu.vip/api/ai/chatgpt?text=${encodeURIComponent(prompt)}`,
-                    parse: (raw) => JSON.parse(raw).response
+                    name: "Pollinations Engine",
+                    url: `https://text.pollinations.ai/prompt/${encodeURIComponent(prompt)}`,
+                    isJson: false,
+                    parse: (data) => data // Directly returns text
                 },
                 {
-                    name: "Vreden AI",
-                    url: `https://api.vreden.web.id/api/openai?text=${encodeURIComponent(prompt)}`,
-                    parse: (raw) => JSON.parse(raw).result
+                    name: "AEMT GPT",
+                    url: `https://aemt.me/prompt/gpt?prompt=${encodeURIComponent(prompt)}`,
+                    isJson: true,
+                    parse: (data) => data.result || data.message
                 },
                 {
-                    name: "Nyxs GPT",
-                    url: `https://api.nyxs.pw/ai/gpt4?text=${encodeURIComponent(prompt)}`,
-                    parse: (raw) => JSON.parse(raw).result
+                    name: "BK9 AI",
+                    url: `https://bk9.site/ai/gemini?q=${encodeURIComponent(prompt)}`,
+                    isJson: true,
+                    parse: (data) => data.BK9
                 }
             ];
 
             let finalAnswer = null;
 
-            // ⚙️ THE LOOP: Tries APIs one by one silently
-            for (let api of freeAPIs) {
+            // ⚙️ THE HACKER LOOP: Try every API secretly
+            for (let api of apis) {
                 try {
-                    console.log(`[AI ENGINE] Trying ${api.name}...`);
-                    const rawData = await fetchWithRedirect(api.url);
+                    console.log(`[AI] Bypassing security via ${api.name}...`);
+                    const rawData = await fetchFromAI(api.url, api.isJson);
                     
-                    // Agar galti se HTML aa jaye, toh reject kar do
-                    if (rawData.includes('<html') || rawData.includes('CloudFront')) {
-                        throw new Error("Received HTML instead of JSON");
+                    // HTML/Cloudflare check
+                    if (typeof rawData === 'string' && (rawData.includes('<!DOCTYPE html') || rawData.includes('<html'))) {
+                        throw new Error("Received HTML Cloudflare block.");
                     }
 
                     const answer = api.parse(rawData);
                     
                     if (answer && answer.length > 2) {
                         finalAnswer = answer;
-                        console.log(`[AI ENGINE] Success from ${api.name}!`);
-                        break; // Answer mil gaya, loop rok do
+                        console.log(`[AI] 🟢 Success from ${api.name}!`);
+                        break; // Stop looking, we got the answer
                     }
                 } catch (err) {
-                    console.log(`[AI ENGINE] ${api.name} failed: ${err.message}. Shifting to next...`);
+                    console.log(`[AI] 🔴 ${api.name} failed: ${err.message}. Trying next...`);
                     continue; 
                 }
             }
 
-            // 🚀 Final Delivery
+            // 🚀 Final Delivery to User
             if (finalAnswer) {
-                // Remove promotional text from free APIs
-                finalAnswer = finalAnswer.replace(/Ryzendesu|Vreden|Nyxs/ig, 'Kosem AI').trim();
+                // Clean up any promotional text from the APIs
+                finalAnswer = finalAnswer.replace(/BK9|AEMT/ig, 'Kosem AI').trim();
                 
                 if (extra.react) await extra.react('✅');
                 await extra.reply(finalAnswer);
             } else {
                 if (extra.react) await extra.react('❌');
-                await extra.reply("❌ *API Error:* Sorry bhai, saari free APIs is waqt down hain ya VPS unko block kar raha hai.");
+                await extra.reply("❌ *Host Restricted:* Bhai, aapke VPS ka IP itna badnaam (blacklisted) hai ke internet ki saari APIs ne usay block kar diya hai. Aapko bot kisi aur panel par host karna parega.");
             }
 
         } catch (error) {
             console.error('\x1b[31m[CRITICAL ERROR]\x1b[0m', error);
             if (extra.react) await extra.react('❌');
-            await extra.reply('❌ Bot system crashed during execution.');
+            
+            // Failsafe if Node version is too old for fetch()
+            if (error.message.includes('fetch is not defined')) {
+                await extra.reply('❌ Aapke VPS ka Node.js version bohot purana hai. Please Node.js 18 ya is se oopar update karein.');
+            } else {
+                await extra.reply('❌ Bot system crashed during execution.');
+            }
         }
     }
 };
