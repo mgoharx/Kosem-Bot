@@ -1,25 +1,19 @@
-/**
- * ❖ THE DNS-BYPASS AI ENGINE ❖
- * Bypasses broken Panel/VPS DNS systems (getaddrinfo ENOTFOUND).
- * Fetches IPs directly via Google DNS over HTTPS (8.8.8.8).
- */
-
 const https = require('https');
 
 module.exports = {
     name: 'ai',
     aliases: ['gpt', 'chatgpt', 'ask', 'gemini', 'bot'],
-    category: 'general',
-    description: 'DNS-Bypass AI (Super Edition)',
+    category: 'ai', // 🚀 User demand: strictly 'ai' category
+    description: 'Clean & Stable AI Command',
     usage: '.ai <question>',
-    
+
     async execute(sock, msg, args, extra) {
         try {
             if (!args[0]) {
                 let errText = `❖ ───── ✦ 𝐄𝐑𝐑𝐎𝐑 ✦ ───── ❖\n\n`;
                 errText += `❌ *Question Missing*\n`;
                 errText += `💡 Please ask something.\n`;
-                errText += `✦ *Example:* \`.ai Who is the founder of Pakistan?\`\n`;
+                errText += `✦ *Example:* \`.ai who are you?\`\n`;
                 errText += `╰━━━━━━━━━━━━━━━━━━┈⊷`;
                 return extra.reply(errText);
             }
@@ -27,128 +21,86 @@ module.exports = {
             const question = args.join(' ');
             if (extra.react) await extra.react('⏳');
 
-            console.log(`\x1b[36m[AI ENGINE]\x1b[0m Starting DNS-Over-HTTPS Bypass for prompt...`);
-
-            // 🚀 STEP 1: Custom DNS Resolver (Bypasses ENOTFOUND)
-            // Connects directly to Google's 8.8.8.8 IP to bypass broken host DNS
-            const resolveDNS = (domain) => {
+            // 🚀 STEP 1: Ultra-Clean Fetcher (No custom DNS, No forced IPv4)
+            // This prevents the host from detecting unusual network activity
+            const fetchAI = (url) => {
                 return new Promise((resolve, reject) => {
-                    const opts = {
-                        hostname: '8.8.8.8',
-                        path: `/resolve?name=${domain}`,
-                        method: 'GET',
-                        headers: { 'Host': 'dns.google', 'Accept': 'application/json' },
-                        servername: 'dns.google',
-                        rejectUnauthorized: false,
-                        timeout: 10000
-                    };
-                    const req = https.request(opts, (res) => {
-                        let data = '';
-                        res.on('data', c => data += c);
-                        res.on('end', () => {
-                            try {
-                                const json = JSON.parse(data);
-                                if (json.Answer) {
-                                    // Find the IPv4 address (Type 1)
-                                    const ipRecord = json.Answer.find(a => a.type === 1);
-                                    if (ipRecord) {
-                                        console.log(`\x1b[32m[DNS SUCCESS]\x1b[0m Resolved ${domain} -> ${ipRecord.data}`);
-                                        resolve(ipRecord.data);
-                                    } else {
-                                        reject(new Error(`No IPv4 for ${domain}`));
-                                    }
-                                } else {
-                                    reject(new Error(`DNS resolution failed for ${domain}`));
-                                }
-                            } catch(e) { reject(e); }
-                        });
-                    });
-                    req.on('error', reject);
-                    req.on('timeout', () => { req.destroy(); reject(new Error('DNS Timeout')); });
-                    req.end();
-                });
-            };
-
-            // 🚀 STEP 2: Direct-IP Fetcher (Bypasses getaddrinfo completely)
-            const fetchAI = async (domain, path) => {
-                const ip = await resolveDNS(domain);
-                return new Promise((resolve, reject) => {
-                    const opts = {
-                        hostname: ip, // Connecting strictly via raw IP
-                        path: path,
-                        method: 'GET',
-                        headers: {
-                            'Host': domain, // SNI Header routing
-                            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+                    const req = https.get(url, {
+                        headers: { 
+                            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                            'Accept': 'application/json'
                         },
-                        servername: domain, // Crucial for SSL/TLS to work on direct IPs
-                        rejectUnauthorized: false,
-                        timeout: 15000
-                    };
-                    const req = https.request(opts, (res) => {
+                        timeout: 25000 // 25 seconds tolerance
+                    }, (res) => {
                         let data = '';
-                        res.on('data', c => data += c);
+                        res.on('data', chunk => data += chunk);
                         res.on('end', () => resolve(data));
                     });
-                    req.on('error', reject);
-                    req.on('timeout', () => { req.destroy(); reject(new Error('API Timeout')); });
-                    req.end();
+
+                    req.on('error', (e) => reject(e));
+                    req.on('timeout', () => {
+                        req.destroy();
+                        reject(new Error('Timeout'));
+                    });
                 });
             };
 
-            let finalAnswer = '';
+            let answer = '';
 
-            // 🚀 STEP 3: Multi-Engine Execution
-            try {
-                // Engine 1: Popcat AI (Super Fast)
-                console.log(`\x1b[33m[AI ENGINE]\x1b[0m Trying Engine 1 (Popcat)...`);
-                const res1 = await fetchAI('api.popcat.xyz', `/chatbot?msg=${encodeURIComponent(question)}`);
-                const json1 = JSON.parse(res1);
-                if (json1.response) finalAnswer = json1.response;
-                else throw new Error("Empty Response");
-            } catch (e1) {
-                console.log(`\x1b[31m[AI ENGINE ERROR]\x1b[0m Engine 1 Failed:`, e1.message);
-                
+            // 🚀 STEP 2: Array of 3 highly stable, independent APIs
+            const apis = [
+                { 
+                    url: `https://bk9.site/ai/gemini?q=${encodeURIComponent(question)}`, 
+                    parse: (d) => JSON.parse(d).BK9 
+                },
+                { 
+                    url: `https://api.siputzx.my.id/api/ai/gpt3?prompt=${encodeURIComponent(question)}`, 
+                    parse: (d) => JSON.parse(d).data 
+                },
+                { 
+                    url: `https://api.popcat.xyz/chatbot?msg=${encodeURIComponent(question)}`, 
+                    parse: (d) => JSON.parse(d).response 
+                }
+            ];
+
+            // 🚀 STEP 3: Fallback Loop (Tries API 1, if fails tries 2, etc.)
+            for (let i = 0; i < apis.length; i++) {
                 try {
-                    // Engine 2: Nyxs GPT-4
-                    console.log(`\x1b[33m[AI ENGINE]\x1b[0m Trying Engine 2 (Nyxs)...`);
-                    const res2 = await fetchAI('api.nyxs.pw', `/ai/gpt4?text=${encodeURIComponent(question)}`);
-                    const json2 = JSON.parse(res2);
-                    if (json2.result) finalAnswer = json2.result;
-                    else throw new Error("Empty Response");
-                } catch (e2) {
-                    console.log(`\x1b[31m[AI ENGINE ERROR]\x1b[0m Engine 2 Failed:`, e2.message);
+                    console.log(`[AI] Sending simple request to API ${i + 1}...`);
+                    const res = await fetchAI(apis[i].url);
+                    const parsed = apis[i].parse(res);
                     
-                    try {
-                        // Engine 3: Vreden
-                        console.log(`\x1b[33m[AI ENGINE]\x1b[0m Trying Engine 3 (Vreden)...`);
-                        const res3 = await fetchAI('api.vreden.web.id', `/api/openai?text=${encodeURIComponent(question)}`);
-                        const json3 = JSON.parse(res3);
-                        if (json3.result) finalAnswer = json3.result;
-                        else throw new Error("Empty Response");
-                    } catch (e3) {
-                        throw new Error("All endpoints depleted.");
+                    if (parsed && parsed.length > 2) {
+                        answer = parsed;
+                        console.log(`[AI] API ${i + 1} Success!`);
+                        break; // Stop the loop if we got an answer
                     }
+                } catch (e) {
+                    console.log(`[AI] API ${i + 1} Failed/Timeout. Switching...`);
+                    continue; // Try the next one
                 }
             }
 
-            // 🚀 STEP 4: Output Delivery
-            if (finalAnswer) {
-                finalAnswer = finalAnswer.replace(/Popcat|Nyxs|Vreden/ig, 'Kosem AI').trim();
+            // 🚀 STEP 4: Send Final Answer
+            if (answer) {
+                // Cleanup text
+                answer = answer.replace(/BK9|Siputzx|Popcat/ig, 'AI').trim();
                 if (extra.react) await extra.react('✅');
-                await extra.reply(finalAnswer);
+                await extra.reply(answer);
             } else {
-                throw new Error("Final answer was blank.");
+                // If all 3 APIs failed or timed out
+                if (extra.react) await extra.react('❌');
+                let errText = `❖ ───── ✦ 𝐄𝐑𝐑𝐎𝐑 ✦ ───── ❖\n\n`;
+                errText += `❌ *Host Firewall Block*\n`;
+                errText += `💡 I tried 3 different AI servers but they all Timed Out. This confirms your Hosting Panel is actively blocking all outgoing connections. You may need to change your host.\n`;
+                errText += `╰━━━━━━━━━━━━━━━━━━┈⊷`;
+                await extra.reply(errText);
             }
 
         } catch (error) {
             console.error('\x1b[31m[CRITICAL ERROR]\x1b[0m', error);
             if (extra.react) await extra.react('❌');
-            let errText = `❖ ───── ✦ 𝐄𝐑𝐑𝐎𝐑 ✦ ───── ❖\n\n`;
-            errText += `❌ *Terminal Network Failure*\n`;
-            errText += `💡 Server failed to connect even with Direct IP routing.\n`;
-            errText += `╰━━━━━━━━━━━━━━━━━━┈⊷`;
-            await extra.reply(errText);
+            await extra.reply('❌ Command execution crashed.');
         }
     }
 };
