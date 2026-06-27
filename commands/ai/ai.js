@@ -1,107 +1,93 @@
-/**
- * ❖ THE LOCAL AI ENGINE (100% OFFLINE) ❖
- * Bypasses all Host Firewalls and Timeouts by processing logic LOCALLY in Node.js.
- * Zero network requests = Zero Timeouts.
- */
-
-class LocalNLP {
-    static getResponse(input) {
-        const text = input.toLowerCase().trim();
-
-        // 1. Identity & Greetings
-        if (/(hello|hi |hey |salam|assalam)/.test(text)) {
-            return "Hello! I am operating locally. How can I help you today?";
-        }
-        if (/(who are you|your name|what are you)/.test(text)) {
-            return "I am a Local AI Bot. Since the server's network is strictly firewalled, I am operating offline using my internal logic engine.";
-        }
-        if (/(who made you|creator|developer)/.test(text)) {
-            return "I was programmed by my developer to operate perfectly even without internet access.";
-        }
-        if (/(how are you)/.test(text)) {
-            return "I am functioning at 100% capacity in offline mode. Thank you for asking!";
-        }
-
-        // 2. Tech & Programming
-        if (/(javascript|js)/.test(text)) {
-            return "JavaScript is a lightweight, interpreted programming language used primarily for web development and building Node.js applications like myself.";
-        }
-        if (/(python)/.test(text)) {
-            return "Python is a high-level programming language known for its readability, widely used in automation, AI, and Discord bots.";
-        }
-        if (/(html)/.test(text)) {
-            return "HTML (HyperText Markup Language) is the standard markup language for documents designed to be displayed in a web browser.";
-        }
-        if (/(code for|write a code|script)/.test(text)) {
-            return "I am currently in 'Offline Mode' due to firewall blocks, so I cannot generate complex custom code dynamically. I can only provide pre-programmed logic right now.";
-        }
-
-        // 3. General Knowledge & Science
-        if (/(science)/.test(text)) {
-            return "Science is a systematic enterprise that builds and organizes knowledge in the form of testable explanations and predictions about the universe.";
-        }
-        if (/(physics)/.test(text)) {
-            return "Physics is the natural science that studies matter, its fundamental constituents, its motion and behavior through space and time.";
-        }
-        if (/(pakistan)/.test(text)) {
-            return "Pakistan, officially the Islamic Republic of Pakistan, is a country in South Asia with a rich cultural history and diverse landscapes.";
-        }
-        if (/(what is time|current time)/.test(text)) {
-            return `My internal server clock reads: ${new Date().toLocaleString()}`;
-        }
-
-        // 4. Fun & Interaction
-        if (/(joke|funny)/.test(text)) {
-            const jokes = [
-                "Why do programmers prefer dark mode? Because light attracts bugs! 🐛",
-                "How many programmers does it take to change a light bulb? None, that's a hardware problem.",
-                "I would tell you a UDP joke, but you might not get it."
-            ];
-            return jokes[Math.floor(Math.random() * jokes.length)];
-        }
-        if (/(ping)/.test(text)) {
-            return "Pong! My latency is 0ms because I am processing everything directly on your server without the internet.";
-        }
-
-        // 5. Default Fallback
-        return "⚠️ *Offline Mode:* I understood your input, but because my hosting server blocks outbound internet, I cannot connect to the global AI servers to fetch a detailed answer for this specific query. I am relying on my local brain!";
-    }
-}
+const https = require('https');
 
 module.exports = {
     name: 'ai',
     aliases: ['gpt', 'chatgpt', 'ask', 'gemini', 'bot'],
     category: 'ai',
-    description: 'Ultra-Fast Local Offline AI',
+    description: 'Official Google Gemini AI (Unblockable)',
     usage: '.ai <question>',
     
     async execute(sock, msg, args, extra) {
         try {
-            // 1. Check if user asked a question
-            if (!args || args.length === 0) {
+            // 🛑 GOHAR BHAI: YAHAN APNI FREE GOOGLE API KEY DALEIN 🛑
+            const GEMINI_API_KEY = "AQ.Ab8RN6IBGAfz8lrb_T_yJeULH1Zv94zc3JlXdOw-ZgmRpvCt3A"; 
+
+            if (GEMINI_API_KEY === "AQ.Ab8RN6IBGAfz8lrb_T_yJeULH1Zv94zc3JlXdOw-ZgmRpvCt3A") {
+                return extra.reply("❌ *Developer Note:* Gohar bhai, code mein apni Gemini API key paste karein taake bot chal sakay.");
+            }
+
+            if (!args[0]) {
                 let errText = `❖ ───── ✦ 𝐄𝐑𝐑𝐎𝐑 ✦ ───── ❖\n\n`;
-                errText += `❌ *Input Required*\n`;
-                errText += `💡 Please ask me something.\n`;
-                errText += `✦ *Example:* \`.ai who are you?\`\n`;
+                errText += `❌ *Question Missing*\n`;
+                errText += `💡 Please ask me anything.\n`;
+                errText += `✦ *Example:* \`.ai Create a Python script for automation.\`\n`;
                 errText += `╰━━━━━━━━━━━━━━━━━━┈⊷`;
                 return extra.reply(errText);
             }
 
             const prompt = args.join(' ');
-            
-            // 2. Optional Reaction (Fast Processing)
-            if (extra.react) await extra.react('⚡');
+            if (extra.react) await extra.react('⏳');
 
-            // 3. Process the AI response instantly locally
-            const answer = LocalNLP.getResponse(prompt);
+            // 🚀 Connecting directly to Google's highly secure and unblockable servers
+            const requestBody = JSON.stringify({
+                contents: [{ parts: [{ text: prompt }] }]
+            });
 
-            // 4. Send the output
-            await extra.reply(answer);
+            const options = {
+                hostname: 'generativelanguage.googleapis.com',
+                path: `/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`,
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Content-Length': Buffer.byteLength(requestBody),
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' // Stealth header
+                },
+                timeout: 30000 // Google is fast, but 30s is a safe buffer
+            };
+
+            const req = https.request(options, (res) => {
+                let data = '';
+                res.on('data', chunk => data += chunk);
+                
+                res.on('end', async () => {
+                    try {
+                        const json = JSON.parse(data);
+                        
+                        // Check if Google successfully returned an answer
+                        if (json.candidates && json.candidates[0].content.parts[0].text) {
+                            let answer = json.candidates[0].content.parts[0].text.trim();
+                            
+                            if (extra.react) await extra.react('✅');
+                            await extra.reply(answer);
+                        } else {
+                            throw new Error("Invalid format received from Google.");
+                        }
+                    } catch (e) {
+                        console.error("[AI JSON ERROR]", e.message);
+                        if (extra.react) await extra.react('❌');
+                        await extra.reply("❌ Google AI encountered an issue processing the text.");
+                    }
+                });
+            });
+
+            req.on('error', async (error) => {
+                console.error("[AI NETWORK ERROR]", error.message);
+                if (extra.react) await extra.react('❌');
+                await extra.reply("❌ Network failed to reach Google servers.");
+            });
+
+            req.on('timeout', () => {
+                req.destroy();
+                extra.reply("❌ Google API Timed Out (Extremely Rare).");
+            });
+
+            req.write(requestBody);
+            req.end();
 
         } catch (error) {
             console.error('\x1b[31m[CRITICAL ERROR]\x1b[0m', error);
             if (extra.react) await extra.react('❌');
-            await extra.reply('❌ Local engine encountered an internal error.');
+            await extra.reply('❌ Bot system crashed while connecting to AI.');
         }
     }
 };
