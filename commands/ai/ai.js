@@ -70,7 +70,7 @@ module.exports = {
             for (let api of apis) {
                 try {
                     // API ka naam hata diya, ab sirf Kosem Bot show hoga
-                    console.log(`[BOT] [KOSEM BOT] Bypassing security...`);
+                    console.log(`[KOSEM AI] Bypassing security...`);
                     const rawData = await fetchFromAI(api.url, api.isJson);
                     
                     // HTML/Cloudflare check
