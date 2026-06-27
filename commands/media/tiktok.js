@@ -41,9 +41,11 @@ module.exports = {
             const url = urlMatch ? urlMatch[0] : null;
 
             if (!url) {
-                return await sock.sendMessage(msg.key.remoteJid, { 
-                    text: '❌ That is not a valid TikTok link. Please try again.' 
-                }, { quoted: msg });
+                let errText = `❖ ───── ✦ 𝐄𝐑𝐑𝐎𝐑 ✦ ───── ❖\n\n`;
+                errText += `❌ *Invalid Link*\n`;
+                errText += `💡 That is not a valid TikTok link. Please try again.\n`;
+                errText += `╰━━━━━━━━━━━━━━━━━━┈⊷`;
+                return await sock.sendMessage(msg.key.remoteJid, { text: errText }, { quoted: msg });
             }
 
             await sock.sendMessage(msg.key.remoteJid, { react: { text: '🔄', key: msg.key } });
@@ -106,10 +108,21 @@ module.exports = {
             // 🛑 If all APIs failed to get the link
             if (!videoData || !videoData.videoUrl) {
                 await sock.sendMessage(msg.key.remoteJid, { react: { text: '❌', key: msg.key } });
-                return await sock.sendMessage(msg.key.remoteJid, { 
-                    text: '❌ Failed to process the TikTok link. The video might be private or deleted.' 
-                }, { quoted: msg });
+                
+                let errText = `❖ ───── ✦ 𝐄𝐑𝐑𝐎𝐑 ✦ ───── ❖\n\n`;
+                errText += `❌ *Process Failed*\n`;
+                errText += `💡 The link might be private, deleted, or unavailable right now.\n`;
+                errText += `╰━━━━━━━━━━━━━━━━━━┈⊷`;
+                
+                return await sock.sendMessage(msg.key.remoteJid, { text: errText }, { quoted: msg });
             }
+
+            // 🚀 Thematic Caption Formatting
+            const botName = config?.botName ? config.botName.toUpperCase() : 'KOSEM BOT';
+            let captionText = `❖ ───── ✦ 𝐓𝐈𝐊𝐓𝐎𝐊 ✦ ───── ❖\n\n`;
+            captionText += `🎬 *Bot:* ${botName}\n`;
+            captionText += `📝 *Title:* ${videoData.title}\n\n`;
+            captionText += `╰━━━━━━━━━━━━━━━━━━┈⊷`;
 
             // 🚀 DOWNLOAD THE VIDEO BUFFER
             console.log(`[BOT] [KOSEM BOT] Downloading HD Video Buffer...`);
@@ -117,17 +130,16 @@ module.exports = {
             try {
                 const arrayBuffer = await fetchWithBypass(videoData.videoUrl, false);
                 videoBuffer = Buffer.from(arrayBuffer);
-                console.log(`[BOT] 🟢 Video downloaded successfully!`);
+                console.log(`[BOT] 🟢 Video downloaded successfully !`);
             } catch (err) {
                 console.log(`[BOT] 🔴 Download Failed: ${err.message}`);
                 
                 // Final Fallback: Send just the URL if buffer download fails due to VPS limits
-                const botName = config?.botName ? config.botName.toUpperCase() : 'KOSEM BOT';
                 await sock.sendMessage(msg.key.remoteJid, { react: { text: '✅', key: msg.key } });
                 return await sock.sendMessage(msg.key.remoteJid, {
                     video: { url: videoData.videoUrl },
                     mimetype: 'video/mp4',
-                    caption: `🎬 *DOWNLOADED BY ${botName}*\n\n📝 ${videoData.title}`
+                    caption: captionText
                 }, { quoted: msg });
             }
 
@@ -135,15 +147,16 @@ module.exports = {
             const maxVideoSize = 100 * 1024 * 1024; // 100MB
             if (videoBuffer.length > maxVideoSize) {
                 await sock.sendMessage(msg.key.remoteJid, { react: { text: '❌', key: msg.key } });
-                return await sock.sendMessage(msg.key.remoteJid, { 
-                    text: `❌ Video is too large to send via WhatsApp (${(videoBuffer.length / 1024 / 1024).toFixed(1)}MB).` 
-                }, { quoted: msg });
+                
+                let errText = `❖ ───── ✦ 𝐄𝐑𝐑𝐎𝐑 ✦ ───── ❖\n\n`;
+                errText += `❌ *File Too Large*\n`;
+                errText += `💡 Video size is ${(videoBuffer.length / 1024 / 1024).toFixed(1)}MB, which exceeds WhatsApp limits.\n`;
+                errText += `╰━━━━━━━━━━━━━━━━━━┈⊷`;
+                
+                return await sock.sendMessage(msg.key.remoteJid, { text: errText }, { quoted: msg });
             }
 
-            // 🚀 FINAL DELIVERY: Send the HD Buffer
-            const botName = config?.botName ? config.botName.toUpperCase() : 'KOSEM BOT';
-            const captionText = `🎬 *DOWNLOADED BY ${botName}*\n\n📝 ${videoData.title}`;
-
+            // 🚀 FINAL DELIVERY: Send the HD Buffer with Thematic Caption
             await sock.sendMessage(msg.key.remoteJid, { react: { text: '✅', key: msg.key } });
             await sock.sendMessage(msg.key.remoteJid, {
                 video: videoBuffer,
@@ -154,9 +167,13 @@ module.exports = {
         } catch (error) {
             console.error('\x1b[31m[CRITICAL ERROR]\x1b[0m', error);
             await sock.sendMessage(msg.key.remoteJid, { react: { text: '❌', key: msg.key } });
-            await sock.sendMessage(msg.key.remoteJid, { 
-                text: '❌ Kosem Bot encountered an error while downloading the video.' 
-            }, { quoted: msg });
+            
+            let errText = `❖ ───── ✦ 𝐄𝐑𝐑𝐎𝐑 ✦ ───── ❖\n\n`;
+            errText += `❌ *System Crash*\n`;
+            errText += `💡 Kosem Bot encountered a critical error while processing.\n`;
+            errText += `╰━━━━━━━━━━━━━━━━━━┈⊷`;
+            
+            await sock.sendMessage(msg.key.remoteJid, { text: errText }, { quoted: msg });
         }
     }
 };
