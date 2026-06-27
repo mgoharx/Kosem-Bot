@@ -122,7 +122,7 @@ module.exports = {
             let captionText = `❖ ── ✦ 𝐓𝐈𝐊𝐓𝐎𝐊 ✦ ── ❖\n\n`;
             captionText += `🎬 *Bot:* ${botName}\n`;
             captionText += `📝 *Title:* ${videoData.title}\n\n`;
-            captionText += `╰━━━━━━━━━━━━━━━┈⊷`;
+            captionText += `╰━━━━━━━━━━━━━━┈⊷`;
 
             // 🚀 DOWNLOAD THE VIDEO BUFFER
             console.log(`[BOT] [KOSEM BOT] Downloading HD Video Buffer...`);
