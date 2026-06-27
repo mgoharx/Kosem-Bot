@@ -66,7 +66,7 @@ module.exports = {
             // ⚙️ THE HACKER LOOP: Try fetching the image silently
             for (let api of apis) {
                 try {
-                    console.log(`[KOSEM BOT] Generating HD image...`);
+                    console.log(`[KOSEM AI] Generating HD image...`);
                     const buffer = await fetchImageBuffer(api.url);
                     
                     if (buffer && buffer.length > 10240) {
