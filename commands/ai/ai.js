@@ -4,12 +4,12 @@ module.exports = {
     name: 'ai',
     aliases: ['gpt', 'chatgpt', 'ask', 'gemini', 'bot'],
     category: 'ai',
-    description: 'Auto-Adapting Google Gemini AI',
+    description: 'Intelligent Auto-Discovering Gemini AI',
     usage: '.ai <question>',
     
     async execute(sock, msg, args, extra) {
         try {
-            // 🚀 Aapki 100% working API key!
+            // 🚀 Aapki 100% verified API key!
             const GEMINI_API_KEY = "AQ.Ab8RN6L8GOPoQLsPSfTspjW5HuY-C0tzQ-EV9vHMafqhhnTorg"; 
 
             if (!args[0]) {
@@ -24,31 +24,17 @@ module.exports = {
             const prompt = args.join(' ');
             if (extra.react) await extra.react('⏳');
 
-            const requestBody = JSON.stringify({
-                contents: [{ parts: [{ text: prompt }] }]
-            });
-
-            // 🧠 ARRAY OF MODELS: Agar ek fail hua, toh bot automatically dusra try karega!
-            const modelsToTry = [
-                'gemini-1.5-flash-latest', 
-                'gemini-1.5-flash',
-                'gemini-1.0-pro', 
-                'gemini-pro'
-            ];
-
-            const fetchFromGoogle = (modelName) => {
+            // =========================================================
+            // 🧠 STEP 1: FETCH AVAILABLE MODELS (DYNAMIC DISCOVERY)
+            // =========================================================
+            const getBestModel = () => {
                 return new Promise((resolve, reject) => {
                     const options = {
                         hostname: 'generativelanguage.googleapis.com',
-                        // 🛠️ Shifted back to v1beta for maximum model support, using URL key auth
-                        path: `/v1beta/models/${modelName}:generateContent?key=${GEMINI_API_KEY}`,
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Content-Length': Buffer.byteLength(requestBody),
-                            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' 
-                        },
-                        timeout: 20000 
+                        path: `/v1beta/models?key=${GEMINI_API_KEY}`,
+                        method: 'GET',
+                        headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' },
+                        timeout: 15000 
                     };
 
                     const req = https.request(options, (res) => {
@@ -60,64 +46,113 @@ module.exports = {
                                 const json = JSON.parse(data);
                                 
                                 if (json.error) {
-                                    reject(new Error(json.error.message));
-                                    return;
+                                    return reject(new Error(`API Error: ${json.error.message}`));
                                 }
 
-                                if (json.candidates && json.candidates[0].content.parts[0].text) {
-                                    resolve(json.candidates[0].content.parts[0].text.trim());
+                                if (json.models && json.models.length > 0) {
+                                    // Sirf wo models filter karo jo text generation support karte hain
+                                    const validModels = json.models.filter(m => 
+                                        m.supportedGenerationMethods && 
+                                        m.supportedGenerationMethods.includes('generateContent') &&
+                                        m.name.includes('gemini')
+                                    );
+
+                                    if (validModels.length > 0) {
+                                        // "Flash" model sab se fast hota hai, pehle usay prefer karo
+                                        const flash = validModels.find(m => m.name.includes('flash'));
+                                        const selectedModel = flash ? flash.name : validModels[0].name;
+                                        resolve(selectedModel); // Yeh name return karega (e.g., 'models/gemini-1.5-flash')
+                                    } else {
+                                        reject(new Error("No text-generation models found on this API key."));
+                                    }
                                 } else {
-                                    reject(new Error("Invalid format received."));
+                                    reject(new Error("Google returned an empty model list."));
                                 }
                             } catch (e) {
-                                reject(e);
+                                reject(new Error("Failed to parse Google's model list."));
                             }
                         });
                     });
 
                     req.on('error', reject);
-                    req.on('timeout', () => {
-                        req.destroy();
-                        reject(new Error("Timeout"));
+                    req.on('timeout', () => { req.destroy(); reject(new Error("Model fetch timeout")); });
+                    req.end();
+                });
+            };
+
+            // =========================================================
+            // 📡 STEP 2: GENERATE RESPONSE USING THE DISCOVERED MODEL
+            // =========================================================
+            const generateContent = (modelName) => {
+                return new Promise((resolve, reject) => {
+                    const requestBody = JSON.stringify({
+                        contents: [{ parts: [{ text: prompt }] }]
                     });
 
+                    const options = {
+                        hostname: 'generativelanguage.googleapis.com',
+                        // 🛠️ 'modelName' ke andar pehle se 'models/' likha hua aata hai
+                        path: `/v1beta/${modelName}:generateContent?key=${GEMINI_API_KEY}`,
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Content-Length': Buffer.byteLength(requestBody),
+                            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' 
+                        },
+                        timeout: 25000 
+                    };
+
+                    const req = https.request(options, (res) => {
+                        let data = '';
+                        res.on('data', chunk => data += chunk);
+                        
+                        res.on('end', () => {
+                            try {
+                                const json = JSON.parse(data);
+                                
+                                if (json.error) return reject(new Error(json.error.message));
+
+                                if (json.candidates && json.candidates[0].content.parts[0].text) {
+                                    resolve(json.candidates[0].content.parts[0].text.trim());
+                                } else {
+                                    reject(new Error("Invalid text format received from Google."));
+                                }
+                            } catch (e) {
+                                reject(new Error("Failed to parse AI response."));
+                            }
+                        });
+                    });
+
+                    req.on('error', reject);
+                    req.on('timeout', () => { req.destroy(); reject(new Error("Generation timeout")); });
                     req.write(requestBody);
                     req.end();
                 });
             };
 
-            let finalAnswer = null;
-            let lastError = "";
+            // =========================================================
+            // 🚀 STEP 3: EXECUTE THE MASTER PLAN
+            // =========================================================
+            try {
+                console.log("[AI] Auto-Discovering allowed models from Google...");
+                const bestModel = await getBestModel();
+                
+                console.log(`[AI] Successfully discovered model: ${bestModel}. Fetching response...`);
+                const answer = await generateContent(bestModel);
 
-            // ⚙️ THE MAGIC LOOP: Testing models one by one silently
-            for (let i = 0; i < modelsToTry.length; i++) {
-                try {
-                    console.log(`[AI ENGINE] Trying model: ${modelsToTry[i]}...`);
-                    finalAnswer = await fetchFromGoogle(modelsToTry[i]);
-                    
-                    console.log(`[AI ENGINE] Success! Answer generated by ${modelsToTry[i]}`);
-                    break; // Jaise hi answer milega, loop ruk jayega!
-                } catch (err) {
-                    console.log(`[AI ENGINE] Model ${modelsToTry[i]} failed: ${err.message}. Shifting to next...`);
-                    lastError = err.message;
-                    continue; // Pura crash hone ke bajaye next model try karo
-                }
-            }
-
-            // 🚀 Final Result Delivery
-            if (finalAnswer) {
                 if (extra.react) await extra.react('✅');
-                await extra.reply(finalAnswer);
-            } else {
-                // Agar chahro (4) models fail ho jayen (jo ke namumkin hai)
+                await extra.reply(answer);
+
+            } catch (engineError) {
+                console.error("[AI ENGINE ERROR]", engineError.message);
                 if (extra.react) await extra.react('❌');
-                await extra.reply(`❌ *Google AI Error:* All fallback models failed.\n💡 Last Error: ${lastError}`);
+                await extra.reply(`❌ *System Fault:*\n💡 ${engineError.message}`);
             }
 
         } catch (error) {
             console.error('\x1b[31m[CRITICAL ERROR]\x1b[0m', error);
             if (extra.react) await extra.react('❌');
-            await extra.reply('❌ Bot system crashed while connecting to AI.');
+            await extra.reply('❌ System crashed.');
         }
     }
 };
