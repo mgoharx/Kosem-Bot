@@ -90,17 +90,17 @@ module.exports = {
             // ⚙️ THE HACKER LOOP: Extract Video URL
             for (let api of apis) {
                 try {
-                    console.log(`[BOT] Extracting TikTok data via ${api.name}...`);
+                    console.log(`Extracting TikTok data via ${api.name}...`);
                     const json = await fetchWithBypass(api.url, true);
                     
                     videoData = api.parse(json);
                     
                     if (videoData && videoData.videoUrl) {
-                        console.log(`[BOT] 🟢 Success! Extracted URL from ${api.name}.`);
+                        console.log(` 🟢 Success! Extracted URL from ${api.name}.`);
                         break; // Stop looking
                     }
                 } catch (err) {
-                    console.log(`[BOT] 🔴 ${api.name} failed. Trying backup...`);
+                    console.log(` 🔴 ${api.name} failed. Trying backup...`);
                     continue;
                 }
             }
@@ -130,9 +130,9 @@ module.exports = {
             try {
                 const arrayBuffer = await fetchWithBypass(videoData.videoUrl, false);
                 videoBuffer = Buffer.from(arrayBuffer);
-                console.log(`[BOT] 🟢 Video downloaded successfully !`);
+                console.log(` 🟢 Video downloaded successfully !`);
             } catch (err) {
-                console.log(`[BOT] 🔴 Download Failed: ${err.message}`);
+                console.log(` 🔴 Download Failed: ${err.message}`);
                 
                 // Final Fallback: Send just the URL if buffer download fails due to VPS limits
                 await sock.sendMessage(msg.key.remoteJid, { react: { text: '✅', key: msg.key } });
