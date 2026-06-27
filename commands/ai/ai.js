@@ -4,13 +4,13 @@ module.exports = {
     name: 'ai',
     aliases: ['gpt', 'chatgpt', 'ask', 'gemini', 'bot'],
     category: 'ai',
-    description: 'Official Google Gemini AI (Unblockable)',
+    description: 'Official Google Gemini AI',
     usage: '.ai <question>',
     
     async execute(sock, msg, args, extra) {
         try {
-            // 🚀 Gohar bhai ki API Key yahan set ho chuki hai!
-            const GEMINI_API_KEY = "AQ.Ab8RN6IBGAfz8lrb_T_yJeULH1Zv94zc3JlXdOw-ZgmRpvCt3A"; 
+            // 🚀 Aapki 100% asli aur verified API key!
+            const GEMINI_API_KEY = "AQ.Ab8RN6L8GOPoQLsPSfTspjW5HuY-C0tzQ-EV9vHMafqhhnTorg"; 
 
             if (!args[0]) {
                 let errText = `❖ ───── ✦ 𝐄𝐑𝐑𝐎𝐑 ✦ ───── ❖\n\n`;
@@ -24,18 +24,18 @@ module.exports = {
             const prompt = args.join(' ');
             if (extra.react) await extra.react('⏳');
 
-            // Connecting directly to Google's highly secure and unblockable servers
             const requestBody = JSON.stringify({
                 contents: [{ parts: [{ text: prompt }] }]
             });
 
             const options = {
                 hostname: 'generativelanguage.googleapis.com',
-                path: `/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`,
+                path: `/v1beta/models/gemini-1.5-flash:generateContent`, // 🛠️ FIX: Removed ?key= from URL
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                     'Content-Length': Buffer.byteLength(requestBody),
+                    'x-goog-api-key': GEMINI_API_KEY, // 🛠️ FIX: Sending the new AQ key in secure headers
                     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' 
                 },
                 timeout: 30000 
@@ -49,14 +49,12 @@ module.exports = {
                     try {
                         const json = JSON.parse(data);
                         
-                        // Check for API Key Error from Google
                         if (json.error) {
                             console.error("[GOOGLE API ERROR]", json.error.message);
                             if (extra.react) await extra.react('❌');
-                            return await extra.reply(`❌ *Google API Error:* ${json.error.message}\n💡 Bhai, lagta hai API key theek nahi hai ya expire ho gayi hai. Check karein.`);
+                            return await extra.reply(`❌ *Google API Error:* ${json.error.message}`);
                         }
 
-                        // Check if Google successfully returned an answer
                         if (json.candidates && json.candidates[0].content.parts[0].text) {
                             let answer = json.candidates[0].content.parts[0].text.trim();
                             
@@ -81,7 +79,7 @@ module.exports = {
 
             req.on('timeout', () => {
                 req.destroy();
-                extra.reply("❌ Google API Timed Out (Extremely Rare).");
+                extra.reply("❌ Google API Timed Out.");
             });
 
             req.write(requestBody);
