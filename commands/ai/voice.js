@@ -1,35 +1,41 @@
 /**
  * 👑 Kosem Bot Premium Voice AI
- * 100% Free - Amazon Polly Backend via StreamElements
- * High Quality, Instant Response, Zero Blocks!
+ * 100% Free & Bulletproof - Native Google TTS Engine
+ * Supports US, UK, Aussie, Indian, and Pakistani (Urdu) Accents
  */
 
 module.exports = {
     name: 'voice',
-    aliases: ['tts', 'speak', 'say', 'audio'],
+    aliases: ['speak', 'say', 'audio'],
     category: 'ai',
     description: 'Convert text to High-Quality AI Voice Notes',
     usage: '.voice <voice_name> <text>',
     
     async execute(sock, msg, args, extra) {
         try {
-            // 🎙️ PREMIUM VOICE LIST
-            // US: Matthew (Male), Salli (Female), Justin (Boy)
-            // UK: Brian (Male), Amy (Female)
-            // Indian Accent: Aditi (Female), Raveena (Female)
-            // Australian: Russell (Male), Nicole (Female)
-            const availableVoices = ['Matthew', 'Salli', 'Justin', 'Brian', 'Amy', 'Aditi', 'Raveena', 'Russell', 'Nicole'];
+            // 🎙️ PREMIUM VOICE DICTIONARY (Mapped to Regional Accents)
+            const voiceMap = {
+                'Matthew': 'en-US',  // American English
+                'Brian': 'en-GB',    // British English
+                'Russell': 'en-AU',  // Australian English
+                'Raveena': 'en-IN',  // Indian English
+                'Aditi': 'hi',       // Hindi (Perfect for Desi text)
+                'Tariq': 'ur'        // Urdu (Pakistani Accent)
+            };
+            
+            const availableVoices = Object.keys(voiceMap);
             
             // Show Help Menu if no arguments
             if (!args[0]) {
                 let helpText = `❖ ───── ✦ 𝐕𝐎𝐈𝐂𝐄 𝐀𝐈 ✦ ───── ❖\n\n`;
-                helpText += `🎙️ *Premium AI Voices Available:*\n\n`;
-                helpText += `🇺🇸 *US:* Matthew, Salli, Justin\n`;
-                helpText += `🇬🇧 *UK:* Brian, Amy\n`;
-                helpText += `🇮🇳 *Indian:* Aditi, Raveena\n`;
-                helpText += `🇦🇺 *Aussie:* Russell, Nicole\n\n`;
+                helpText += `🎙️ *Premium AI Accents Available:*\n\n`;
+                helpText += `🇺🇸 *US:* Matthew\n`;
+                helpText += `🇬🇧 *UK:* Brian\n`;
+                helpText += `🇦🇺 *Aussie:* Russell\n`;
+                helpText += `🇮🇳 *Indian:* Raveena, Aditi\n`;
+                helpText += `🇵🇰 *Pakistani:* Tariq\n\n`;
                 helpText += `💡 *How to use:*\n`;
-                helpText += `\`.voice Aditi Hello Gohar bhai, I am Kosem Bot!\`\n`;
+                helpText += `\`.voice Tariq Gohar bhai, system online hai!\`\n`;
                 helpText += `\`.voice Matthew System is fully operational.\`\n`;
                 helpText += `╰━━━━━━━━━━━━━━━━━━┈⊷`;
                 
@@ -61,16 +67,22 @@ module.exports = {
                 return await sock.sendMessage(msg.key.remoteJid, { text: errText }, { quoted: msg });
             }
 
-            console.log(`[BOT] [KOSEM BOT] 🟢 Generating Voice Note... Voice: ${selectedVoice}`);
+            // Google TTS works best with chunks under 200 characters per request
+            // We slice it to prevent Bad Request errors on very long paragraphs
+            const safeText = textToSpeak.substring(0, 200);
 
-            // 🚀 ULTRA-STABLE API: StreamElements (Amazon Polly Backend)
-            const apiUrl = `https://api.streamelements.com/kappa/v2/speech?voice=${selectedVoice}&text=${encodeURIComponent(textToSpeak)}`;
+            console.log(`[BOT] [KOSEM BOT] 🟢 Generating Voice Note... Accent: ${selectedVoice}`);
+
+            // 🚀 ULTRA-STABLE API: Native Google TTS (Bypasses all API keys and limits)
+            const langCode = voiceMap[selectedVoice];
+            const apiUrl = `https://translate.google.com/translate_tts?ie=UTF-8&tl=${langCode}&client=tw-ob&q=${encodeURIComponent(safeText)}`;
 
             const fetchVoice = async (url) => {
                 const response = await fetch(url, {
                     method: 'GET',
                     headers: {
-                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'
+                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                        'Referer': 'https://translate.google.com/'
                     }
                 });
 
@@ -94,7 +106,7 @@ module.exports = {
             await sock.sendMessage(msg.key.remoteJid, {
                 audio: audioBuffer,
                 mimetype: 'audio/mp4',
-                ptt: true // 🔥 THIS MAKES IT A VOICE NOTE INSTEAD OF A FILE!
+                ptt: true // 🔥 THIS MAKES IT A VOICE NOTE
             }, { quoted: msg });
 
         } catch (error) {
