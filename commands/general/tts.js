@@ -15,7 +15,7 @@ const execPromise = util.promisify(exec);
 
 module.exports = {
   name: 'tts',
-  aliases: ['speak', 'say', 'voice', 'texttospeech'],
+  aliases: ['speak', 'texttospeech'],
   category: 'utility', 
   description: 'Convert text to highly realistic speech',
   usage: '.tts <text>',
