@@ -53,7 +53,7 @@ module.exports = {
 
             // 🖼️ SCENARIO B: It's a MEDIA Status (Image or Video)
             if (quotedType === 'imageMessage' || quotedType === 'videoMessage') {
-                console.log(`[BOT] [KOSEM BOT] Downloading Status Media Buffer...`);
+                console.log(`Downloading Status Media Buffer...`);
                 
                 // Construct a fake message object for Baileys to download from the quote
                 const fakeMsgForDownload = {
@@ -83,10 +83,10 @@ module.exports = {
                 const originalCaption = quotedMessage[quotedType].caption || '';
                 
                 // Format the caption with Premium Theme
-                let finalCaption = `❖ ───── ✦ 𝐒𝐓𝐀𝐓𝐔𝐒 ✦ ───── ❖\n\n`;
+                let finalCaption = `❖ ─── ✦ 𝐒𝐓𝐀𝐓𝐔𝐒 ✦ ─── ❖\n\n`;
                 if (originalCaption) finalCaption += `📝 *Caption:* ${originalCaption}\n\n`;
                 finalCaption += `✨ *Saved by Kosem Bot*\n`;
-                finalCaption += `╰━━━━━━━━━━━━━━━━━━┈⊷`;
+                finalCaption += `╰━━━━━━━━━━━━━━━━┈⊷`;
 
                 if (extra.react) await extra.react('✅');
 
