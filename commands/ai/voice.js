@@ -1,14 +1,14 @@
 /**
  * 👑 Kosem Bot Premium Voice AI
- * 100% Free & Bulletproof - Native Google TTS Engine
- * Supports US, UK, Aussie, Indian, and Pakistani (Urdu) Accents
+ * 100% Free & Playable - Native Google TTS Engine
+ * Fixed WhatsApp Audio Corruption Issue
  */
 
 module.exports = {
     name: 'voice',
     aliases: ['speak', 'say', 'audio'],
     category: 'ai',
-    description: 'Convert text to High-Quality AI Voice Notes',
+    description: 'Convert text to High-Quality AI Audio',
     usage: '.voice <voice_name> <text>',
     
     async execute(sock, msg, args, extra) {
@@ -67,13 +67,12 @@ module.exports = {
                 return await sock.sendMessage(msg.key.remoteJid, { text: errText }, { quoted: msg });
             }
 
-            // Google TTS works best with chunks under 200 characters per request
-            // We slice it to prevent Bad Request errors on very long paragraphs
+            // Slice text to prevent Google API overload
             const safeText = textToSpeak.substring(0, 200);
 
-            console.log(`[BOT] [KOSEM BOT] 🟢 Generating Voice Note... Accent: ${selectedVoice}`);
+            console.log(`[BOT] [KOSEM BOT] 🟢 Generating Audio... Accent: ${selectedVoice}`);
 
-            // 🚀 ULTRA-STABLE API: Native Google TTS (Bypasses all API keys and limits)
+            // 🚀 NATIVE GOOGLE TTS API
             const langCode = voiceMap[selectedVoice];
             const apiUrl = `https://translate.google.com/translate_tts?ie=UTF-8&tl=${langCode}&client=tw-ob&q=${encodeURIComponent(safeText)}`;
 
@@ -98,15 +97,15 @@ module.exports = {
                 throw new Error("Received empty audio buffer");
             }
 
-            console.log(`[BOT] [KOSEM BOT] 🟢 Voice Note Generated Successfully!`);
+            console.log(`[BOT] [KOSEM BOT] 🟢 Audio Generated Successfully!`);
 
-            // 🚀 FINAL DELIVERY: Send as a Voice Note (PTT)
+            // 🚀 FINAL DELIVERY: Send as a Standard MP3 Audio File
             if (extra.react) await extra.react('✅');
             
             await sock.sendMessage(msg.key.remoteJid, {
                 audio: audioBuffer,
-                mimetype: 'audio/mp4',
-                ptt: true // 🔥 THIS MAKES IT A VOICE NOTE
+                mimetype: 'audio/mpeg', // 🔥 FIXED: Correct MP3 format so WhatsApp doesn't corrupt it
+                ptt: false // 🔥 FIXED: Sent as normal audio instead of forced voice note
             }, { quoted: msg });
 
         } catch (error) {
