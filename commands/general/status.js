@@ -42,10 +42,10 @@ module.exports = {
                 console.log(`🟢 Saving Text Status...`);
                 const statusText = quotedMessage[quotedType].text || quotedMessage.conversation;
                 
-                let textCaption = `❖ ───── ✦ 𝐒𝐓𝐀𝐓𝐔𝐒 ✦ ───── ❖\n\n`;
+                let textCaption = `❖ ─── ✦ 𝐒𝐓𝐀𝐓𝐔𝐒 ✦ ─── ❖\n\n`;
                 textCaption += `📝 *Text:* ${statusText}\n\n`;
                 textCaption += `✨ *Saved by Kosem Bot*\n`;
-                textCaption += `╰━━━━━━━━━━━━━━━━━━┈⊷`;
+                textCaption += `╰━━━━━━━━━━━━━━━━┈⊷`;
 
                 if (extra.react) await extra.react('✅');
                 return await sock.sendMessage(msg.key.remoteJid, { text: textCaption }, { quoted: msg });
