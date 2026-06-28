@@ -1,6 +1,6 @@
 /**
  * 👑 Kosem Bot Premium AI Video Generator
- * Deep URL Hunter & 2-Minute Timeout Engine
+ * Fresh Servers + Deep API Debugger
  */
 
 const { downloadMediaMessage } = require('@whiskeysockets/baileys');
@@ -31,18 +31,15 @@ module.exports = {
 
             let waitText = `❖ ───── ✦ 𝐕𝐈𝐃𝐄𝐎 𝐀𝐈 ✦ ───── ❖\n\n`;
             waitText += `⏳ *Processing Request...*\n`;
-            waitText += `💡 Please wait 1 to 3 minutes. Rendering high-quality AI videos requires massive server power. Do not send another request.\n`;
+            waitText += `💡 Request sent to AI GPU. This can take 1 to 3 minutes. Please wait...\n`;
             waitText += `╰━━━━━━━━━━━━━━━━━━┈⊷`;
             await sock.sendMessage(msg.key.remoteJid, { text: waitText }, { quoted: msg });
 
-            // 🚀 SMART PARSER: Hunts for any video URL inside the API response
+            // 🚀 SMART PARSER
             const extractVideoUrl = (obj) => {
-                if (typeof obj === 'string' && obj.startsWith('http') && !obj.includes('.jpg') && !obj.includes('.png')) {
-                    return obj;
-                }
+                if (typeof obj === 'string' && obj.startsWith('http') && !obj.includes('.jpg') && !obj.includes('.png')) return obj;
                 if (typeof obj === 'object' && obj !== null) {
-                    // Check common video keys first
-                    const keysToCheck = ['video', 'videoUrl', 'url', 'hdplay', 'result', 'data', 'BK9', 'link'];
+                    const keysToCheck = ['video', 'videoUrl', 'url', 'hdplay', 'result', 'data', 'BK9', 'link', 'kling'];
                     for (let key of keysToCheck) {
                         if (obj[key]) {
                             if (typeof obj[key] === 'string' && obj[key].startsWith('http')) return obj[key];
@@ -54,10 +51,10 @@ module.exports = {
                 return null;
             };
 
-            // 🚀 BROWSER SIMULATION WITH 120-SECOND TIMEOUT
+            // 🚀 BROWSER SIMULATION WITH 180-SECOND TIMEOUT
             const fetchFromAI = async (url) => {
                 const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 120000); // 2 Minutes Timeout
+                const timeoutId = setTimeout(() => controller.abort(), 180000); // Increased to 3 Minutes!
 
                 try {
                     const response = await fetch(url, {
@@ -71,8 +68,14 @@ module.exports = {
                     });
                     
                     clearTimeout(timeoutId);
-                    if (!response.ok) throw new Error(`Status: ${response.status}`);
-                    return await response.json();
+                    
+                    // Getting raw text first to check if it's Cloudflare HTML or JSON
+                    const textData = await response.text();
+                    try {
+                        return JSON.parse(textData);
+                    } catch (e) {
+                        return { text_response: textData.substring(0, 100) + "..." }; // Return snippet if not JSON
+                    }
                 } catch (err) {
                     clearTimeout(timeoutId);
                     throw err;
@@ -95,7 +98,7 @@ module.exports = {
                 
                 const imageBuffer = await downloadMediaMessage(fakeMsgForDownload, 'buffer', {}, { logger: console });
                 
-                console.log(`[BOT] [KOSEM BOT] Uploading image to temp server...`);
+                console.log(`[BOT] [KOSEM BOT] Uploading image to Catbox...`);
                 const formData = new FormData();
                 formData.append('reqtype', 'fileupload');
                 formData.append('fileToUpload', new Blob([imageBuffer]), 'image.jpg');
@@ -104,7 +107,7 @@ module.exports = {
                 const uploadedImageUrl = await uploadRes.text();
                 
                 const i2vApis = [
-                    { name: 'Siputzx Luma', url: `https://api.siputzx.my.id/api/ai/luma?url=${encodeURIComponent(uploadedImageUrl)}&prompt=${encodeURIComponent(prompt)}` },
+                    { name: 'Siputzx SVD', url: `https://api.siputzx.my.id/api/ai/svd?url=${encodeURIComponent(uploadedImageUrl)}` },
                     { name: 'Ryzendesu Kling', url: `https://api.ryzendesu.vip/api/ai/kling?url=${encodeURIComponent(uploadedImageUrl)}&prompt=${encodeURIComponent(prompt)}` }
                 ];
 
@@ -112,6 +115,10 @@ module.exports = {
                     try {
                         console.log(`[BOT] [KOSEM BOT] Engine: ${api.name} processing...`);
                         const rawData = await fetchFromAI(api.url);
+                        
+                        // 🛠️ DEEP DEBUGGER LOG
+                        console.log(`[API RESPONSE - ${api.name}]:`, JSON.stringify(rawData));
+                        
                         finalVideoUrl = extractVideoUrl(rawData);
                         if (finalVideoUrl) break;
                     } catch (e) {
@@ -121,20 +128,21 @@ module.exports = {
             } else {
                 console.log(`[BOT] [KOSEM BOT] 🟢 Text-to-Video mode active...`);
                 
-                // Aggressive API List for Text-to-Video
+                // 🔄 FRESH & STABLE APIs LIST
                 const t2vApis = [
-                    { name: 'Haiper AI', url: `https://api.siputzx.my.id/api/ai/haiper?prompt=${encodeURIComponent(prompt)}` },
-                    { name: 'Kling AI', url: `https://api.ryzendesu.vip/api/ai/kling?prompt=${encodeURIComponent(prompt)}` },
-                    { name: 'Vreden Luma', url: `https://api.vreden.web.id/api/luma?text=${encodeURIComponent(prompt)}` },
-                    { name: 'BK9 Luma', url: `https://bk9.site/ai/luma?q=${encodeURIComponent(prompt)}` }
+                    { name: 'AEMT Luma', url: `https://aemt.me/luma?text=${encodeURIComponent(prompt)}` },
+                    { name: 'Siputzx Kling', url: `https://api.siputzx.my.id/api/ai/klingvideo?prompt=${encodeURIComponent(prompt)}` },
+                    { name: 'Ryzendesu Haiper', url: `https://api.ryzendesu.vip/api/ai/haiper?prompt=${encodeURIComponent(prompt)}` },
+                    { name: 'Vreden Luma', url: `https://api.vreden.web.id/api/luma?text=${encodeURIComponent(prompt)}` }
                 ];
 
                 for (let api of t2vApis) {
                     try {
-                        console.log(`[BOT] [KOSEM BOT] Engine: ${api.name} processing (This may take a minute)...`);
+                        console.log(`[BOT] [KOSEM BOT] Engine: ${api.name} processing...`);
                         const rawData = await fetchFromAI(api.url);
                         
-                        console.log(`[BOT] [KOSEM BOT] Engine Reply:`, JSON.stringify(rawData).substring(0, 100)); // Debug log
+                        // 🛠️ DEEP DEBUGGER LOG (Will show exactly what the server says)
+                        console.log(`[API RESPONSE - ${api.name}]:`, JSON.stringify(rawData));
                         
                         finalVideoUrl = extractVideoUrl(rawData);
                         if (finalVideoUrl) {
@@ -151,7 +159,7 @@ module.exports = {
                 if (extra.react) await extra.react('❌');
                 let errText = `❖ ───── ✦ 𝐄𝐑𝐑𝐎𝐑 ✦ ───── ❖\n\n`;
                 errText += `❌ *Generation Failed*\n`;
-                errText += `💡 The AI servers are currently overloaded or the prompt was rejected. Please try again later.\n`;
+                errText += `💡 The AI servers are currently overloaded or out of GPU memory. Please try again later.\n`;
                 errText += `╰━━━━━━━━━━━━━━━━━━┈⊷`;
                 return await sock.sendMessage(msg.key.remoteJid, { text: errText }, { quoted: msg });
             }
