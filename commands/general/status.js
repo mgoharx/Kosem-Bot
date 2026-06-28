@@ -86,7 +86,7 @@ module.exports = {
                 let finalCaption = `❖ ─── ✦ 𝐒𝐓𝐀𝐓𝐔𝐒 ✦ ─── ❖\n\n`;
                 if (originalCaption) finalCaption += `📝 *Caption:* ${originalCaption}\n\n`;
                 finalCaption += `✨ *Saved by Kosem Bot*\n`;
-                finalCaption += `╰━━━━━━━━━━━━━━━━┈⊷`;
+                finalCaption += `╰━━━━━━━━━━━━━━┈⊷`;
 
                 if (extra.react) await extra.react('✅');
 
