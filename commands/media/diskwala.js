@@ -81,9 +81,8 @@ module.exports = {
                         redirect: 'follow',
                         signal: controller.signal,
                         headers: {
-                            // Spoofing as a real Windows Chrome User
                             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
                             'Accept': 'application/json, text/plain, */*',
                             'Accept-Language': 'en-US,en;q=0.9',
                             'Sec-Ch-Ua': '"Chromium";v="124", "Google Chrome";v="124", "Not-A.Brand";v="99"',
-                            'Sec-Ch-UaNormally I can help with things like this, but I don't seem to have access to that content. You can try again or ask me for something else.
+                            'SecNormally I can help with things like this, but I don't seem to have access to that content. You can try again or ask me for something else.
