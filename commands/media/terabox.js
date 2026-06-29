@@ -1,10 +1,13 @@
 /**
  * 👑 Kosem Bot Premium Terabox Downloader
- * ApiDash VIP Edition (Strict Original MP4 Download)
- * Fixed: M3U8 Streaming payload bug completely removed.
+ * ApiDash VIP + FFmpeg Compiler Edition
+ * Converts HLS/M3U8 Stream Playlists into Real Offline MP4 files.
  */
 
 const config = require('../../config');
+const { exec } = require('child_process');
+const fs = require('fs');
+const path = require('path');
 const processedMessages = new Set();
 
 // 🔑 Gohar's Private API Key
@@ -14,7 +17,7 @@ module.exports = {
     name: 'terabox',
     aliases: ['tb', 'teradl', 'dw', 'diskwala'],
     category: 'media',
-    description: 'Download Original Source MP4 Video from Terabox',
+    description: 'Compile and Download Original MP4 via FFmpeg',
     usage: '.tb <Terabox URL>',
     
     async execute(sock, msg, args, extra) {
@@ -40,7 +43,7 @@ module.exports = {
             const targetUrl = urlMatch[0];
 
             if (extra.react) await extra.react('⏳');
-            await sendMsg(sock, msg, extra, '⏳ *Extracting Original File...*', 'Fetching the complete MP4 source video. This may take a moment for large files.');
+            await sendMsg(sock, msg, extra, '⏳ *Analyzing Media...*', 'Connecting to ApiDash to extract media streams...');
 
             console.log(`[BOT] [KOSEM BOT] 🟢 Target URL: ${targetUrl}`);
 
@@ -48,10 +51,10 @@ module.exports = {
             const apiUrl = `https://api.playterabox.com/api/proxy?secret=${API_SECRET}&url=${encodedUrl}`;
 
             const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 25000);
+            const timeoutId = setTimeout(() => controller.abort(), 20000);
 
-            let finalVideoUrl = null;
-            let fileName = "Terabox_Original_HD.mp4";
+            let streamUrl = null;
+            let fileName = "Terabox_Compiled_HD.mp4";
             let fileSize = "Unknown Size";
 
             try {
@@ -67,52 +70,71 @@ module.exports = {
                 if (data.status === "success" && data.list && data.list.length > 0) {
                     const fileData = data.list[0];
 
-                    // 🚀 STRICT FIX: ONLY PICK THE REAL DOWNLOAD LINK (Banned stream_url)
-                    // Normal download_link usually points to the raw MP4 binary.
-                    finalVideoUrl = fileData.download_link || fileData.fast_download_link;
-                    
-                    // Failsafe: If the API accidentally gives an m3u8 playlist, reject it.
-                    if (finalVideoUrl && finalVideoUrl.includes('.m3u8')) {
-                        finalVideoUrl = null;
-                    }
+                    // 🚀 STRICT STREAM SELECTION: We only want the 720p stream to compile
+                    streamUrl = (fileData.fast_stream_url && fileData.fast_stream_url["720p"]) || 
+                                (fileData.fast_stream_url && fileData.fast_stream_url["480p"]) || 
+                                fileData.stream_url;
 
                     if (fileData.name) {
                         fileName = fileData.name.replace(/[^\w\s.-]/g, '').substring(0, 50);
                         if (!fileName.toLowerCase().endsWith('.mp4')) fileName += '.mp4';
                     }
-
-                    if (fileData.size_formatted) {
-                        fileSize = fileData.size_formatted;
-                    }
+                    if (fileData.size_formatted) fileSize = fileData.size_formatted;
                 }
             } catch (err) {
                 clearTimeout(timeoutId);
                 console.log(`[BOT] API Fetch Error:`, err.message);
             }
 
-            if (!finalVideoUrl) {
+            if (!streamUrl) {
                 if (extra.react) await extra.react('❌');
-                return await sendMsg(sock, msg, extra, '❌ *Extraction Failed*', 'Could not extract the raw MP4 file. The API only returned a streaming link, or the file requires a password.');
+                return await sendMsg(sock, msg, extra, '❌ *Extraction Failed*', 'Could not find a valid stream to compile. The file might be private or deleted.');
             }
 
-            console.log(`[BOT] [KOSEM BOT] 🟢 SUCCESS! Preparing full MP4 Document delivery...`);
+            console.log(`[BOT] [KOSEM BOT] 🟢 Stream Found! Initiating FFmpeg Compiler...`);
+            await sendMsg(sock, msg, extra, '⚙️ *Compiling Video...*', 'Original file hidden by Terabox. Kosem Bot is downloading and stitching stream chunks into a real MP4. Please wait...');
+
+            // 🚀 FFMPEG COMPILER: Downloads HLS chunks and builds a real MP4
+            const tempFilePath = path.join(__dirname, `tb_${Date.now()}.mp4`);
+            
+            // The -c copy command builds the MP4 instantly without re-encoding quality
+            const ffmpegCommand = `ffmpeg -i "${streamUrl}" -c copy -bsf:a aac_adtstoasc -v warning "${tempFilePath}"`;
+
+            try {
+                await new Promise((resolve, reject) => {
+                    exec(ffmpegCommand, (error, stdout, stderr) => {
+                        if (error) reject(error);
+                        else resolve();
+                    });
+                });
+                console.log(`[BOT] [KOSEM BOT] 🟢 Compilation Complete: ${tempFilePath}`);
+            } catch (compileError) {
+                console.log(`[BOT] FFmpeg Error:`, compileError.message);
+                if (fs.existsSync(tempFilePath)) fs.unlinkSync(tempFilePath);
+                if (extra.react) await extra.react('❌');
+                return await sendMsg(sock, msg, extra, '❌ *Compiler Failed*', 'The server failed to stitch the video. Make sure FFmpeg is installed on your Render VPS.');
+            }
 
             const botName = config?.botName ? config.botName.toUpperCase() : 'KOSEM BOT';
             let captionText = `❖ ───── ✦ 𝐓𝐄𝐑𝐀𝐁𝐎𝐗 ✦ ───── ❖\n\n`;
             captionText += `🎬 *File:* ${fileName.replace('.mp4', '')}\n`;
-            captionText += `📦 *Size:* ${fileSize}\n`;
-            captionText += `✨ *Original Quality Preserved*\n`;
+            captionText += `📦 *Est. Size:* ${fileSize}\n`;
+            captionText += `⚙️ *Compiled from HLS Stream*\n`;
+            captionText += `✨ *Downloaded by ${botName}*\n`;
             captionText += `╰━━━━━━━━━━━━━━━━━━┈⊷`;
 
             if (extra.react) await extra.react('✅');
             
-            // 🚀 SENT AS DOCUMENT: Bypasses WhatsApp compression to retain full quality
+            // 🚀 SEND THE COMPILED MP4 LOCAL FILE AS DOCUMENT
             await sock.sendMessage(msg.key.remoteJid, {
-                document: { url: finalVideoUrl }, 
+                document: fs.readFileSync(tempFilePath), 
                 mimetype: 'video/mp4',
                 fileName: fileName,
                 caption: captionText
             }, { quoted: msg });
+
+            // Cleanup the temporary file to save server space
+            if (fs.existsSync(tempFilePath)) fs.unlinkSync(tempFilePath);
 
         } catch (error) {
             console.error('\x1b[31m[CRITICAL ERROR]\x1b[0m', error);
