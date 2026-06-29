@@ -1,7 +1,7 @@
 /**
  * 👑 Kosem Bot Premium Terabox Downloader
- * ApiDash VIP Edition (Private Key Auth)
- * Bypasses all restrictions using playterabox premium endpoint.
+ * ApiDash VIP Edition (Strict Original MP4 Download)
+ * Fixed: M3U8 Streaming payload bug completely removed.
  */
 
 const config = require('../../config');
@@ -14,12 +14,11 @@ module.exports = {
     name: 'terabox',
     aliases: ['tb', 'teradl', 'dw', 'diskwala'],
     category: 'media',
-    description: 'Download HD Videos using Premium PlayTerabox API',
+    description: 'Download Original Source MP4 Video from Terabox',
     usage: '.tb <Terabox URL>',
     
     async execute(sock, msg, args, extra) {
         try {
-            // Anti-Spam (Prevents multiple fast requests)
             if (processedMessages.has(msg.key.id)) return;
             processedMessages.add(msg.key.id);
             setTimeout(() => processedMessages.delete(msg.key.id), 5 * 60 * 1000);
@@ -32,30 +31,27 @@ module.exports = {
                 return await sendMsg(sock, msg, extra, '❌ *Link Missing*', 'Please provide a valid Terabox link.');
             }
 
-            // Universal Link Extractor (Catches all Terabox variants)
             const urlMatch = text.match(/https?:\/\/(?:www\.)?(?:[a-zA-Z0-9-]+\.)?(terabox|1024tera|1024terabox|freeterabox|4funbox|nephobox|momerybox|teraboxapp|diskwala|mirrobox)\.(com|app|net)\/[^\s]+/i);
             
             if (!urlMatch) {
-                return await sendMsg(sock, msg, extra, '❌ *Invalid Link*', 'Make sure the link is a valid Terabox or Diskwala URL.');
+                return await sendMsg(sock, msg, extra, '❌ *Invalid Link*', 'Make sure the link is a valid Terabox URL.');
             }
 
             const targetUrl = urlMatch[0];
 
             if (extra.react) await extra.react('⏳');
-            await sendMsg(sock, msg, extra, '⏳ *Authenticating VIP Key...*', 'Connecting to Premium API to fetch your video. Please wait...');
+            await sendMsg(sock, msg, extra, '⏳ *Extracting Original File...*', 'Fetching the complete MP4 source video. This may take a moment for large files.');
 
             console.log(`[BOT] [KOSEM BOT] 🟢 Target URL: ${targetUrl}`);
-            console.log(`[BOT] [KOSEM BOT] 🔑 Hitting PlayTerabox API...`);
 
-            // 🚀 VIP API ENGINE (Using your ApiDash Key)
             const encodedUrl = encodeURIComponent(targetUrl);
             const apiUrl = `https://api.playterabox.com/api/proxy?secret=${API_SECRET}&url=${encodedUrl}`;
 
             const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 25000); // 25 Seconds limit
+            const timeoutId = setTimeout(() => controller.abort(), 25000);
 
             let finalVideoUrl = null;
-            let fileName = "Terabox_Premium_HD.mp4";
+            let fileName = "Terabox_Original_HD.mp4";
             let fileSize = "Unknown Size";
 
             try {
@@ -68,27 +64,27 @@ module.exports = {
                 clearTimeout(timeoutId);
                 const data = await response.json();
 
-                // ⚙️ Validating the Schema you provided
                 if (data.status === "success" && data.list && data.list.length > 0) {
                     const fileData = data.list[0];
 
-                    // Priority 1: Fast Download Link, Priority 2: Normal Link, Priority 3: 720p Stream
-                    finalVideoUrl = fileData.fast_download_link || 
-                                    fileData.download_link || 
-                                    (fileData.fast_stream_url && fileData.fast_stream_url["720p"]);
+                    // 🚀 STRICT FIX: ONLY PICK THE REAL DOWNLOAD LINK (Banned stream_url)
+                    // Normal download_link usually points to the raw MP4 binary.
+                    finalVideoUrl = fileData.download_link || fileData.fast_download_link;
                     
+                    // Failsafe: If the API accidentally gives an m3u8 playlist, reject it.
+                    if (finalVideoUrl && finalVideoUrl.includes('.m3u8')) {
+                        finalVideoUrl = null;
+                    }
+
                     if (fileData.name) {
-                        fileName = fileData.name.replace(/[^\w\s.-]/g, '').substring(0, 50); // Clean name
-                        if (!fileName.endsWith('.mp4')) fileName += '.mp4';
+                        fileName = fileData.name.replace(/[^\w\s.-]/g, '').substring(0, 50);
+                        if (!fileName.toLowerCase().endsWith('.mp4')) fileName += '.mp4';
                     }
 
                     if (fileData.size_formatted) {
                         fileSize = fileData.size_formatted;
                     }
-                } else {
-                    console.log(`[BOT] API Response Failed/Invalid:`, data);
                 }
-
             } catch (err) {
                 clearTimeout(timeoutId);
                 console.log(`[BOT] API Fetch Error:`, err.message);
@@ -96,22 +92,21 @@ module.exports = {
 
             if (!finalVideoUrl) {
                 if (extra.react) await extra.react('❌');
-                return await sendMsg(sock, msg, extra, '❌ *Extraction Failed*', 'The API could not extract the video. The file might be deleted or requires a password.');
+                return await sendMsg(sock, msg, extra, '❌ *Extraction Failed*', 'Could not extract the raw MP4 file. The API only returned a streaming link, or the file requires a password.');
             }
 
-            console.log(`[BOT] [KOSEM BOT] 🟢 SUCCESS! Sending Document to WhatsApp...`);
+            console.log(`[BOT] [KOSEM BOT] 🟢 SUCCESS! Preparing full MP4 Document delivery...`);
 
             const botName = config?.botName ? config.botName.toUpperCase() : 'KOSEM BOT';
             let captionText = `❖ ───── ✦ 𝐓𝐄𝐑𝐀𝐁𝐎𝐗 ✦ ───── ❖\n\n`;
             captionText += `🎬 *File:* ${fileName.replace('.mp4', '')}\n`;
             captionText += `📦 *Size:* ${fileSize}\n`;
-            captionText += `🔐 *Authorized via VIP Key*\n`;
-            captionText += `✨ *Downloaded by ${botName}*\n`;
+            captionText += `✨ *Original Quality Preserved*\n`;
             captionText += `╰━━━━━━━━━━━━━━━━━━┈⊷`;
 
-            // 🚀 FINAL DELIVERY AS DOCUMENT (No compression, Original Quality)
             if (extra.react) await extra.react('✅');
             
+            // 🚀 SENT AS DOCUMENT: Bypasses WhatsApp compression to retain full quality
             await sock.sendMessage(msg.key.remoteJid, {
                 document: { url: finalVideoUrl }, 
                 mimetype: 'video/mp4',
