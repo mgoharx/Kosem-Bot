@@ -1,7 +1,7 @@
 /**
  * 👑 Kosem Bot Premium DiskWala/Terabox Downloader
- * V5 "NATIVE SCRAPER" - Zero Third-Party APIs
- * Scrapes HTML directly to find hidden MP4 links.
+ * V5.1 "NATIVE SCRAPER" - Zero Third-Party APIs
+ * Link Format Bug Fixed (Supports /app/, /s/, etc.)
  */
 
 const config = require('../../config');
@@ -33,28 +33,27 @@ module.exports = {
                 return await sock.sendMessage(msg.key.remoteJid, { text: errText }, { quoted: msg });
             }
 
-            const urlMatch = text.match(/https?:\/\/(?:www\.)?(diskwala\.(com|app)|terabox\.com|teraboxapp\.com|1024tera\.com|freeterabox\.com)\/s\/([a-zA-Z0-9_-]+)/i);
+            // 🔥 FIXED REGEX: Now accepts ANY format (/app/, /s/, /share/) after the domain
+            const urlMatch = text.match(/https?:\/\/(?:www\.)?(diskwala\.(com|app)|terabox\.com|teraboxapp\.com|1024tera\.com|freeterabox\.com|4funbox\.com|nephobox\.com|momerybox\.com)\/[^\s]+/i);
+            const targetUrl = urlMatch ? urlMatch[0] : null;
             
-            if (!urlMatch) {
+            if (!targetUrl) {
                 let errText = `❖ ───── ✦ 𝐄𝐑𝐑𝐎𝐑 ✦ ───── ❖\n\n`;
                 errText += `❌ *Invalid Link Format*\n`;
-                errText += `💡 Ensure the link contains '/s/'. (e.g., diskwala.com/s/1xyz)\n`;
+                errText += `💡 Could not recognize the DiskWala/Terabox domain in your message.\n`;
                 errText += `╰━━━━━━━━━━━━━━━━━━┈⊷`;
                 return await sock.sendMessage(msg.key.remoteJid, { text: errText }, { quoted: msg });
             }
-
-            const shortId = urlMatch[3]; // Extract the unique video ID (e.g., 1xyz...)
-            const targetUrl = `https://www.terabox.app/s/${shortId}`; // Converting Diskwala to Official Domain
 
             if (extra.react) await extra.react('⏳');
 
             let waitText = `❖ ───── ✦ 𝐍𝐀𝐓𝐈𝐕𝐄 𝐄𝐍𝐆𝐈𝐍𝐄 ✦ ───── ❖\n\n`;
             waitText += `⏳ *Direct HTML Scraping Started...*\n`;
-            waitText += `💡 Bypassing APIs. Kosem Bot is directly analyzing DiskWala's source code to hunt for the video.\n`;
+            waitText += `💡 Reading source code of: ${targetUrl}\n`;
             waitText += `╰━━━━━━━━━━━━━━━━━━┈⊷`;
             await sock.sendMessage(msg.key.remoteJid, { text: waitText }, { quoted: msg });
 
-            console.log(`[BOT] [KOSEM BOT] 🟢 Native Scraper Initiated for ID: ${shortId}`);
+            console.log(`[BOT] [KOSEM BOT] 🟢 Native Scraper Initiated for: ${targetUrl}`);
 
             // 🚀 PURE NATIVE FETCH (No APIs!)
             const controller = new AbortController();
@@ -64,7 +63,7 @@ module.exports = {
             try {
                 const response = await fetch(targetUrl, {
                     method: 'GET',
-                    redirect: 'follow',
+                    redirect: 'follow', // Follows redirects automatically
                     signal: controller.signal,
                     headers: {
                         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
@@ -80,7 +79,7 @@ module.exports = {
                 rawHTML = await response.text();
             } catch (err) {
                 clearTimeout(timeoutId);
-                throw new Error("Direct connection to Terabox servers failed.");
+                throw new Error("Direct connection to DiskWala servers failed.");
             }
 
             console.log(`[BOT] [KOSEM BOT] ✅ Page HTML downloaded. Length: ${rawHTML.length} characters.`);
@@ -130,7 +129,7 @@ module.exports = {
                 if (extra.react) await extra.react('❌');
                 let errText = `❖ ───── ✦ 𝐄𝐑𝐑𝐎𝐑 ✦ ───── ❖\n\n`;
                 errText += `❌ *Scraping Failed*\n`;
-                errText += `💡 Kosem Bot successfully loaded the page, but DiskWala has heavily encrypted the video link using JavaScript. Native bypass failed.\n`;
+                errText += `💡 Kosem Bot loaded the page, but DiskWala has hidden the video link behind a login wall or JavaScript encryption.\n`;
                 errText += `╰━━━━━━━━━━━━━━━━━━┈⊷`;
                 return await sock.sendMessage(msg.key.remoteJid, { text: errText }, { quoted: msg });
             }
