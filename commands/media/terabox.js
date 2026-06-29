@@ -1,7 +1,7 @@
 /**
  * 👑 Kosem Bot Premium Terabox Downloader
- * V9 SIGNATURE BYPASS EDITION (Error 105 Fix)
- * Extracts hidden 'sign' and 'timestamp' to bypass Terabox internal security
+ * V10 MOBILE APP SIMULATOR (Anti-Cloudflare Edition)
+ * Bypasses HTML Turnstile by spoofing the official Android App API
  */
 
 const config = require('../../config');
@@ -14,7 +14,7 @@ module.exports = {
     name: 'terabox',
     aliases: ['tb', 'teradl', 'dw', 'diskwala'],
     category: 'media',
-    description: 'Download HD Videos using Signature Bypass & Private Cookie',
+    description: 'Download HD Videos by simulating the Terabox Android App',
     usage: '.tb <Terabox URL>',
     
     async execute(sock, msg, args, extra) {
@@ -37,129 +37,89 @@ module.exports = {
             }
 
             const shortId = idMatch[1];
-            const cleanUrl = `https://www.terabox.app/s/${shortId}`; // Use .app for better mobile spoofing
 
             if (extra.react) await extra.react('⏳');
-            await sendMsg(sock, msg, extra, '⏳ *Authenticating...*', 'Extracting JS Signatures and Injecting private session cookies. Please wait...');
+            await sendMsg(sock, msg, extra, '⏳ *Authenticating Device...*', 'Simulating Terabox Android App to bypass Cloudflare. Please wait...');
 
             console.log(`[BOT] [KOSEM BOT] 🟢 Target ID: ${shortId}`);
+            console.log(`[BOT] [KOSEM BOT] 📱 Spoofing as Android App Endpoint...`);
 
             // ==========================================
-            // 🚀 PHASE 1: PRE-FLIGHT (Extracting Signatures)
+            // 🚀 APP SIMULATION FETCH (No HTML, No Captcha)
             // ==========================================
-            console.log(`[BOT] [KOSEM BOT] 🕵️‍♂️ Phase 1: Fetching hidden signatures...`);
-            
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 15000);
-
-            let signature = null;
-            let timestamp = null;
-            let finalVideoUrl = null;
-            let fileName = "Terabox_VIP_HD.mp4";
-
-            try {
-                // Fetch the main page as a mobile user to get the JS variables
-                const pageRes = await fetch(cleanUrl, {
-                    method: 'GET',
-                    headers: {
-                        'User-Agent': 'Mozilla/5.0 (Linux; Android 14; SM-S928B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36',
-                        'Cookie': RAW_COOKIES,
-                        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8'
-                    },
-                    signal: controller.signal
-                });
-                
-                const pageHtml = await pageRes.text();
-                
-                // Extract sign and timestamp from window.yunData
-                const signMatch = pageHtml.match(/"sign":"([^"]+)"/);
-                const timestampMatch = pageHtml.match(/"timestamp":([0-9]+)/);
-                
-                // Extract default Dlink as a backup (sometimes Terabox puts it right in the HTML)
-                const dlinkMatch = pageHtml.match(/"dlink":"([^"]+)"/);
-                if (dlinkMatch) {
-                    finalVideoUrl = dlinkMatch[1].replace(/\\/g, '');
-                    console.log(`[BOT] [KOSEM BOT] 🟢 Found Direct Link in HTML Data!`);
-                }
-
-                const titleMatch = pageHtml.match(/"server_filename":"([^"]+)"/);
-                if (titleMatch) {
-                    fileName = titleMatch[1].replace(/[^\w\s.-]/g, '').substring(0, 50);
-                }
-
-                if (signMatch && timestampMatch) {
-                    signature = signMatch[1];
-                    timestamp = timestampMatch[1];
-                    console.log(`[BOT] [KOSEM BOT] 🔑 Signatures Extracted: sign=${signature.substring(0,5)}..., ts=${timestamp}`);
-                }
-
-            } catch (err) {
-                console.log(`[BOT] [KOSEM BOT] 🔴 Phase 1 Failed:`, err.message);
-            }
-
-            // ==========================================
-            // 🚀 PHASE 2: INTERNAL API (With Signatures)
-            // ==========================================
-            if (!finalVideoUrl && signature && timestamp) {
-                console.log(`[BOT] [KOSEM BOT] 🚀 Phase 2: Hitting Internal API with Signatures...`);
+            const fetchMobileAPI = async (apiUrl) => {
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 15000);
                 try {
-                    // We must pass sign, timestamp, and shorturl to avoid Error 105
-                    const apiUrl = `https://www.terabox.app/share/list?app_id=250528&shorturl=${shortId}&root=1&sign=${signature}&timestamp=${timestamp}`;
-                    
-                    const apiRes = await fetch(apiUrl, {
+                    const response = await fetch(apiUrl, {
                         method: 'GET',
                         headers: {
-                            'User-Agent': 'Mozilla/5.0 (Linux; Android 14; SM-S928B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36',
+                            // Spoofing the exact User-Agent of the Terabox Mobile App
+                            'User-Agent': 'Terabox/3.4.0 (Linux; U; Android 14; en-US; SM-S928B; Build/UP1A.231005.007)',
                             'Cookie': RAW_COOKIES,
-                            'Accept': 'application/json, text/plain, */*'
-                        }
+                            'Accept': 'application/json',
+                            'X-Requested-With': 'com.dubox.drive' // Official App Package Name
+                        },
+                        signal: controller.signal
                     });
-                    
-                    const data = await apiRes.json();
-                    
-                    if (data.errno === 0 && data.list && data.list.length > 0) {
-                        finalVideoUrl = data.list[0].dlink;
-                        fileName = (data.list[0].server_filename || fileName).replace(/[^\w\s.-]/g, '').substring(0, 50);
-                        console.log(`[BOT] [KOSEM BOT] 🟢 Success via Internal API!`);
-                    } else {
-                        console.log(`[BOT] Internal Error:`, data);
-                    }
-                } catch (err) {
-                    console.log(`[BOT] [KOSEM BOT] 🔴 Phase 2 Failed:`, err.message);
+                    clearTimeout(timeoutId);
+                    return await response.json();
+                } catch (e) {
+                    clearTimeout(timeoutId);
+                    console.log(`[BOT] Fetch error on Mobile API:`, e.message);
+                    return null;
+                }
+            };
+
+            let finalVideoUrl = null;
+            let fileName = "Terabox_Mobile_HD.mp4";
+
+            // Endpoint 1: The shorturlinfo mobile API
+            const api1 = `https://www.terabox.app/api/shorturlinfo?app_id=250528&shorturl=${shortId}&root=1`;
+            console.log(`[BOT] [KOSEM BOT] Hitting Mobile Endpoint 1...`);
+            let data1 = await fetchMobileAPI(api1);
+
+            if (data1 && data1.list && data1.list.length > 0) {
+                finalVideoUrl = data1.list[0].dlink || data1.list[0].file_link;
+                fileName = (data1.list[0].server_filename || fileName).replace(/[^\w\s.-]/g, '').substring(0, 50);
+            }
+
+            // Endpoint 2: The share list mobile API
+            if (!finalVideoUrl) {
+                const api2 = `https://www.terabox.app/share/list?app_id=250528&shorturl=${shortId}&root=1`;
+                console.log(`[BOT] [KOSEM BOT] Hitting Mobile Endpoint 2...`);
+                let data2 = await fetchMobileAPI(api2);
+                
+                if (data2 && data2.list && data2.list.length > 0) {
+                    finalVideoUrl = data2.list[0].dlink || data2.list[0].file_link;
+                    fileName = (data2.list[0].server_filename || fileName).replace(/[^\w\s.-]/g, '').substring(0, 50);
                 }
             }
-            
-            clearTimeout(timeoutId);
 
-            // ==========================================
-            // 🚀 PHASE 3: FALLBACK ENGINE (If Terabox completely blocked us)
-            // ==========================================
+            // Endpoint 3: Public Fallback without cookies (just in case)
             if (!finalVideoUrl) {
-                console.log(`[BOT] [KOSEM BOT] ⚠️ Fallback Engine Activated...`);
+                console.log(`[BOT] [KOSEM BOT] Hitting External Fallback...`);
                 try {
                     const fallbackRes = await fetch(`https://terabox-dl.qtcloud.workers.dev/api/get-info?shorturl=${shortId}`);
                     const fallbackData = await fallbackRes.json();
-                    if (fallbackData.list && fallbackData.list[0]) {
+                    if (fallbackData && fallbackData.list && fallbackData.list[0]) {
                         finalVideoUrl = fallbackData.list[0].dlink || fallbackData.list[0].hdplay;
                         fileName = fallbackData.list[0].filename || fileName;
-                        console.log(`[BOT] [KOSEM BOT] 🟢 Success via Fallback!`);
                     }
-                } catch (e) {
-                     console.log(`[BOT] [KOSEM BOT] 🔴 Fallback Failed.`);
-                }
+                } catch(e) {}
             }
 
             if (!finalVideoUrl) {
                 if (extra.react) await extra.react('❌');
-                return await sendMsg(sock, msg, extra, '❌ *Authentication Failed*', 'Terabox rejected the request (Error 105). The file might require an explicit password, or the cookies have expired.');
+                return await sendMsg(sock, msg, extra, '❌ *Cloudflare Blocked*', 'Terabox is strictly blocking Render Data Center IPs today. Even the mobile endpoints were rejected.');
             }
 
-            console.log(`[BOT] [KOSEM BOT] 🟢 JACKPOT! Authorized direct link generated.`);
+            console.log(`[BOT] [KOSEM BOT] 🟢 SUCCESS! App simulation bypassed the security.`);
 
             const botName = config?.botName ? config.botName.toUpperCase() : 'KOSEM BOT';
             let captionText = `❖ ───── ✦ 𝐓𝐄𝐑𝐀𝐁𝐎𝐗 ✦ ───── ❖\n\n`;
             captionText += `🎬 *File:* ${fileName.replace('.mp4', '')}\n`;
-            captionText += `🔐 *Authorized via Private Key & Signature*\n`;
+            captionText += `📱 *Bypassed via Mobile App Tunnel*\n`;
             captionText += `✨ *Downloaded by ${botName}*\n`;
             captionText += `╰━━━━━━━━━━━━━━━━━━┈⊷`;
 
