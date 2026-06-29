@@ -1,6 +1,7 @@
 /**
  * 👑 Kosem Bot Premium DiskWala/Terabox Downloader
- * V4 "BEAST MODE" - 12+ APIs, Proxies, and Brute-Force Extraction
+ * V5 "NATIVE SCRAPER" - Zero Third-Party APIs
+ * Scrapes HTML directly to find hidden MP4 links.
  */
 
 const config = require('../../config');
@@ -11,7 +12,7 @@ module.exports = {
     name: 'diskwala',
     aliases: ['dw', 'diskwaladl', 'dwdownload', 'terabox', 'tb'],
     category: 'media',
-    description: 'Ultimate Brute-Force HD Downloader for DiskWala/Terabox',
+    description: 'Direct Native HTML Scraper for DiskWala/Terabox',
     usage: '.dw <DiskWala URL>',
     
     async execute(sock, msg, args, extra) {
@@ -32,170 +33,114 @@ module.exports = {
                 return await sock.sendMessage(msg.key.remoteJid, { text: errText }, { quoted: msg });
             }
 
-            const urlMatch = text.match(/https?:\/\/(?:www\.)?(diskwala\.(com|app)|terabox\.com|teraboxapp\.com|1024tera\.com|freeterabox\.com|4funbox\.com|mirrobox\.com|nephobox\.com|momerybox\.com)\/[^\s]+/i);
-            const originalUrl = urlMatch ? urlMatch[0] : null;
-
-            if (!originalUrl) {
+            const urlMatch = text.match(/https?:\/\/(?:www\.)?(diskwala\.(com|app)|terabox\.com|teraboxapp\.com|1024tera\.com|freeterabox\.com)\/s\/([a-zA-Z0-9_-]+)/i);
+            
+            if (!urlMatch) {
                 let errText = `❖ ───── ✦ 𝐄𝐑𝐑𝐎𝐑 ✦ ───── ❖\n\n`;
-                errText += `❌ *Invalid Link*\n`;
-                errText += `💡 Link Format not recognized.\n`;
+                errText += `❌ *Invalid Link Format*\n`;
+                errText += `💡 Ensure the link contains '/s/'. (e.g., diskwala.com/s/1xyz)\n`;
                 errText += `╰━━━━━━━━━━━━━━━━━━┈⊷`;
                 return await sock.sendMessage(msg.key.remoteJid, { text: errText }, { quoted: msg });
             }
+
+            const shortId = urlMatch[3]; // Extract the unique video ID (e.g., 1xyz...)
+            const targetUrl = `https://www.terabox.app/s/${shortId}`; // Converting Diskwala to Official Domain
 
             if (extra.react) await extra.react('⏳');
 
-            let waitText = `❖ ───── ✦ 𝐁𝐄𝐀𝐒𝐓 𝐌𝐎𝐃𝐄 ✦ ───── ❖\n\n`;
-            waitText += `⏳ *Brute-Force Extraction Started...*\n`;
-            waitText += `💡 Hitting 12+ servers and Proxy nodes to break the security. This will take up to 60 seconds. Hold tight!\n`;
+            let waitText = `❖ ───── ✦ 𝐍𝐀𝐓𝐈𝐕𝐄 𝐄𝐍𝐆𝐈𝐍𝐄 ✦ ───── ❖\n\n`;
+            waitText += `⏳ *Direct HTML Scraping Started...*\n`;
+            waitText += `💡 Bypassing APIs. Kosem Bot is directly analyzing DiskWala's source code to hunt for the video.\n`;
             waitText += `╰━━━━━━━━━━━━━━━━━━┈⊷`;
             await sock.sendMessage(msg.key.remoteJid, { text: waitText }, { quoted: msg });
 
-            // 🚀 ULTRA-DEEP PARSER
-            const extractVideoUrl = (obj) => {
-                if (typeof obj === 'string') {
-                    if (obj.startsWith('http') && !obj.includes('.jpg') && !obj.includes('.png') && (obj.includes('.mp4') || obj.includes('dlink') || obj.includes('download'))) return obj;
-                }
-                if (Array.isArray(obj)) {
-                    for (let item of obj) {
-                        let res = extractVideoUrl(item);
-                        if (res) return res;
+            console.log(`[BOT] [KOSEM BOT] 🟢 Native Scraper Initiated for ID: ${shortId}`);
+
+            // 🚀 PURE NATIVE FETCH (No APIs!)
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 45000); // 45s Timeout
+
+            let rawHTML = "";
+            try {
+                const response = await fetch(targetUrl, {
+                    method: 'GET',
+                    redirect: 'follow',
+                    signal: controller.signal,
+                    headers: {
+                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+                        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+                        'Accept-Language': 'en-US,en;q=0.9',
+                        'Cache-Control': 'no-cache',
+                        'Connection': 'keep-alive',
+                        'Upgrade-Insecure-Requests': '1'
                     }
-                }
-                if (typeof obj === 'object' && obj !== null) {
-                    const keys = ['dlink', 'video', 'videoUrl', 'url', 'hdplay', 'download', 'file', 'link', 'fast_download', 'url_download'];
-                    for (let key of keys) {
-                        if (obj[key] && typeof obj[key] === 'string' && obj[key].startsWith('http')) {
-                            if (!obj[key].includes('.jpg') && !obj[key].includes('.png')) return obj[key];
-                        }
-                        let res = extractVideoUrl(obj[key]);
-                        if (res) return res;
-                    }
-                    for (let key in obj) {
-                        if (typeof obj[key] === 'object') {
-                            let res = extractVideoUrl(obj[key]);
-                            if (res) return res;
-                        }
-                    }
-                }
-                return null;
-            };
-
-            // 🚀 BROWSER SIMULATION WITH RANDOM USER-AGENTS
-            const userAgents = [
-                'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-                'Mozilla/5.0 (iPhone; CPU iPhone OS 17_4_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4.1 Mobile/15E148 Safari/604.1',
-                'Mozilla/5.0 (Linux; Android 14; SM-S928B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.6367.113 Mobile Safari/537.36'
-            ];
-
-            const fetchFromAI = async (apiUrl) => {
-                const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 15000); // 15s Timeout per API so we can cycle fast
-
-                const randomUA = userAgents[Math.floor(Math.random() * userAgents.length)];
-
-                try {
-                    const response = await fetch(apiUrl, {
-                        method: 'GET',
-                        redirect: 'follow',
-                        signal: controller.signal,
-                        headers: {
-                            'User-Agent': randomUA,
-                            'Accept': '*/*'
-                        }
-                    });
-                    
-                    clearTimeout(timeoutId);
-                    const textData = await response.text();
-                    try { return JSON.parse(textData); } 
-                    catch (e) { return { raw_text: textData.substring(0, 50) }; }
-                } catch (err) {
-                    clearTimeout(timeoutId);
-                    throw err;
-                }
-            };
-
-            let finalVideoUrl = null;
-            let fileName = "DiskWala_Premium_Video.mp4";
-
-            // 🚀 MASTER LIST OF APIs (Direct & Cloudflare Workers)
-            const encodedUrl = encodeURIComponent(originalUrl);
-            const apiRoutes = [
-                { name: 'DarkYasiya', url: `https://api.darkyasiya.lk/download/terabox?url=${encodedUrl}` },
-                { name: 'Terabox Worker 1', url: `https://terabox-dl.qtcloud.workers.dev/api/get-info?shorturl=${encodedUrl}` },
-                { name: 'Terabox Worker 2', url: `https://terabox.hnn.workers.dev/api/get-info?shorturl=${encodedUrl}` },
-                { name: 'Itzpire', url: `https://itzpire.com/download/terabox?url=${encodedUrl}` },
-                { name: 'Vreden', url: `https://api.vreden.web.id/api/terabox?url=${encodedUrl}` },
-                { name: 'AEMT', url: `https://aemt.me/terabox?url=${encodedUrl}` },
-                { name: 'Nyxs', url: `https://api.nyxs.pw/dl/terabox?url=${encodedUrl}` },
-                { name: 'Siputzx', url: `https://api.siputzx.my.id/api/d/terabox?url=${encodedUrl}` },
-                { name: 'Ryzendesu', url: `https://api.ryzendesu.vip/api/downloader/terabox?url=${encodedUrl}` },
-                { name: 'BK9', url: `https://bk9.site/download/terabox?url=${encodedUrl}` }
-            ];
-
-            // Proxy URLs to hide Render IP if "fetch failed" occurs
-            const proxyServers = [
-                '', // Direct connection first
-                'https://api.allorigins.win/raw?url=', 
-                'https://corsproxy.io/?'
-            ];
-
-            console.log(`[BOT] [KOSEM BOT] 🟢 Initiating BRUTE-FORCE on 10 APIs and 3 Proxies...`);
-
-            // ⚙️ THE BEAST LOOP: Try every API, with every Proxy
-            for (let proxy of proxyServers) {
-                if (finalVideoUrl) break;
+                });
                 
-                let proxyLabel = proxy === '' ? 'Direct' : 'Proxy bypassed';
-                console.log(`[BOT] [KOSEM BOT] 🔄 Testing Phase: ${proxyLabel}`);
-
-                for (let api of apiRoutes) {
-                    try {
-                        let targetUrl = proxy === '' ? api.url : proxy + encodeURIComponent(api.url);
-                        console.log(`[BOT] [KOSEM BOT] ⚡ Hitting ${api.name} (${proxyLabel})...`);
-                        
-                        const rawData = await fetchFromAI(targetUrl);
-                        
-                        // Check if it's a blocked HTML response instead of JSON
-                        if (rawData.raw_text && (rawData.raw_text.includes('<html') || rawData.raw_text.includes('cloudflare'))) {
-                            console.log(`[BOT] [KOSEM BOT] 🔴 ${api.name} blocked by Cloudflare.`);
-                            continue;
-                        }
-
-                        finalVideoUrl = extractVideoUrl(rawData);
-
-                        // Extract title
-                        if (rawData.title || rawData.filename || rawData.data?.title || rawData[0]?.filename) {
-                            let rawTitle = rawData.title || rawData.filename || rawData.data?.title || rawData[0]?.filename;
-                            if (typeof rawTitle === 'string') fileName = rawTitle.replace(/[^\w\s.-]/g, '') + ".mp4";
-                        }
-
-                        if (finalVideoUrl) {
-                            console.log(`[BOT] [KOSEM BOT] 🟢 JACKPOT! Link found via ${api.name}`);
-                            break;
-                        }
-                    } catch (e) {
-                        console.log(`[BOT] [KOSEM BOT] 🔴 ${api.name} failed: ${e.message}`);
-                    }
-                }
+                clearTimeout(timeoutId);
+                rawHTML = await response.text();
+            } catch (err) {
+                clearTimeout(timeoutId);
+                throw new Error("Direct connection to Terabox servers failed.");
             }
 
-            // 🛑 If completely defeated
-            if (!finalVideoUrl) {
+            console.log(`[BOT] [KOSEM BOT] ✅ Page HTML downloaded. Length: ${rawHTML.length} characters.`);
+
+            // 🛑 CLOUDFLARE BLOCK CHECK
+            if (rawHTML.includes('Just a moment...') || rawHTML.includes('cf-browser-verification') || rawHTML.includes('Cloudflare')) {
+                console.log(`[BOT] [KOSEM BOT] 🔴 Render IP was blocked by Cloudflare Captcha.`);
                 if (extra.react) await extra.react('❌');
                 let errText = `❖ ───── ✦ 𝐄𝐑𝐑𝐎𝐑 ✦ ───── ❖\n\n`;
-                errText += `❌ *Extraction Defeated*\n`;
-                errText += `💡 All 12 servers and proxies were blocked by DiskWala. The file is strictly private or requires app-login to view.\n`;
+                errText += `❌ *Cloudflare Firewall*\n`;
+                errText += `💡 Kosem Bot tried to read the page, but DiskWala's Cloudflare detected the bot's server (Render IP) and threw a Captcha block.\n`;
                 errText += `╰━━━━━━━━━━━━━━━━━━┈⊷`;
                 return await sock.sendMessage(msg.key.remoteJid, { text: errText }, { quoted: msg });
             }
 
-            console.log(`[BOT] [KOSEM BOT] Injecting stream directly to WhatsApp...`);
+            // 🚀 HUNTING FOR THE SECRET LINKS IN HTML
+            console.log(`[BOT] [KOSEM BOT] 🟢 Scanning HTML for hidden video URLs...`);
+            
+            let finalVideoUrl = null;
+            let fileName = "DiskWala_Direct_Video.mp4";
+
+            // Method 1: Look for raw .mp4 links injected in scripts
+            const mp4Regex = /(https?:\/\/[^\s"'<>]+(?:dlink|play|video)[^\s"'<>]+)/g;
+            const matches = rawHTML.match(mp4Regex);
+            
+            if (matches && matches.length > 0) {
+                for (let link of matches) {
+                    if (!link.includes('.jpg') && !link.includes('.png') && !link.includes('avatar')) {
+                        // Decode unicode escapes (e.g., \u0026 -> &)
+                        finalVideoUrl = link.replace(/\\u0026/g, '&').replace(/\\/g, '');
+                        break;
+                    }
+                }
+            }
+
+            // Method 2: Look for Terabox sharedData variable
+            if (!finalVideoUrl) {
+                const titleMatch = rawHTML.match(/"server_filename":"([^"]+)"/);
+                if (titleMatch) fileName = titleMatch[1];
+
+                const linkMatch = rawHTML.match(/"dlink":"([^"]+)"/);
+                if (linkMatch) finalVideoUrl = linkMatch[1].replace(/\\/g, '');
+            }
+
+            // 🛑 If No Link Found in HTML
+            if (!finalVideoUrl) {
+                if (extra.react) await extra.react('❌');
+                let errText = `❖ ───── ✦ 𝐄𝐑𝐑𝐎𝐑 ✦ ───── ❖\n\n`;
+                errText += `❌ *Scraping Failed*\n`;
+                errText += `💡 Kosem Bot successfully loaded the page, but DiskWala has heavily encrypted the video link using JavaScript. Native bypass failed.\n`;
+                errText += `╰━━━━━━━━━━━━━━━━━━┈⊷`;
+                return await sock.sendMessage(msg.key.remoteJid, { text: errText }, { quoted: msg });
+            }
+
+            console.log(`[BOT] [KOSEM BOT] 🟢 JACKPOT! Native Scraper found the link!`);
             
             const botName = config?.botName ? config.botName.toUpperCase() : 'KOSEM BOT';
             let captionText = `❖ ───── ✦ 𝐃𝐈𝐒𝐊𝐖𝐀𝐋𝐀 ✦ ───── ❖\n\n`;
             captionText += `🎬 *File:* ${fileName.replace('.mp4', '')}\n`;
-            captionText += `✨ *Bypassed by ${botName}*\n`;
+            captionText += `✨ *Scraped Natively by ${botName}*\n`;
             captionText += `╰━━━━━━━━━━━━━━━━━━┈⊷`;
 
             // 🚀 FINAL DELIVERY
@@ -214,7 +159,7 @@ module.exports = {
             
             let errText = `❖ ───── ✦ 𝐄𝐑𝐑𝐎𝐑 ✦ ───── ❖\n\n`;
             errText += `❌ *System Crash*\n`;
-            errText += `💡 Engine overloaded during brute-force extraction.\n`;
+            errText += `💡 Native Scraper encountered a critical error during execution.\n`;
             errText += `╰━━━━━━━━━━━━━━━━━━┈⊷`;
             
             await sock.sendMessage(msg.key.remoteJid, { text: errText }, { quoted: msg });
