@@ -1,7 +1,7 @@
 /**
  * 👑 Kosem Bot Premium DiskWala Downloader
- * V2 Elite Bypass - Fresh APIs & Anti-Cloudflare Headers
- * 100% Syntax Fixed - No Crash
+ * V3 Bypass - Fresh Working APIs + Deep Array Parser
+ * Built to bypass Cloudflare Blocks on Render
  */
 
 const config = require('../../config');
@@ -12,8 +12,8 @@ module.exports = {
     name: 'diskwala',
     aliases: ['dw', 'diskwaladl', 'dwdownload', 'terabox'],
     category: 'media',
-    description: 'Download Full HD Videos from DiskWala/Terabox',
-    usage: '.diskwala <DiskWala URL>',
+    description: 'Download HD Videos from DiskWala/Terabox App',
+    usage: '.dw <DiskWala URL>',
     
     async execute(sock, msg, args, extra) {
         try {
@@ -29,7 +29,7 @@ module.exports = {
             if (!text) {
                 let errText = `❖ ───── ✦ 𝐄𝐑𝐑𝐎𝐑 ✦ ───── ❖\n\n`;
                 errText += `❌ *Link Missing*\n`;
-                errText += `💡 Please provide a valid DiskWala link.\n`;
+                errText += `💡 Please provide a valid DiskWala or Terabox link.\n`;
                 errText += `✦ *Example:* \`.dw https://diskwala.com/...\`\n`;
                 errText += `╰━━━━━━━━━━━━━━━━━━┈⊷`;
                 return await sock.sendMessage(msg.key.remoteJid, { text: errText }, { quoted: msg });
@@ -50,19 +50,34 @@ module.exports = {
             if (extra.react) await extra.react('⏳');
 
             let waitText = `❖ ───── ✦ 𝐃𝐈𝐒𝐊𝐖𝐀𝐋𝐀 ✦ ───── ❖\n\n`;
-            waitText += `⏳ *Spoofing Servers & Extracting File...*\n`;
-            waitText += `💡 Bypassing Cloudflare security to get the Full HD source.\n`;
+            waitText += `⏳ *Bypassing DiskWala Security...*\n`;
+            waitText += `💡 Extracting HD File. This may take 10-30 seconds.\n`;
             waitText += `╰━━━━━━━━━━━━━━━━━━┈⊷`;
             await sock.sendMessage(msg.key.remoteJid, { text: waitText }, { quoted: msg });
 
-            // 🚀 SMART PARSER
+            // 🚀 ULTRA-DEEP PARSER: Can dig into arrays and nested objects
             const extractVideoUrl = (obj) => {
                 if (typeof obj === 'string' && obj.startsWith('http') && !obj.includes('.jpg') && !obj.includes('.png')) return obj;
+                
+                if (Array.isArray(obj)) {
+                    for (let item of obj) {
+                        let deepSearch = extractVideoUrl(item);
+                        if (deepSearch) return deepSearch;
+                    }
+                }
+                
                 if (typeof obj === 'object' && obj !== null) {
-                    const keysToCheck = ['video', 'videoUrl', 'url', 'hdplay', 'download', 'file', 'link', 'fast_download'];
+                    const keysToCheck = ['video', 'videoUrl', 'url', 'hdplay', 'download', 'file', 'link', 'fast_download', 'url_download'];
                     for (let key of keysToCheck) {
                         if (obj[key]) {
-                            if (typeof obj[key] === 'string' && obj[key].startsWith('http')) return obj[key];
+                            if (typeof obj[key] === 'string' && obj[key].startsWith('http') && !obj[key].includes('.jpg') && !obj[key].includes('.png')) return obj[key];
+                            let deepSearch = extractVideoUrl(obj[key]);
+                            if (deepSearch) return deepSearch;
+                        }
+                    }
+                    // Search remaining keys as fallback
+                    for (let key in obj) {
+                        if (typeof obj[key] === 'object') {
                             let deepSearch = extractVideoUrl(obj[key]);
                             if (deepSearch) return deepSearch;
                         }
@@ -71,10 +86,10 @@ module.exports = {
                 return null;
             };
 
-            // 🚀 BROWSER SIMULATION WITH ELITE ANTI-CLOUDFLARE HEADERS
+            // 🚀 BROWSER SIMULATION API CALL
             const fetchFromAI = async (apiUrl) => {
                 const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 60000); // 60s Timeout
+                const timeoutId = setTimeout(() => controller.abort(), 60000); 
 
                 try {
                     const response = await fetch(apiUrl, {
@@ -83,9 +98,7 @@ module.exports = {
                         signal: controller.signal,
                         headers: {
                             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-                            'Accept': 'application/json, text/plain, */*',
-                            'Accept-Language': 'en-US,en;q=0.9',
-                            'Connection': 'keep-alive'
+                            'Accept': 'application/json, text/plain, */*'
                         }
                     });
                     
@@ -102,29 +115,36 @@ module.exports = {
             let finalVideoUrl = null;
             let fileName = "DiskWala_HD_Video.mp4";
 
-            console.log(`[BOT] [KOSEM BOT] 🟢 DiskWala link detected. Bypassing protection...`);
+            console.log(`[BOT] [KOSEM BOT] 🟢 DiskWala link detected. Injecting bypass routes...`);
 
-            // 🚀 MULTI-API ENGINE (Using Cloud Storage Decryptors)
+            // 🚀 FRESH WORKING APIS (Terabox/DiskWala supported)
             const apis = [
-                { name: 'Siputzx Cloud', url: `https://api.siputzx.my.id/api/d/terabox?url=${encodeURIComponent(url)}` },
-                { name: 'Ryzendesu Drive', url: `https://api.ryzendesu.vip/api/downloader/terabox?url=${encodeURIComponent(url)}` },
-                { name: 'BK9 Storage', url: `https://bk9.site/download/terabox?url=${encodeURIComponent(url)}` }
+                { name: 'Itzpire Engine', url: `https://itzpire.com/download/terabox?url=${encodeURIComponent(url)}` },
+                { name: 'Vreden Engine', url: `https://api.vreden.web.id/api/terabox?url=${encodeURIComponent(url)}` },
+                { name: 'AEMT Drive', url: `https://aemt.me/terabox?url=${encodeURIComponent(url)}` },
+                { name: 'Nyxs Storage', url: `https://api.nyxs.pw/dl/terabox?url=${encodeURIComponent(url)}` }
             ];
 
             for (let api of apis) {
                 try {
                     console.log(`[BOT] [KOSEM BOT] Engine: ${api.name} processing...`);
                     const rawData = await fetchFromAI(api.url);
-                    console.log(`[API RESPONSE - ${api.name}]:`, JSON.stringify(rawData).substring(0, 150));
+                    
+                    // Log response for debugging
+                    console.log(`[API RESPONSE - ${api.name}]:`, JSON.stringify(rawData).substring(0, 200));
                     
                     finalVideoUrl = extractVideoUrl(rawData);
                     
-                    if (rawData.title || rawData.data?.title || rawData.result?.title) {
-                        fileName = (rawData.title || rawData.data?.title || rawData.result?.title).replace(/[^\w\s.-]/g, '') + ".mp4";
+                    // Try to catch realistic filename
+                    if (rawData.title || rawData.data?.title || rawData.result?.title || rawData.data?.[0]?.title) {
+                        const titleRaw = rawData.title || rawData.data?.title || rawData.result?.title || rawData.data?.[0]?.title;
+                        if (typeof titleRaw === 'string') {
+                            fileName = titleRaw.replace(/[^\w\s.-]/g, '') + ".mp4";
+                        }
                     }
 
                     if (finalVideoUrl) {
-                        console.log(`[BOT] [KOSEM BOT] 🟢 Success! HD Link extracted.`);
+                        console.log(`[BOT] [KOSEM BOT] 🟢 Success! HD Link extracted from ${api.name}.`);
                         break;
                     }
                 } catch (e) {
@@ -136,12 +156,12 @@ module.exports = {
                 if (extra.react) await extra.react('❌');
                 let errText = `❖ ───── ✦ 𝐄𝐑𝐑𝐎𝐑 ✦ ───── ❖\n\n`;
                 errText += `❌ *Download Failed*\n`;
-                errText += `💡 Could not bypass DiskWala security. The file might be private, deleted, or requires a captcha.\n`;
+                errText += `💡 DiskWala servers are actively blocking the extraction. The file might be private or require a manual captcha solve.\n`;
                 errText += `╰━━━━━━━━━━━━━━━━━━┈⊷`;
                 return await sock.sendMessage(msg.key.remoteJid, { text: errText }, { quoted: msg });
             }
 
-            console.log(`[BOT] [KOSEM BOT] Sending video as Document to preserve Full HD quality...`);
+            console.log(`[BOT] [KOSEM BOT] Sending HD video as Document stream...`);
             
             const botName = config?.botName ? config.botName.toUpperCase() : 'KOSEM BOT';
             let captionText = `❖ ───── ✦ 𝐃𝐈𝐒𝐊𝐖𝐀𝐋𝐀 ✦ ───── ❖\n\n`;
@@ -149,6 +169,7 @@ module.exports = {
             captionText += `✨ *Downloaded by ${botName}*\n`;
             captionText += `╰━━━━━━━━━━━━━━━━━━┈⊷`;
 
+            // 🚀 SEND AS DOCUMENT URL
             if (extra.react) await extra.react('✅');
             
             await sock.sendMessage(msg.key.remoteJid, {
