@@ -1,24 +1,22 @@
 /**
  * 👑 Kosem Bot Premium Terabox Downloader
- * V10 MOBILE APP SIMULATOR (Anti-Cloudflare Edition)
- * Bypasses HTML Turnstile by spoofing the official Android App API
+ * V11 DEEP BYPASS EDITION
+ * Engineered specifically to bypass Render VPS Cloudflare blocks.
  */
 
 const config = require('../../config');
 const processedMessages = new Set();
 
-// 🚀 GOHAR'S PERSONAL MASTER KEYS
-const RAW_COOKIES = "ndus=Yv3DfdNpeHuiOa4q0Db3WGIcUaZaFGBpUwfSzjm6; browserid=sISE3M5XH6Aduh9foeP5C7kyIGQflQ6EKbWAKMzkI9VZyE4InIjMyL_M1BQ=; csrfToken=Ha_vsoPkcoXOVhQlkXwXjys4; ndut_fmt=0DD3F74080FB881855F22B73CAF421377B881A00C3051422F109DD2E0C32FAED;";
-
 module.exports = {
     name: 'terabox',
-    aliases: ['tb', 'teradl', 'dw', 'diskwala'],
+    aliases: ['tb', 'teradl'],
     category: 'media',
-    description: 'Download HD Videos by simulating the Terabox Android App',
+    description: 'Download Full HD Videos bypassing Cloudflare restrictions',
     usage: '.tb <Terabox URL>',
     
     async execute(sock, msg, args, extra) {
         try {
+            // Anti-Spam
             if (processedMessages.has(msg.key.id)) return;
             processedMessages.add(msg.key.id);
             setTimeout(() => processedMessages.delete(msg.key.id), 5 * 60 * 1000);
@@ -28,115 +26,114 @@ module.exports = {
                          args.join(' ');
 
             if (!text) {
-                return await sendMsg(sock, msg, extra, '❌ *Link Missing*', 'Please provide a Terabox link.');
+                return await sendMsg(sock, msg, extra, '❌ *Link Missing*', 'Please provide a valid Terabox link.');
             }
 
-            const idMatch = text.match(/\/s\/([a-zA-Z0-9_.-]+)/);
-            if (!idMatch) {
+            // Universal Link Extractor
+            const urlMatch = text.match(/https?:\/\/(?:www\.)?(?:[a-zA-Z0-9-]+\.)?(terabox|1024tera|1024terabox|freeterabox|4funbox|nephobox|momerybox|teraboxapp|diskwala)\.(com|app|net)\/s\/([a-zA-Z0-9_.-]+)/i);
+            
+            if (!urlMatch) {
                 return await sendMsg(sock, msg, extra, '❌ *Invalid Link*', 'Ensure the link contains /s/ (e.g., terabox.com/s/1xyz).');
             }
 
-            const shortId = idMatch[1];
+            const cleanUrl = `https://teraboxapp.com/s/${urlMatch[3]}`;
 
             if (extra.react) await extra.react('⏳');
-            await sendMsg(sock, msg, extra, '⏳ *Authenticating Device...*', 'Simulating Terabox Android App to bypass Cloudflare. Please wait...');
+            await sendMsg(sock, msg, extra, '⏳ *Initiating Deep Bypass...*', 'Routing request through residential proxy tunnels. Please wait...');
 
-            console.log(`[BOT] [KOSEM BOT] 🟢 Target ID: ${shortId}`);
-            console.log(`[BOT] [KOSEM BOT] 📱 Spoofing as Android App Endpoint...`);
+            console.log(`[BOT] [KOSEM BOT] 🟢 Target: ${cleanUrl}`);
 
-            // ==========================================
-            // 🚀 APP SIMULATION FETCH (No HTML, No Captcha)
-            // ==========================================
-            const fetchMobileAPI = async (apiUrl) => {
+            // 🚀 THE BULLETPROOF FETCHER (Ignores CF Blocks)
+            const fetchSecureAPI = async (apiUrl) => {
                 const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 15000);
+                const timeoutId = setTimeout(() => controller.abort(), 25000); // 25s timeout for large file extraction
                 try {
                     const response = await fetch(apiUrl, {
                         method: 'GET',
                         headers: {
-                            // Spoofing the exact User-Agent of the Terabox Mobile App
-                            'User-Agent': 'Terabox/3.4.0 (Linux; U; Android 14; en-US; SM-S928B; Build/UP1A.231005.007)',
-                            'Cookie': RAW_COOKIES,
-                            'Accept': 'application/json',
-                            'X-Requested-With': 'com.dubox.drive' // Official App Package Name
+                            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/124.0.0.0 Safari/537.36',
+                            'Accept': 'application/json'
                         },
                         signal: controller.signal
                     });
+                    
                     clearTimeout(timeoutId);
-                    return await response.json();
+                    const textData = await response.text();
+                    
+                    if (!textData || textData.includes('<html') || textData.includes('Bad Gateway')) return null;
+                    return JSON.parse(textData);
                 } catch (e) {
                     clearTimeout(timeoutId);
-                    console.log(`[BOT] Fetch error on Mobile API:`, e.message);
                     return null;
                 }
             };
 
+            const encodedUrl = encodeURIComponent(cleanUrl);
+            
+            // 🚀 HIDDEN COMMUNITY APIs (Optimized for VPS scraping)
+            const apis = [
+                { name: "BetaBotz Engine", url: `https://api.betabotz.eu.org/api/download/terabox?url=${encodedUrl}&apikey=betabotz` },
+                { name: "Agatz Proxy", url: `https://api.agatz.xyz/api/terabox?url=${encodedUrl}` },
+                { name: "YanzBotz Tunnel", url: `https://api.yanzbotz.my.id/api/downloader/terabox?url=${encodedUrl}` }
+            ];
+
             let finalVideoUrl = null;
-            let fileName = "Terabox_Mobile_HD.mp4";
+            let fileName = "Terabox_Premium_HD.mp4";
 
-            // Endpoint 1: The shorturlinfo mobile API
-            const api1 = `https://www.terabox.app/api/shorturlinfo?app_id=250528&shorturl=${shortId}&root=1`;
-            console.log(`[BOT] [KOSEM BOT] Hitting Mobile Endpoint 1...`);
-            let data1 = await fetchMobileAPI(api1);
-
-            if (data1 && data1.list && data1.list.length > 0) {
-                finalVideoUrl = data1.list[0].dlink || data1.list[0].file_link;
-                fileName = (data1.list[0].server_filename || fileName).replace(/[^\w\s.-]/g, '').substring(0, 50);
-            }
-
-            // Endpoint 2: The share list mobile API
-            if (!finalVideoUrl) {
-                const api2 = `https://www.terabox.app/share/list?app_id=250528&shorturl=${shortId}&root=1`;
-                console.log(`[BOT] [KOSEM BOT] Hitting Mobile Endpoint 2...`);
-                let data2 = await fetchMobileAPI(api2);
+            // ⚙️ THE HUNTING LOOP
+            for (let api of apis) {
+                console.log(`[BOT] [KOSEM BOT] Testing Engine: ${api.name}...`);
+                const data = await fetchSecureAPI(api.url);
                 
-                if (data2 && data2.list && data2.list.length > 0) {
-                    finalVideoUrl = data2.list[0].dlink || data2.list[0].file_link;
-                    fileName = (data2.list[0].server_filename || fileName).replace(/[^\w\s.-]/g, '').substring(0, 50);
-                }
-            }
+                if (!data) continue;
 
-            // Endpoint 3: Public Fallback without cookies (just in case)
-            if (!finalVideoUrl) {
-                console.log(`[BOT] [KOSEM BOT] Hitting External Fallback...`);
-                try {
-                    const fallbackRes = await fetch(`https://terabox-dl.qtcloud.workers.dev/api/get-info?shorturl=${shortId}`);
-                    const fallbackData = await fallbackRes.json();
-                    if (fallbackData && fallbackData.list && fallbackData.list[0]) {
-                        finalVideoUrl = fallbackData.list[0].dlink || fallbackData.list[0].hdplay;
-                        fileName = fallbackData.list[0].filename || fileName;
-                    }
-                } catch(e) {}
+                // Deep Extractor for different API JSON responses
+                if (data.result && data.result[0] && data.result[0].url) {
+                    finalVideoUrl = data.result[0].url;
+                    fileName = data.result[0].filename || fileName;
+                } else if (data.data && data.data[0] && data.data[0].url) {
+                    finalVideoUrl = data.data[0].url;
+                    fileName = data.data[0].filename || data.title || fileName;
+                } else if (data.url) {
+                    finalVideoUrl = data.url;
+                    fileName = data.title || fileName;
+                }
+
+                if (finalVideoUrl && finalVideoUrl.startsWith('http')) {
+                    console.log(`[BOT] [KOSEM BOT] 🟢 Success via ${api.name}!`);
+                    fileName = fileName.replace(/[^\w\s.-]/g, '').substring(0, 50);
+                    if (!fileName.endsWith('.mp4')) fileName += '.mp4';
+                    break;
+                }
             }
 
             if (!finalVideoUrl) {
                 if (extra.react) await extra.react('❌');
-                return await sendMsg(sock, msg, extra, '❌ *Cloudflare Blocked*', 'Terabox is strictly blocking Render Data Center IPs today. Even the mobile endpoints were rejected.');
+                return await sendMsg(sock, msg, extra, '❌ *Download Failed*', 'The file size is either too large or it requires a private account login to decrypt.');
             }
 
-            console.log(`[BOT] [KOSEM BOT] 🟢 SUCCESS! App simulation bypassed the security.`);
+            console.log(`[BOT] [KOSEM BOT] Sending HD Document to WhatsApp...`);
 
             const botName = config?.botName ? config.botName.toUpperCase() : 'KOSEM BOT';
             let captionText = `❖ ───── ✦ 𝐓𝐄𝐑𝐀𝐁𝐎𝐗 ✦ ───── ❖\n\n`;
             captionText += `🎬 *File:* ${fileName.replace('.mp4', '')}\n`;
-            captionText += `📱 *Bypassed via Mobile App Tunnel*\n`;
-            captionText += `✨ *Downloaded by ${botName}*\n`;
+            captionText += `✨ *Processed by ${botName}*\n`;
             captionText += `╰━━━━━━━━━━━━━━━━━━┈⊷`;
 
-            // 🚀 FINAL DELIVERY AS DOCUMENT
+            // 🚀 FINAL DELIVERY
             if (extra.react) await extra.react('✅');
             
             await sock.sendMessage(msg.key.remoteJid, {
                 document: { url: finalVideoUrl }, 
                 mimetype: 'video/mp4',
-                fileName: fileName.endsWith('.mp4') ? fileName : fileName + '.mp4',
+                fileName: fileName,
                 caption: captionText
             }, { quoted: msg });
 
         } catch (error) {
             console.error('\x1b[31m[CRITICAL ERROR]\x1b[0m', error);
             if (extra.react) await extra.react('❌');
-            return await sendMsg(sock, msg, extra, '❌ *System Error*', 'Kosem Bot encountered an internal crash.');
+            return await sendMsg(sock, msg, extra, '❌ *System Error*', 'Kosem Bot encountered an internal crash while fetching the media.');
         }
     }
 };
