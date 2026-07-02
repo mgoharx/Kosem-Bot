@@ -244,3 +244,203 @@ async function startBot() {
               serverMessageId: -1
             }
           }
+        });
+        console.log('[📩] Status: Premium Boot message sent to inbox!');
+      } catch (err) {
+        console.log('[⚠️] Warning: Failed to send boot message.', err);
+      }
+      // ==========================================
+
+      const now = Date.now();
+      for (const [jid, chatMsgs] of store.messages.entries()) {
+        const timestamps = Array.from(chatMsgs.values()).map(m => m.messageTimestamp * 1000 || 0);
+        if (timestamps.length > 0 && now - Math.max(...timestamps) > 24 * 60 * 60 * 1000) {
+          store.messages.delete(jid);
+        }
+      }
+      console.log(`[🧹] Memory: Store optimized. Active chats: ${store.messages.size}`);
+    }
+  });
+
+  sock.ev.on('creds.update', saveCreds);
+
+  const isSystemJid = (jid) => {
+    if (!jid) return true;
+    return jid.includes('@broadcast') || jid.includes('status.broadcast') || jid.includes('@newsletter') || jid.includes('@newsletter.');
+  };
+
+  sock.ev.on('messages.upsert', async ({ messages, type }) => {
+    if (type !== 'notify') return;
+
+    for (const msg of messages) {
+      if (!msg.message || !msg.key?.id) continue;
+
+      const from = msg.key.remoteJid;
+      if (!from) continue;
+
+      const msgId = msg.key.id;
+      if (processedMessages.has(msgId)) continue;
+      processedMessages.add(msgId);
+
+      if (!isSystemJid(from)) {
+        handler.handleMessage(sock, msg).catch(err => {
+          if (!err.message?.includes('rate-overlimit')) console.error('[❌] Error: Message handle failed ->', err.message);
+        });
+
+        setImmediate(async () => {
+          if (config.autoRead && from.endsWith('@g.us')) {
+            try { await sock.readMessages([msg.key]); } catch (e) { }
+          }
+          try {
+            if (handler.autoSniffViewOnce) await handler.autoSniffViewOnce(sock, msg);
+          } catch (err) { }
+
+          if (from.endsWith('@g.us')) {
+            try {
+              const groupMetadata = await handler.getGroupMetadata(sock, from);
+              if (groupMetadata) await handler.handleAntilink(sock, msg, groupMetadata);
+            } catch (error) { }
+          }
+        });
+      }
+    }
+  });
+
+  sock.ev.on('message-receipt.update', () => { });
+
+  // ==========================================
+  // 🔴 ANTI-DELETE & ANTI-STATUS SYSTEM
+  // ==========================================
+  sock.ev.on('messages.update', async (chatUpdate) => {
+    for (const { key, update } of chatUpdate) {
+      
+      let isDeletedMessage = false;
+      if (update.message === null) isDeletedMessage = true;
+      else if (update.message?.protocolMessage && (update.message.protocolMessage.type === 0 || update.message.protocolMessage.type === 'REVOKE')) {
+          isDeletedMessage = true;
+      }
+
+      if (isDeletedMessage) {
+        try {
+          const deletedMsg = await store.loadMessage(key.remoteJid, key.id);
+          if (!deletedMsg || (deletedMsg.messageTimestamp * 1000) < BOT_START_TIME) return;
+
+          const from = key.remoteJid;
+          const myJid = sock.user.id.split(':')[0] + '@s.whatsapp.net';
+
+          let rawSender = deletedMsg.key.participant || deletedMsg.key.remoteJid;
+          if (!rawSender) return;
+          const cleanSender = rawSender.includes(':') ? rawSender.split(':')[0] + '@s.whatsapp.net' : rawSender;
+          const senderNumber = cleanSender.split('@')[0];
+
+          let msgObj = deletedMsg.message;
+          if (!msgObj) return;
+
+          if (msgObj.ephemeralMessage) msgObj = msgObj.ephemeralMessage.message;
+          if (msgObj.viewOnceMessage) msgObj = msgObj.viewOnceMessage.message;
+          if (msgObj.viewOnceMessageV2) msgObj = msgObj.viewOnceMessageV2.message;
+          if (msgObj.viewOnceMessageV2Extension) msgObj = msgObj.viewOnceMessageV2Extension.message;
+          if (msgObj.documentWithCaptionMessage) msgObj = msgObj.documentWithCaptionMessage.message;
+
+          const mtype = Object.keys(msgObj || {})[0];
+          if (!mtype) return;
+
+          const isGroup = from.endsWith('@g.us');
+          const isStatus = from === 'status@broadcast';
+          let chatName = '';
+
+          if (isGroup) {
+            try {
+              const groupMeta = await sock.groupMetadata(from);
+              chatName = groupMeta.subject; 
+            } catch (e) { chatName = "Group"; }
+          } else if (isStatus) {
+            chatName = "WhatsApp Status";
+          } else {
+            chatName = "Private Chat"; 
+          }
+
+          const time = new Date().toLocaleTimeString('en-US', { 
+              timeZone: 'Asia/Karachi', hour: 'numeric', minute: 'numeric', hour12: true 
+          });
+
+          let mediaType = "";
+          if (msgObj.imageMessage) mediaType = isStatus ? "Status Photo" : "Photo";
+          else if (msgObj.videoMessage || msgObj.ptvMessage) mediaType = isStatus ? "Status Video" : "Video";
+          else if (msgObj.audioMessage) mediaType = msgObj.audioMessage.ptt ? "Voice Recording" : "Audio File";
+          else if (msgObj.documentMessage) mediaType = "Document";
+          else if (msgObj.stickerMessage) mediaType = "Sticker";
+          else if (msgObj.contactMessage || msgObj.contactsArrayMessage) mediaType = "Contact";
+          else if (msgObj.locationMessage || msgObj.liveLocationMessage) mediaType = "Location";
+          else mediaType = isStatus ? "Text Status" : "Text Message";
+
+          const originalText = msgObj.conversation || 
+                               msgObj.extendedTextMessage?.text || 
+                               msgObj.imageMessage?.caption || 
+                               msgObj.videoMessage?.caption || 
+                               msgObj.documentMessage?.fileName || 
+                               msgObj.documentMessage?.caption || "";
+
+          const pushName = deletedMsg.pushName || "Unknown User";
+          
+          let caption = `❖ ── ✦ 𝐀𝐍𝐓𝐈 𝐃𝐄𝐋𝐄𝐓𝐄 ✦ ── ❖\n\n👤 *Sender:* @${senderNumber}\n📍 *Chat:* ${chatName} (${pushName})\n🕰️ *Time:* ${time}\n📦 *Deleted:* ${mediaType}\n`;
+
+          if (originalText) {
+              caption += `\n❖ ── ✦ 𝐌𝐄𝐒𝐒𝐀𝐆𝐄 ✦ ── ❖\n💬 ${originalText}`;
+          } else if (mediaType === "Text Message" || mediaType === "Text Status") {
+              caption += `\n❖ ── ✦ 𝐌𝐄𝐒𝐒𝐀𝐆𝐄 ✦ ── ❖\n💬 [Message deleted]`;
+          }
+
+          if (msgObj.imageMessage || msgObj.videoMessage) {
+              if (msgObj.imageMessage) {
+                  msgObj.imageMessage.caption = caption;
+                  msgObj.imageMessage.contextInfo = { 
+                      ...(msgObj.imageMessage.contextInfo || {}), 
+                      mentionedJid: [cleanSender] 
+                  };
+              }
+              if (msgObj.videoMessage) {
+                  msgObj.videoMessage.caption = caption;
+                  msgObj.videoMessage.contextInfo = { 
+                      ...(msgObj.videoMessage.contextInfo || {}), 
+                      mentionedJid: [cleanSender] 
+                  };
+              }
+              await sock.sendMessage(myJid, { forward: deletedMsg }).catch(()=>{});
+          } else {
+              await sock.sendMessage(myJid, { text: caption, mentions: [cleanSender] }).catch(()=>{});
+              const hasMedia = msgObj.audioMessage || msgObj.stickerMessage || msgObj.documentMessage || msgObj.contactMessage || msgObj.locationMessage;
+              if (hasMedia) {
+                await sock.sendMessage(myJid, { forward: deletedMsg }).catch(()=>{});
+              }
+          }
+        } catch (err) {} // Safe catch to prevent crashes
+      }
+    }
+  });
+
+  sock.ev.on('group-participants.update', async (update) => {
+    try { await handler.handleGroupUpdate(sock, update); } catch(e){}
+  });
+
+  return sock;
+}
+
+console.log('\n[🚀] System: STARTING KOSEM BOT...\n');
+
+cleanupPuppeteerCache();
+startBot();
+
+process.on('uncaughtException', (err) => {
+    if (err.code === 'ENOSPC' || err.message?.includes('no space left')) {
+        console.error('[⚠️] System: Storage full. Triggering emergency cleanup...');
+        require('./utils/cleanup').cleanupOldFiles();
+        return; 
+    }
+});
+
+process.on('unhandledRejection', (err) => {
+    if (err.message && err.message.includes('rate-overlimit')) return;
+});
+
+module.exports = { store };
