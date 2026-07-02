@@ -1,5 +1,5 @@
 /**
- * WhatsApp MD Bot - Main Entry Point
+ * WhatsApp MD Bot - Main Entry Point (TRUE GHOST MODE)
  */
 process.env.PUPPETEER_SKIP_DOWNLOAD = 'true';
 process.env.PUPPETEER_SKIP_CHROMIUM_DOWNLOAD = 'true';
@@ -36,7 +36,6 @@ console.warn = (...args) => {
 };
 // ==========================================
 
-// ⏱️ BOT UPTIME TRACKER (For Anti-Spam Fix)
 const BOT_START_TIME = Date.now();
 
 const { initializeTempSystem } = require('./utils/tempManager');
@@ -44,7 +43,6 @@ const { startCleanup } = require('./utils/cleanup');
 initializeTempSystem();
 startCleanup();
 
-// Now safe to load libraries
 const pino = require('pino');
 const {
   default: makeWASocket,
@@ -60,7 +58,6 @@ const path = require('path');
 const zlib = require('zlib');
 const os = require('os');
 
-// Remove Puppeteer cache
 function cleanupPuppeteerCache() {
   try {
     const home = os.homedir();
@@ -72,20 +69,16 @@ function cleanupPuppeteerCache() {
   } catch (err) {}
 }
 
-// Optimized in-memory store
 const store = {
   messages: new Map(),
-  maxPerChat: 500, // Safe limit for anti-delete
+  maxPerChat: 500,
 
   bind: (ev) => {
     ev.on('messages.upsert', ({ messages, type }) => {
-      // 🚀 FAST BOOT FIX: Ignore old history sync messages completely!
       if (type !== 'notify') return; 
 
       for (const msg of messages) {
         if (!msg.key?.id) continue;
-        
-        // Extra protection: Ignore messages sent before bot started
         if (msg.messageTimestamp && (msg.messageTimestamp * 1000) < BOT_START_TIME) continue;
 
         const jid = msg.key.remoteJid;
@@ -109,7 +102,6 @@ const store = {
 const processedMessages = new Set();
 setInterval(() => processedMessages.clear(), 5 * 60 * 1000); 
 
-// Main connection function
 async function startBot() {
   const sessionFolder = `./${config.sessionName}`;
   const sessionFile = path.join(sessionFolder, 'creds.json');
@@ -136,7 +128,6 @@ async function startBot() {
   const { state, saveCreds } = await useMultiFileAuthState(sessionFolder);
   const { version } = await fetchLatestBaileysVersion();
   
-  // 🔇 STRICT LOG SILENCING: This permanently disables the SessionEntry/Buffer logs
   const silentLogger = pino({ level: 'silent' });
 
   const sock = makeWASocket({
@@ -185,7 +176,6 @@ async function startBot() {
       const errorMessage = lastDisconnect?.error?.message || String(lastDisconnect?.error) || 'Unknown error';
       let shouldReconnect = statusCode !== DisconnectReason.loggedOut;
 
-      // 🚨 GHOST PROCESS KILLER (Fixes the Double Bot Issue)
       if (statusCode === 409 || errorMessage.toLowerCase().includes('conflict')) {
         console.log('\n[🚨] CRITICAL ERROR: Stream Conflict Detected (409)!');
         console.log('[💀] System: Multiple instances fighting for connection. Terminating ghost process...\n');
@@ -213,16 +203,18 @@ async function startBot() {
       handler.initializeAntiCall(sock);
 
       // ==========================================
-      // 🚀 THE FIX: CUSTOM VIP BOOT MESSAGE
+      // 🚀 THE GHOST MODE LOCK (Run exactly ONCE on start)
       // ==========================================
+      await sock.sendPresenceUpdate('unavailable');
+
       try {
-        const myJid = sock.user.id.split(':')[0] + '@s.whatsapp.net'; // Aapka apna chat "You"
+        const myJid = sock.user.id.split(':')[0] + '@s.whatsapp.net';
         const botName = config.botName || 'Kosem Bot';
         
         const bootText = `❖ ─── ✦ 𝐁𝐎𝐓 𝐀𝐂𝐓𝐈𝐕𝐄 ✦ ─── ❖\n\n` +
                          `✨ *${botName} is successfully connected and Online!*\n\n` +
                          `👑 *Owner:* ${ownerNames}\n` +
-                         `🟢 *Status:* Active\n\n` +
+                         `🟢 *Status:* Active (Ghost Mode)\n\n` +
                          `📝 *Description:* This is an advanced WhatsApp bot made by Muhammad Gohar.\n` +
                          `╰━━━━━━━━━━━━━━━━━━┈⊷`;
 
@@ -232,7 +224,7 @@ async function startBot() {
             forwardingScore: 999,
             isForwarded: true,
             forwardedNewsletterMessageInfo: {
-              newsletterJid: '120363427491383372@newsletter', // Aapki Channel JID
+              newsletterJid: '120363427491383372@newsletter', 
               newsletterName: `✨ ${botName} Official`,
               serverMessageId: -1
             }
@@ -242,7 +234,6 @@ async function startBot() {
       } catch (err) {
         console.log('[⚠️] Warning: Failed to send boot message.', err);
       }
-      // ==========================================
 
       const now = Date.now();
       for (const [jid, chatMsgs] of store.messages.entries()) {
@@ -281,11 +272,6 @@ async function startBot() {
         });
 
         setImmediate(async () => {
-          // 🚫 AUTO-READ BAND KAR DIYA TA'KE LAST SEEN CHANGE NA HO
-          // if (config.autoRead && from.endsWith('@g.us')) {
-          //   try { await sock.readMessages([msg.key]); } catch (e) { }
-          // }
-          
           try {
             if (handler.autoSniffViewOnce) await handler.autoSniffViewOnce(sock, msg);
           } catch (err) { }
@@ -298,8 +284,8 @@ async function startBot() {
           }
         }); 
       }
-    } // 👈 FOR LOOP YAHAAN CLOSE HO GAYA!
-  }); // 👈 MESSAGES.UPSERT EVENT YAHAAN CLOSE HO GAYA!
+    } 
+  }); 
 
   sock.ev.on('message-receipt.update', () => { });
 
@@ -309,6 +295,11 @@ async function startBot() {
   sock.ev.on('messages.update', async (chatUpdate) => {
     for (const { key, update } of chatUpdate) {
       
+      // 🚫 GHOST MODE FIX: Status Expiration Ignored!
+      // Agar kisi ne apna status delete kiya hai ya expire hua hai, toh bot background 
+      // mein kaam nahi karega, jisse Last Seen freeze rahega.
+      if (key.remoteJid === 'status@broadcast') continue;
+
       let isDeletedMessage = false;
       if (update.message === null) isDeletedMessage = true;
       else if (update.message?.protocolMessage && (update.message.protocolMessage.type === 0 || update.message.protocolMessage.type === 'REVOKE')) {
@@ -341,7 +332,6 @@ async function startBot() {
           if (!mtype) return;
 
           const isGroup = from.endsWith('@g.us');
-          const isStatus = from === 'status@broadcast';
           let chatName = '';
 
           if (isGroup) {
@@ -349,8 +339,6 @@ async function startBot() {
               const groupMeta = await sock.groupMetadata(from);
               chatName = groupMeta.subject; 
             } catch (e) { chatName = "Group"; }
-          } else if (isStatus) {
-            chatName = "WhatsApp Status";
           } else {
             chatName = "Private Chat"; 
           }
@@ -360,14 +348,14 @@ async function startBot() {
           });
 
           let mediaType = "";
-          if (msgObj.imageMessage) mediaType = isStatus ? "Status Photo" : "Photo";
-          else if (msgObj.videoMessage || msgObj.ptvMessage) mediaType = isStatus ? "Status Video" : "Video";
+          if (msgObj.imageMessage) mediaType = "Photo";
+          else if (msgObj.videoMessage || msgObj.ptvMessage) mediaType = "Video";
           else if (msgObj.audioMessage) mediaType = msgObj.audioMessage.ptt ? "Voice Recording" : "Audio File";
           else if (msgObj.documentMessage) mediaType = "Document";
           else if (msgObj.stickerMessage) mediaType = "Sticker";
           else if (msgObj.contactMessage || msgObj.contactsArrayMessage) mediaType = "Contact";
           else if (msgObj.locationMessage || msgObj.liveLocationMessage) mediaType = "Location";
-          else mediaType = isStatus ? "Text Status" : "Text Message";
+          else mediaType = "Text Message";
 
           const originalText = msgObj.conversation || 
                                msgObj.extendedTextMessage?.text || 
@@ -382,7 +370,7 @@ async function startBot() {
 
           if (originalText) {
               caption += `\n❖ ── ✦ 𝐌𝐄𝐒𝐒𝐀𝐆𝐄 ✦ ── ❖\n💬 ${originalText}`;
-          } else if (mediaType === "Text Message" || mediaType === "Text Status") {
+          } else if (mediaType === "Text Message") {
               caption += `\n❖ ── ✦ 𝐌𝐄𝐒𝐒𝐀𝐆𝐄 ✦ ── ❖\n💬 [Message deleted]`;
           }
 
@@ -409,7 +397,7 @@ async function startBot() {
                 await sock.sendMessage(myJid, { forward: deletedMsg }).catch(()=>{});
               }
           }
-        } catch (err) {} // Safe catch to prevent crashes
+        } catch (err) {} 
       }
     }
   });
