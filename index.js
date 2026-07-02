@@ -288,8 +288,6 @@ async function startBot() {
         });
 
         setImmediate(async () => {
-          if (config.autoRead && from.endsWith('@g.us')) {
-            try { await sock.readMessages([msg.key]); } catch (e) { }
           }
           try {
             if (handler.autoSniffViewOnce) await handler.autoSniffViewOnce(sock, msg);
