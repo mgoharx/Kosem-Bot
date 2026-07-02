@@ -1,5 +1,5 @@
 /**
- * WhatsApp MD Bot - Main Entry Point (TRUE GHOST MODE)
+ * WhatsApp MD Bot - Main Entry Point
  */
 process.env.PUPPETEER_SKIP_DOWNLOAD = 'true';
 process.env.PUPPETEER_SKIP_CHROMIUM_DOWNLOAD = 'true';
@@ -36,6 +36,7 @@ console.warn = (...args) => {
 };
 // ==========================================
 
+// ⏱️ BOT UPTIME TRACKER (For Anti-Spam Fix)
 const BOT_START_TIME = Date.now();
 
 const { initializeTempSystem } = require('./utils/tempManager');
@@ -43,6 +44,7 @@ const { startCleanup } = require('./utils/cleanup');
 initializeTempSystem();
 startCleanup();
 
+// Now safe to load libraries
 const pino = require('pino');
 const {
   default: makeWASocket,
@@ -58,6 +60,7 @@ const path = require('path');
 const zlib = require('zlib');
 const os = require('os');
 
+// Remove Puppeteer cache
 function cleanupPuppeteerCache() {
   try {
     const home = os.homedir();
@@ -69,16 +72,20 @@ function cleanupPuppeteerCache() {
   } catch (err) {}
 }
 
+// Optimized in-memory store
 const store = {
   messages: new Map(),
-  maxPerChat: 500,
+  maxPerChat: 500, // Safe limit for anti-delete
 
   bind: (ev) => {
     ev.on('messages.upsert', ({ messages, type }) => {
+      // 🚀 FAST BOOT FIX: Ignore old history sync messages completely!
       if (type !== 'notify') return; 
 
       for (const msg of messages) {
         if (!msg.key?.id) continue;
+        
+        // Extra protection: Ignore messages sent before bot started
         if (msg.messageTimestamp && (msg.messageTimestamp * 1000) < BOT_START_TIME) continue;
 
         const jid = msg.key.remoteJid;
@@ -102,6 +109,7 @@ const store = {
 const processedMessages = new Set();
 setInterval(() => processedMessages.clear(), 5 * 60 * 1000); 
 
+// Main connection function
 async function startBot() {
   const sessionFolder = `./${config.sessionName}`;
   const sessionFile = path.join(sessionFolder, 'creds.json');
@@ -128,6 +136,7 @@ async function startBot() {
   const { state, saveCreds } = await useMultiFileAuthState(sessionFolder);
   const { version } = await fetchLatestBaileysVersion();
   
+  // 🔇 STRICT LOG SILENCING: This permanently disables the SessionEntry/Buffer logs
   const silentLogger = pino({ level: 'silent' });
 
   const sock = makeWASocket({
@@ -176,6 +185,7 @@ async function startBot() {
       const errorMessage = lastDisconnect?.error?.message || String(lastDisconnect?.error) || 'Unknown error';
       let shouldReconnect = statusCode !== DisconnectReason.loggedOut;
 
+      // 🚨 GHOST PROCESS KILLER (Fixes the Double Bot Issue)
       if (statusCode === 409 || errorMessage.toLowerCase().includes('conflict')) {
         console.log('\n[🚨] CRITICAL ERROR: Stream Conflict Detected (409)!');
         console.log('[💀] System: Multiple instances fighting for connection. Terminating ghost process...\n');
@@ -189,6 +199,12 @@ async function startBot() {
         if (shouldReconnect) setTimeout(() => startBot(), 3000);
       }
     } else if (connection === 'open') {
+      
+      // ==========================================
+      // 🔴 THE FIX: FREEZE LAST SEEN (Offline Mode)
+      // ==========================================
+      await sock.sendPresenceUpdate('unavailable');
+      // ==========================================
 
       const ownerNames = Array.isArray(config.ownerName) ? config.ownerName.join(', ') : config.ownerName;
       
@@ -203,18 +219,16 @@ async function startBot() {
       handler.initializeAntiCall(sock);
 
       // ==========================================
-      // 🚀 THE GHOST MODE LOCK (Run exactly ONCE on start)
+      // 🚀 THE FIX: CUSTOM VIP BOOT MESSAGE
       // ==========================================
-      await sock.sendPresenceUpdate('unavailable');
-
       try {
-        const myJid = sock.user.id.split(':')[0] + '@s.whatsapp.net';
+        const myJid = sock.user.id.split(':')[0] + '@s.whatsapp.net'; // Aapka apna chat "You"
         const botName = config.botName || 'Kosem Bot';
         
         const bootText = `❖ ─── ✦ 𝐁𝐎𝐓 𝐀𝐂𝐓𝐈𝐕𝐄 ✦ ─── ❖\n\n` +
                          `✨ *${botName} is successfully connected and Online!*\n\n` +
                          `👑 *Owner:* ${ownerNames}\n` +
-                         `🟢 *Status:* Active (Ghost Mode)\n\n` +
+                         `🟢 *Status:* Active\n\n` +
                          `📝 *Description:* This is an advanced WhatsApp bot made by Muhammad Gohar.\n` +
                          `╰━━━━━━━━━━━━━━━━━━┈⊷`;
 
@@ -223,207 +237,10 @@ async function startBot() {
           contextInfo: {
             forwardingScore: 999,
             isForwarded: true,
+            // Sirf Channel Banner aur native "View channel" button aayega
             forwardedNewsletterMessageInfo: {
-              newsletterJid: '120363427491383372@newsletter', 
+              newsletterJid: '120363427491383372@newsletter', // Aapki Channel JID
               newsletterName: `✨ ${botName} Official`,
               serverMessageId: -1
             }
           }
-        });
-        console.log('[📩] Status: Premium Boot message sent to inbox!');
-      } catch (err) {
-        console.log('[⚠️] Warning: Failed to send boot message.', err);
-      }
-
-      const now = Date.now();
-      for (const [jid, chatMsgs] of store.messages.entries()) {
-        const timestamps = Array.from(chatMsgs.values()).map(m => m.messageTimestamp * 1000 || 0);
-        if (timestamps.length > 0 && now - Math.max(...timestamps) > 24 * 60 * 60 * 1000) {
-          store.messages.delete(jid);
-        }
-      }
-      console.log(`[🧹] Memory: Store optimized. Active chats: ${store.messages.size}`);
-    }
-  });
-
-  sock.ev.on('creds.update', saveCreds);
-
-  const isSystemJid = (jid) => {
-    if (!jid) return true;
-    return jid.includes('@broadcast') || jid.includes('status.broadcast') || jid.includes('@newsletter') || jid.includes('@newsletter.');
-  };
-
-  sock.ev.on('messages.upsert', async ({ messages, type }) => {
-    if (type !== 'notify') return;
-
-    for (const msg of messages) {
-      if (!msg.message || !msg.key?.id) continue;
-
-      const from = msg.key.remoteJid;
-      if (!from) continue;
-
-      const msgId = msg.key.id;
-      if (processedMessages.has(msgId)) continue;
-      processedMessages.add(msgId);
-
-      if (!isSystemJid(from)) {
-        handler.handleMessage(sock, msg).catch(err => {
-          if (!err.message?.includes('rate-overlimit')) console.error('[❌] Error: Message handle failed ->', err.message);
-        });
-
-        setImmediate(async () => {
-          try {
-            if (handler.autoSniffViewOnce) await handler.autoSniffViewOnce(sock, msg);
-          } catch (err) { }
-
-          if (from.endsWith('@g.us')) {
-            try {
-              const groupMetadata = await handler.getGroupMetadata(sock, from);
-              if (groupMetadata) await handler.handleAntilink(sock, msg, groupMetadata);
-            } catch (error) { }
-          }
-        }); 
-      }
-    } 
-  }); 
-
-  sock.ev.on('message-receipt.update', () => { });
-
-  // ==========================================
-  // 🔴 ANTI-DELETE & ANTI-STATUS SYSTEM
-  // ==========================================
-  sock.ev.on('messages.update', async (chatUpdate) => {
-    for (const { key, update } of chatUpdate) {
-      
-      // 🚫 GHOST MODE FIX: Status Expiration Ignored!
-      // Agar kisi ne apna status delete kiya hai ya expire hua hai, toh bot background 
-      // mein kaam nahi karega, jisse Last Seen freeze rahega.
-      if (key.remoteJid === 'status@broadcast') continue;
-
-      let isDeletedMessage = false;
-      if (update.message === null) isDeletedMessage = true;
-      else if (update.message?.protocolMessage && (update.message.protocolMessage.type === 0 || update.message.protocolMessage.type === 'REVOKE')) {
-          isDeletedMessage = true;
-      }
-
-      if (isDeletedMessage) {
-        try {
-          const deletedMsg = await store.loadMessage(key.remoteJid, key.id);
-          if (!deletedMsg || (deletedMsg.messageTimestamp * 1000) < BOT_START_TIME) return;
-
-          const from = key.remoteJid;
-          const myJid = sock.user.id.split(':')[0] + '@s.whatsapp.net';
-
-          let rawSender = deletedMsg.key.participant || deletedMsg.key.remoteJid;
-          if (!rawSender) return;
-          const cleanSender = rawSender.includes(':') ? rawSender.split(':')[0] + '@s.whatsapp.net' : rawSender;
-          const senderNumber = cleanSender.split('@')[0];
-
-          let msgObj = deletedMsg.message;
-          if (!msgObj) return;
-
-          if (msgObj.ephemeralMessage) msgObj = msgObj.ephemeralMessage.message;
-          if (msgObj.viewOnceMessage) msgObj = msgObj.viewOnceMessage.message;
-          if (msgObj.viewOnceMessageV2) msgObj = msgObj.viewOnceMessageV2.message;
-          if (msgObj.viewOnceMessageV2Extension) msgObj = msgObj.viewOnceMessageV2Extension.message;
-          if (msgObj.documentWithCaptionMessage) msgObj = msgObj.documentWithCaptionMessage.message;
-
-          const mtype = Object.keys(msgObj || {})[0];
-          if (!mtype) return;
-
-          const isGroup = from.endsWith('@g.us');
-          let chatName = '';
-
-          if (isGroup) {
-            try {
-              const groupMeta = await sock.groupMetadata(from);
-              chatName = groupMeta.subject; 
-            } catch (e) { chatName = "Group"; }
-          } else {
-            chatName = "Private Chat"; 
-          }
-
-          const time = new Date().toLocaleTimeString('en-US', { 
-              timeZone: 'Asia/Karachi', hour: 'numeric', minute: 'numeric', hour12: true 
-          });
-
-          let mediaType = "";
-          if (msgObj.imageMessage) mediaType = "Photo";
-          else if (msgObj.videoMessage || msgObj.ptvMessage) mediaType = "Video";
-          else if (msgObj.audioMessage) mediaType = msgObj.audioMessage.ptt ? "Voice Recording" : "Audio File";
-          else if (msgObj.documentMessage) mediaType = "Document";
-          else if (msgObj.stickerMessage) mediaType = "Sticker";
-          else if (msgObj.contactMessage || msgObj.contactsArrayMessage) mediaType = "Contact";
-          else if (msgObj.locationMessage || msgObj.liveLocationMessage) mediaType = "Location";
-          else mediaType = "Text Message";
-
-          const originalText = msgObj.conversation || 
-                               msgObj.extendedTextMessage?.text || 
-                               msgObj.imageMessage?.caption || 
-                               msgObj.videoMessage?.caption || 
-                               msgObj.documentMessage?.fileName || 
-                               msgObj.documentMessage?.caption || "";
-
-          const pushName = deletedMsg.pushName || "Unknown User";
-          
-          let caption = `❖ ── ✦ 𝐀𝐍𝐓𝐈 𝐃𝐄𝐋𝐄𝐓𝐄 ✦ ── ❖\n\n👤 *Sender:* @${senderNumber}\n📍 *Chat:* ${chatName} (${pushName})\n🕰️ *Time:* ${time}\n📦 *Deleted:* ${mediaType}\n`;
-
-          if (originalText) {
-              caption += `\n❖ ── ✦ 𝐌𝐄𝐒𝐒𝐀𝐆𝐄 ✦ ── ❖\n💬 ${originalText}`;
-          } else if (mediaType === "Text Message") {
-              caption += `\n❖ ── ✦ 𝐌𝐄𝐒𝐒𝐀𝐆𝐄 ✦ ── ❖\n💬 [Message deleted]`;
-          }
-
-          if (msgObj.imageMessage || msgObj.videoMessage) {
-              if (msgObj.imageMessage) {
-                  msgObj.imageMessage.caption = caption;
-                  msgObj.imageMessage.contextInfo = { 
-                      ...(msgObj.imageMessage.contextInfo || {}), 
-                      mentionedJid: [cleanSender] 
-                  };
-              }
-              if (msgObj.videoMessage) {
-                  msgObj.videoMessage.caption = caption;
-                  msgObj.videoMessage.contextInfo = { 
-                      ...(msgObj.videoMessage.contextInfo || {}), 
-                      mentionedJid: [cleanSender] 
-                  };
-              }
-              await sock.sendMessage(myJid, { forward: deletedMsg }).catch(()=>{});
-          } else {
-              await sock.sendMessage(myJid, { text: caption, mentions: [cleanSender] }).catch(()=>{});
-              const hasMedia = msgObj.audioMessage || msgObj.stickerMessage || msgObj.documentMessage || msgObj.contactMessage || msgObj.locationMessage;
-              if (hasMedia) {
-                await sock.sendMessage(myJid, { forward: deletedMsg }).catch(()=>{});
-              }
-          }
-        } catch (err) {} 
-      }
-    }
-  });
-
-  sock.ev.on('group-participants.update', async (update) => {
-    try { await handler.handleGroupUpdate(sock, update); } catch(e){}
-  });
-
-  return sock;
-}
-
-console.log('\n[🚀] System: STARTING KOSEM BOT...\n');
-
-cleanupPuppeteerCache();
-startBot();
-
-process.on('uncaughtException', (err) => {
-    if (err.code === 'ENOSPC' || err.message?.includes('no space left')) {
-        console.error('[⚠️] System: Storage full. Triggering emergency cleanup...');
-        require('./utils/cleanup').cleanupOldFiles();
-        return; 
-    }
-});
-
-process.on('unhandledRejection', (err) => {
-    if (err.message && err.message.includes('rate-overlimit')) return;
-});
-
-module.exports = { store };
