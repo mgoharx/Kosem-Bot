@@ -199,12 +199,6 @@ async function startBot() {
         if (shouldReconnect) setTimeout(() => startBot(), 3000);
       }
     } else if (connection === 'open') {
-      
-      // ==========================================
-      // 🔴 THE FIX: FREEZE LAST SEEN (Offline Mode)
-      // ==========================================
-      await sock.sendPresenceUpdate('unavailable');
-      // ==========================================
 
       const ownerNames = Array.isArray(config.ownerName) ? config.ownerName.join(', ') : config.ownerName;
       
@@ -282,13 +276,17 @@ async function startBot() {
       if (processedMessages.has(msgId)) continue;
       processedMessages.add(msgId);
 
-      if (!isSystemJid(from)) {
+if (!isSystemJid(from)) {
         handler.handleMessage(sock, msg).catch(err => {
           if (!err.message?.includes('rate-overlimit')) console.error('[❌] Error: Message handle failed ->', err.message);
         });
 
         setImmediate(async () => {
-          }
+          // 🚫 AUTO-READ BAND KAR DIYA TA'KE LAST SEEN CHANGE NA HO
+          // if (config.autoRead && from.endsWith('@g.us')) {
+          //   try { await sock.readMessages([msg.key]); } catch (e) { }
+          // }
+          
           try {
             if (handler.autoSniffViewOnce) await handler.autoSniffViewOnce(sock, msg);
           } catch (err) { }
@@ -299,10 +297,8 @@ async function startBot() {
               if (groupMetadata) await handler.handleAntilink(sock, msg, groupMetadata);
             } catch (error) { }
           }
-        });
+        }); // 👈 YAHAN PAR WO BRACKET MISSING THI JO ERROR DE RAHI THI
       }
-    }
-  });
 
   sock.ev.on('message-receipt.update', () => { });
 
