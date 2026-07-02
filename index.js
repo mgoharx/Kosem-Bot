@@ -231,7 +231,6 @@ async function startBot() {
           contextInfo: {
             forwardingScore: 999,
             isForwarded: true,
-            // Sirf Channel Banner aur native "View channel" button aayega
             forwardedNewsletterMessageInfo: {
               newsletterJid: '120363427491383372@newsletter', // Aapki Channel JID
               newsletterName: `✨ ${botName} Official`,
@@ -276,7 +275,7 @@ async function startBot() {
       if (processedMessages.has(msgId)) continue;
       processedMessages.add(msgId);
 
-if (!isSystemJid(from)) {
+      if (!isSystemJid(from)) {
         handler.handleMessage(sock, msg).catch(err => {
           if (!err.message?.includes('rate-overlimit')) console.error('[❌] Error: Message handle failed ->', err.message);
         });
@@ -297,8 +296,10 @@ if (!isSystemJid(from)) {
               if (groupMetadata) await handler.handleAntilink(sock, msg, groupMetadata);
             } catch (error) { }
           }
-        }); // 👈 YAHAN PAR WO BRACKET MISSING THI JO ERROR DE RAHI THI
+        }); 
       }
+    } // 👈 FOR LOOP YAHAAN CLOSE HO GAYA!
+  }); // 👈 MESSAGES.UPSERT EVENT YAHAAN CLOSE HO GAYA!
 
   sock.ev.on('message-receipt.update', () => { });
 
