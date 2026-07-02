@@ -886,16 +886,14 @@ if (isGroup) {
       }
     }
     
-// ==========================================
-    // 🔴 GHOST MODE: ZERO PING SYSTEM
-    // ==========================================
-    // Dono presence updates (unavailable aur composing) ko completely block kar diya hai.
-    // Ab bot WhatsApp server ko koi signal nahi bheja ga.
+    // Auto-typing
+// 🔴 THE FIX: LAST SEEN FREEZE 
+    // Forcefully keep status unavailable on every message
+    await sock.sendPresenceUpdate('unavailable', from);
     
-    // await sock.sendPresenceUpdate('unavailable', from); 
-    
+    // Auto-typing (Composing signal block kar diya hai taake aap Online show na hon)
     if (config.autoTyping) {
-      // await sock.sendPresenceUpdate('composing', from); 
+      // await sock.sendPresenceUpdate('composing', from); // ❌ YEHI LINE MUJRIM THI!
     }
     
     // Execute command
