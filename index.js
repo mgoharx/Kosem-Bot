@@ -289,15 +289,24 @@ async function startBot() {
 
   sock.ev.on('message-receipt.update', () => { });
 
-  // ==========================================
-  // 🔴 ANTI-DELETE & ANTI-STATUS SYSTEM
+// ==========================================
+  // 🔴 ANTI-DELETE & ANTI-STATUS SYSTEM (TOGGLEABLE)
   // ==========================================
   sock.ev.on('messages.update', async (chatUpdate) => {
+    
+    // 🛑 DYNAMIC MASTER SWITCH: Check if Anti-Delete is ON or OFF
+    const antidelPath = path.join(process.cwd(), 'antidel_state.json');
+    let isAntiDeleteOn = true; // Default ON
+    if (fs.existsSync(antidelPath)) {
+      try { isAntiDeleteOn = JSON.parse(fs.readFileSync(antidelPath)).status; } catch(e){}
+    }
+    
+    // Agar command ke zariye OFF kiya gaya hai, toh processing yahin rok dein
+    if (!isAntiDeleteOn) return; 
+
     for (const { key, update } of chatUpdate) {
       
       // 🚫 GHOST MODE FIX: Status Expiration Ignored!
-      // Agar kisi ne apna status delete kiya hai ya expire hua hai, toh bot background 
-      // mein kaam nahi karega, jisse Last Seen freeze rahega.
       if (key.remoteJid === 'status@broadcast') continue;
 
       let isDeletedMessage = false;
