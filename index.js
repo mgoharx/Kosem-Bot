@@ -151,14 +151,26 @@ async function startBot() {
     getMessage: async () => undefined
   });
 
-  // 🔒 HARD LOCK: Kisi bhi command ko 'available', 'composing', ya 'recording' bhejne se rokein
-  const originalSendPresenceUpdate = sock.sendPresenceUpdate;
-  sock.sendPresenceUpdate = async (type, toJid) => {
-    if (type !== 'unavailable') return;
-    return originalSendPresenceUpdate('unavailable');
-  };
-
   store.bind(sock.ev);
+
+  let lastActivity = Date.now();
+  const INACTIVITY_TIMEOUT = 30 * 60 * 1000; 
+
+  sock.ev.on('messages.upsert', () => { lastActivity = Date.now(); });
+
+  const watchdogInterval = setInterval(async () => {
+    if (Date.now() - lastActivity > INACTIVITY_TIMEOUT && sock.ws?.readyState === 1) {
+      console.log('[⚠️] System: No activity detected. Reconnecting to maintain uptime...');
+      await sock.end(undefined, undefined, { reason: 'inactive' });
+      clearInterval(watchdogInterval);
+    }
+  }, 5 * 60 * 1000);
+
+  sock.ev.on('connection.update', (update) => {
+    const { connection } = update;
+    if (connection === 'open') lastActivity = Date.now();
+    else if (connection === 'close') clearInterval(watchdogInterval);
+  });
 
   sock.ev.on('connection.update', async (update) => {
     const { connection, lastDisconnect, qr } = update;
@@ -187,6 +199,13 @@ async function startBot() {
         if (shouldReconnect) setTimeout(() => startBot(), 3000);
       }
     } else if (connection === 'open') {
+      
+      // ==========================================
+      // 🔴 THE FIX: FREEZE LAST SEEN (Offline Mode)
+      // ==========================================
+      await sock.sendPresenceUpdate('unavailable');
+      // ==========================================
+
       const ownerNames = Array.isArray(config.ownerName) ? config.ownerName.join(', ') : config.ownerName;
       
       console.log('\n[✅] CONNECTION ESTABLISHED SUCCESSFULLY');
@@ -203,7 +222,7 @@ async function startBot() {
       // 🚀 THE FIX: CUSTOM VIP BOOT MESSAGE
       // ==========================================
       try {
-        const myJid = sock.user.id.split(':')[0] + '@s.whatsapp.net';
+        const myJid = sock.user.id.split(':')[0] + '@s.whatsapp.net'; // Aapka apna chat "You"
         const botName = config.botName || 'Kosem Bot';
         
         const bootText = `❖ ─── ✦ 𝐁𝐎𝐓 𝐀𝐂𝐓𝐈𝐕𝐄 ✦ ─── ❖\n\n` +
@@ -218,8 +237,9 @@ async function startBot() {
           contextInfo: {
             forwardingScore: 999,
             isForwarded: true,
+            // Sirf Channel Banner aur native "View channel" button aayega
             forwardedNewsletterMessageInfo: {
-              newsletterJid: '120363427491383372@newsletter',
+              newsletterJid: '120363427491383372@newsletter', // Aapki Channel JID
               newsletterName: `✨ ${botName} Official`,
               serverMessageId: -1
             }
@@ -229,9 +249,7 @@ async function startBot() {
       } catch (err) {
         console.log('[⚠️] Warning: Failed to send boot message.', err);
       }
-
-      // 🔴 Boot message bhejne ke BAAD sirf ek baar unavailable set karein
-      await sock.sendPresenceUpdate('unavailable');
+      // ==========================================
 
       const now = Date.now();
       for (const [jid, chatMsgs] of store.messages.entries()) {
