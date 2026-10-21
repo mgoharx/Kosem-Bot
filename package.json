@@ -2,11 +2,11 @@
     "name": "whatsapp-md-bot",
     "version": "1.0.0",
     "description": "WhatsApp MD-Style Multi-Command Bot with Baileys",
-    "main": "server.js",
+    "main": "index.js",
     "type": "commonjs",
     "scripts": {
-        "start": "node server.js",
-        "dev": "nodemon server.js",
+        "start": "node index.js",
+        "dev": "nodemon index.js",
         "install:no-puppeteer": "PUPPETEER_SKIP_DOWNLOAD=true PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true npm install"
     },
     "keywords": [
