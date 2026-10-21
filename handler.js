@@ -886,17 +886,7 @@ if (isGroup) {
       }
     }
     
-    // Auto-typing
-// 🔴 THE FIX: LAST SEEN FREEZE 
-    // Forcefully keep status unavailable on every message
-    await sock.sendPresenceUpdate('unavailable', from);
-    
-    // Auto-typing (Composing signal block kar diya hai taake aap Online show na hon)
-    if (config.autoTyping) {
-      // await sock.sendPresenceUpdate('composing', from); // ❌ YEHI LINE MUJRIM THI!
-    }
-    
-    // Execute command
+    // Execute command (Presence update hata diya gaya hai taake Last Seen update na ho)
     console.log(`Executing command: ${commandName} from ${sender}`);
     
     await command.execute(sock, msg, args, {
